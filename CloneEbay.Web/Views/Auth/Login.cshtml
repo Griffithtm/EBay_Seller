@@ -1,0 +1,47 @@
+@model LoginViewModel
+@{ ViewData["Title"] = "Đăng nhập"; }
+
+<section class="auth-layout reveal">
+    <aside class="auth-story">
+        <a class="auth-back" asp-controller="Home" asp-action="Index"><span>←</span> Về trang chủ</a>
+        <div class="auth-story-content">
+            <span class="section-kicker light">SELLER CENTER</span>
+            <h1>Chào mừng bạn<br/>quay trở lại.</h1>
+            <p>Tiếp tục xây dựng cửa hàng, theo dõi xác minh và quản lý hiện diện thương hiệu của bạn.</p>
+            <div class="auth-testimonial">
+                <div class="quote-mark">“</div>
+                <blockquote>Một quy trình rõ ràng giúp Seller tập trung vào điều quan trọng nhất: phát triển kinh doanh.</blockquote>
+                <div><span class="avatar avatar-warm">S</span><p><strong>Seller Community</strong><small>CloneEbay Vietnam</small></p></div>
+            </div>
+        </div>
+        <div class="auth-orb auth-orb-one"></div><div class="auth-orb auth-orb-two"></div>
+    </aside>
+
+    <div class="auth-form-zone">
+        <div class="auth-card-pro">
+            <div class="auth-card-heading"><span class="auth-step-label">ĐĂNG NHẬP AN TOÀN</span><h2>Truy cập Seller Center</h2><p>Nhập thông tin tài khoản để tiếp tục.</p></div>
+            <form method="post" data-loading-form>
+                <input asp-for="ReturnUrl" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                <div class="field-group">
+                    <label asp-for="Email" class="form-label"></label>
+                    <div class="input-shell"><input asp-for="Email" class="form-control" autocomplete="email" autofocus placeholder="seller@example.com" /><span class="field-mark">@@</span></div>
+                    <span asp-validation-for="Email" class="field-validation"></span>
+                </div>
+                <div class="field-group">
+                    <div class="label-row"><label asp-for="Password" class="form-label"></label><span class="secure-label"><i></i>Mã hóa an toàn</span></div>
+                    <div class="input-shell"><input asp-for="Password" class="form-control has-action" autocomplete="current-password" placeholder="Nhập mật khẩu" /><button class="input-action" type="button" data-password-toggle data-target="Password">Hiện</button></div>
+                    <span asp-validation-for="Password" class="field-validation"></span>
+                </div>
+                <div class="form-options"><label class="check-control"><input type="checkbox" checked /><span></span>Giữ đăng nhập trên thiết bị này</label></div>
+                <button class="btn btn-primary btn-lg w-100 submit-button" type="submit" data-loading-text="Đang xác thực..."><span>Đăng nhập</span><b aria-hidden="true">→</b></button>
+            </form>
+            <div class="auth-divider"><span>Chưa có tài khoản?</span></div>
+            <a class="btn btn-secondary-soft w-100" asp-action="Register">Tạo tài khoản Seller mới</a>
+            <div class="security-footnote"><span>◆</span><p><strong>Phiên đăng nhập được bảo vệ</strong><small>Access token ngắn hạn và refresh token có thể thu hồi.</small></p></div>
+        </div>
+    </div>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+

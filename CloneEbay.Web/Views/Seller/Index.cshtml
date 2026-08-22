@@ -1,0 +1,61 @@
+@model SellerVerificationDto?
+@{
+    ViewData["Title"] = "Trạng thái Seller";
+    var status = Model?.Status ?? "NotStarted";
+}
+
+<section class="dashboard-header reveal">
+    <div><span class="section-kicker">SELLER VERIFICATION</span><h1>Trạng thái tài khoản người bán</h1><p>Theo dõi hành trình xác minh và bước tiếp theo của bạn.</p></div>
+    <div class="header-security"><span>◆</span><div><strong>Kiểm tra theo thời gian thực</strong><small>Dữ liệu đồng bộ trực tiếp từ hệ thống</small></div></div>
+</section>
+
+@if (Model is null || !Model.HasApplication)
+{
+    <section class="onboarding-empty reveal">
+        <div class="empty-art"><div class="empty-shop"><i></i><i></i><span></span></div><div class="spark spark-a"></div><div class="spark spark-b"></div></div>
+        <div class="empty-copy"><span class="status-pill neutral"><i></i>Chưa bắt đầu</span><h2>Sẵn sàng trở thành người bán?</h2><p>Gửi hồ sơ xác minh để mở khóa công cụ bán hàng và tạo cửa hàng công khai của riêng bạn.</p>
+            <ul class="benefit-list"><li><span>✓</span>Hồ sơ cửa hàng chuyên nghiệp</li><li><span>✓</span>Quyền truy cập module Seller</li><li><span>✓</span>Seller Verified Guard bảo vệ tài khoản</li></ul>
+            <a class="btn btn-primary btn-lg" asp-action="Apply">Bắt đầu xác minh <span aria-hidden="true">→</span></a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="status-overview status-@status.ToLowerInvariant() reveal">
+        <div class="status-primary">
+            <div class="status-art"><span>@(status == "Approved" ? "✓" : status == "Rejected" ? "!" : "…")</span><i></i></div>
+            <div>
+                <span class="status-pill @status.ToLowerInvariant()"><i></i>@(status == "Approved" ? "Đã xác minh" : status == "Rejected" ? "Cần bổ sung" : "Đang xét duyệt")</span>
+                <h2>@(status == "Approved" ? "Cửa hàng của bạn đã sẵn sàng." : status == "Rejected" ? "Hồ sơ cần được cập nhật." : "Hồ sơ đang được xem xét.")</h2>
+                <p>@(status == "Approved" ? "Bạn đã có quyền Seller và có thể hoàn thiện hồ sơ cửa hàng." : status == "Rejected" ? "Xem lý do bên dưới, cập nhật thông tin và gửi lại hồ sơ." : "Tài khoản vẫn là Buyer trong thời gian chờ duyệt. Bạn không cần gửi lại hồ sơ.")</p>
+            </div>
+        </div>
+        <div class="status-meta-grid">
+            <div><small>TÊN CỬA HÀNG</small><strong>@Model.StoreName</strong></div>
+            <div><small>NGÀY GỬI</small><strong>@Model.SubmittedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</strong></div>
+            <div><small>MÃ HỒ SƠ</small><strong>#SELLER-@Model.StoreId?.ToString("D5")</strong></div>
+        </div>
+    </section>
+
+    <section class="verification-progress reveal reveal-delay-1">
+        <div class="surface-heading compact-heading"><div><h2>Tiến trình xác minh</h2><p>Mỗi bước đều được ghi nhận và cập nhật tự động.</p></div><span class="progress-value">@(status == "Approved" ? "100%" : status == "Rejected" ? "50%" : "66%")</span></div>
+        <ol class="horizontal-timeline">
+            <li class="done"><span>✓</span><div><strong>Đã gửi hồ sơ</strong><small>@Model.SubmittedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy")</small></div></li>
+            <li class="@(status == "Pending" ? "current" : "done")"><span>@(status == "Pending" ? "2" : "✓")</span><div><strong>Kiểm tra thông tin</strong><small>@(status == "Pending" ? "Đang xử lý" : "Đã hoàn tất")</small></div></li>
+            <li class="@(status == "Approved" ? "done" : status == "Rejected" ? "blocked" : string.Empty)"><span>@(status == "Approved" ? "✓" : status == "Rejected" ? "!" : "3")</span><div><strong>Kích hoạt Seller</strong><small>@(status == "Approved" ? "Đã cấp quyền" : status == "Rejected" ? "Tạm dừng" : "Chờ xác nhận")</small></div></li>
+        </ol>
+    </section>
+
+    @if (status == "Pending")
+    {
+        <div class="context-banner banner-info reveal reveal-delay-2"><span class="context-icon">i</span><div><strong>Hồ sơ đang được bảo vệ khỏi gửi trùng</strong><p>Bạn sẽ thấy trạng thái mới ngay tại trang này khi Admin hoàn tất xét duyệt.</p></div><span class="live-indicator"><i></i>Đang theo dõi</span></div>
+    }
+    else if (status == "Rejected")
+    {
+        <div class="context-banner banner-danger reveal reveal-delay-2"><span class="context-icon">!</span><div><strong>Lý do hồ sơ chưa được duyệt</strong><p>@(Model.RejectionReason ?? "Thông tin hồ sơ chưa đáp ứng yêu cầu xác minh.")</p></div><a class="btn btn-danger-soft" asp-action="Apply">Cập nhật và gửi lại</a></div>
+    }
+    else if (status == "Approved")
+    {
+        <div class="context-banner banner-success reveal reveal-delay-2"><span class="context-icon">✓</span><div><strong>Bước tiếp theo: xây dựng thương hiệu cửa hàng</strong><p>Thêm ảnh bìa và mô tả hấp dẫn để tạo niềm tin với người mua.</p></div><a class="btn btn-primary" asp-controller="Store" asp-action="Edit">Hoàn thiện Store <span aria-hidden="true">→</span></a></div>
+    }
+}

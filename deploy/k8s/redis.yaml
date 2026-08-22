@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloneebay-redis
+  namespace: cloneebay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloneebay-redis
+  template:
+    metadata:
+      labels:
+        app: cloneebay-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          command: ["/bin/sh", "-c"]
+          args: ["exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloneebay-secrets
+                  key: RedisPassword
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: cloneebay-redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloneebay-redis
+  namespace: cloneebay
+spec:
+  selector:
+    app: cloneebay-redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloneebay-redis-data
+  namespace: cloneebay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

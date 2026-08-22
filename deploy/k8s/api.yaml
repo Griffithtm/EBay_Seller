@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloneebay-api
+  namespace: cloneebay
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: cloneebay-api
+  template:
+    metadata:
+      labels:
+        app: cloneebay-api
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: cloneebay-api:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cloneebay-config
+            - secretRef:
+                name: cloneebay-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: store-uploads
+              mountPath: /app/wwwroot/uploads
+            - name: data-protection-keys
+              mountPath: /var/cloneebay/keys
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+            periodSeconds: 3
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      volumes:
+        - name: store-uploads
+          persistentVolumeClaim:
+            claimName: cloneebay-store-uploads
+        - name: data-protection-keys
+          persistentVolumeClaim:
+            claimName: cloneebay-web-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloneebay-api
+  namespace: cloneebay
+spec:
+  selector:
+    app: cloneebay-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloneebay-store-uploads
+  namespace: cloneebay
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi

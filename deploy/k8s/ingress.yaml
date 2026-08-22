@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloneebay
+  namespace: cloneebay
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: seller.cloneebay.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cloneebay-api
+                port:
+                  name: http
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: cloneebay-api
+                port:
+                  name: http
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: cloneebay-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cloneebay-web
+                port:
+                  name: http

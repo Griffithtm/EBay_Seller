@@ -1,0 +1,85 @@
+@model StoreProfileViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Hồ sơ cửa hàng";
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    var bannerUrl = string.IsNullOrWhiteSpace(Model.CurrentBannerImageUrl)
+        ? null
+        : Uri.TryCreate(Model.CurrentBannerImageUrl, UriKind.Absolute, out _)
+            ? Model.CurrentBannerImageUrl
+            : $"{apiBase.TrimEnd('/')}/{Model.CurrentBannerImageUrl.TrimStart('/')}";
+    var storeInitial = string.IsNullOrWhiteSpace(Model.StoreName) ? "S" : Model.StoreName[..1].ToUpperInvariant();
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Hồ sơ cửa hàng</strong></div>
+
+<section class="page-intro store-editor-intro reveal">
+    <div><span class="section-kicker">STORE STUDIO</span><h1>Biến cửa hàng thành<br/>một thương hiệu đáng nhớ.</h1><p>Chỉnh sửa nội dung và xem ngay trải nghiệm mà người mua sẽ nhìn thấy.</p></div>
+    <a class="btn btn-secondary-soft" asp-action="Public" asp-route-sellerId="@Model.SellerId" target="_blank" rel="noopener">Xem trang công khai <span aria-hidden="true">↗</span></a>
+</section>
+
+<div class="store-editor-grid">
+    <section class="form-surface reveal">
+        <div class="surface-heading"><span class="surface-number">01</span><div><h2>Nhận diện cửa hàng</h2><p>Giữ thông tin ngắn gọn, nhất quán và dễ ghi nhớ.</p></div></div>
+        <form method="post" enctype="multipart/form-data" data-loading-form>
+            <input asp-for="SellerId" type="hidden" />
+            <input asp-for="CurrentBannerImageUrl" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+            <div class="field-group">
+                <div class="label-row"><label asp-for="StoreName" class="form-label"></label><span class="field-requirement">Bắt buộc</span></div>
+                <input asp-for="StoreName" class="form-control" data-store-name-input placeholder="Tên thương hiệu của bạn" />
+                <span asp-validation-for="StoreName" class="field-validation"></span>
+            </div>
+
+            <div class="field-group">
+                <div class="label-row"><label asp-for="Description" class="form-label"></label><span class="character-count"><b data-character-count="Description">@(Model.Description?.Length ?? 0)</b>/2000</span></div>
+                <textarea asp-for="Description" class="form-control store-description" rows="7" data-store-description-input placeholder="Kể cho người mua điều gì làm cửa hàng của bạn khác biệt..."></textarea>
+                <span asp-validation-for="Description" class="field-validation"></span>
+                <small class="field-hint">Gợi ý: nêu rõ nhóm sản phẩm, cam kết chất lượng và phong cách phục vụ.</small>
+            </div>
+
+            <div class="field-group">
+                <label asp-for="Banner" class="form-label"></label>
+                <label class="upload-zone" for="Banner">
+                    <input asp-for="Banner" accept="image/jpeg,image/png,image/webp" data-banner-input />
+                    <span class="upload-icon" aria-hidden="true"><i></i></span>
+                    <span><strong>Kéo thả hoặc chọn ảnh từ thiết bị</strong><small>JPG, PNG hoặc WEBP · tối đa 5 MB · đề xuất 1600 × 600 px</small></span>
+                    <b>Chọn ảnh</b>
+                </label>
+                <div class="upload-feedback" data-upload-feedback aria-live="polite"></div>
+                <span asp-validation-for="Banner" class="field-validation"></span>
+            </div>
+
+            <div class="privacy-note"><span>✓</span><p><strong>Tối ưu an toàn</strong><small>Máy chủ xác thực cả định dạng, kích thước và nội dung thật của ảnh trước khi lưu.</small></p></div>
+            <div class="form-footer"><a class="btn btn-secondary-soft" asp-controller="Seller" asp-action="Index">Quay lại</a><button class="btn btn-primary" type="submit" data-loading-text="Đang lưu thay đổi..."><span>Lưu hồ sơ cửa hàng</span><b aria-hidden="true">→</b></button></div>
+        </form>
+    </section>
+
+    <aside class="store-preview-column reveal reveal-delay-1">
+        <div class="preview-label"><span><i></i>LIVE PREVIEW</span><small>Giao diện người mua</small></div>
+        <div class="store-preview-card">
+            <div class="preview-banner @(bannerUrl is null ? "is-empty" : string.Empty)" data-banner-preview>
+                @if (bannerUrl is not null)
+                {
+                    <img src="@bannerUrl" alt="Ảnh bìa hiện tại của @Model.StoreName" data-banner-image />
+                }
+                else
+                {
+                    <div class="banner-placeholder" data-banner-placeholder><i></i><span>Ảnh bìa cửa hàng</span></div>
+                }
+                <span class="preview-chip">Seller Verified</span>
+            </div>
+            <div class="preview-content">
+                <span class="preview-avatar" data-store-initial>@storeInitial</span>
+                <div class="preview-title"><div><h3 data-store-name-preview>@Model.StoreName</h3><span><i>✓</i> Đã xác minh</span></div><button type="button" aria-label="Theo dõi bản xem trước">+ Theo dõi</button></div>
+                <p data-store-description-preview>@(string.IsNullOrWhiteSpace(Model.Description) ? "Mô tả cửa hàng sẽ xuất hiện ở đây. Hãy kể câu chuyện thương hiệu thật ngắn gọn và cuốn hút." : Model.Description)</p>
+                <div class="preview-metrics"><span><strong>100%</strong><small>Người bán uy tín</small></span><span><strong>24h</strong><small>Phản hồi dự kiến</small></span><span><strong>✓</strong><small>Đã xác minh</small></span></div>
+            </div>
+        </div>
+        <div class="preview-tip"><span>✦</span><p><strong>Mẹo xây thương hiệu</strong><small>Ảnh bìa sáng, tên ngắn và mô tả có cam kết rõ ràng thường tạo cảm giác đáng tin cậy hơn.</small></p></div>
+    </aside>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+

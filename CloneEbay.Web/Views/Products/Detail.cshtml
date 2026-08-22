@@ -1,0 +1,105 @@
+@model ProductDetailViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = Model.Product.Title;
+    var product = Model.Product;
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    string MediaUrl(string path) => Uri.TryCreate(path, UriKind.Absolute, out _) ? path : $"{apiBase.TrimEnd('/')}/{path.TrimStart('/')}";
+    var auctionOpen = product.IsAuction && product.Status == "Active" && product.AuctionEndTime > DateTime.UtcNow;
+    var currentPrice = product.HighestBid ?? product.Price;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">CloneEbay</a><span>›</span><a asp-controller="Store" asp-action="Public" asp-route-sellerId="@product.SellerId">@@@product.SellerUsername</a><span>›</span><strong>Sản phẩm</strong></div>
+
+<article class="product-detail-layout reveal">
+    <section class="product-gallery" data-product-gallery>
+        <div class="product-gallery-main">
+            @if (product.Images.Count > 0)
+            {
+                <img src="@MediaUrl(product.Images[0])" alt="@product.Title" data-gallery-main />
+            }
+            else
+            {
+                <span class="product-placeholder product-placeholder-large variant-@(product.Id % 4)" aria-hidden="true"><i></i><b>@product.Title[..1].ToUpperInvariant()</b></span>
+            }
+            <span class="listing-type @(product.IsAuction ? "auction" : "fixed")">@(product.IsAuction ? "Đấu giá trực tiếp" : "Mua ngay")</span>
+        </div>
+        @if (product.Images.Count > 1)
+        {
+            <div class="product-gallery-thumbs">
+                @for (var index = 0; index < product.Images.Count; index++)
+                {
+                    <button class="@(index == 0 ? "is-active" : string.Empty)" type="button" data-gallery-thumb data-src="@MediaUrl(product.Images[index])" aria-label="Xem ảnh @(index + 1)"><img src="@MediaUrl(product.Images[index])" alt="" /></button>
+                }
+            </div>
+        }
+        <div class="gallery-assurance"><span>◆</span><p><strong>Hình ảnh do Seller cung cấp</strong><small>Kiểm tra kỹ mô tả và thông tin listing trước khi giao dịch.</small></p></div>
+    </section>
+
+    <section class="product-purchase-panel">
+        <div class="product-detail-heading"><span class="preview-category">@product.CategoryName</span><h1>@product.Title</h1><p class="listing-reference">Mã listing #PRD-@product.Id.ToString("D6") · cập nhật @product.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy")</p></div>
+        <div class="purchase-price-block">
+            <small>@(product.IsAuction ? product.HighestBid.HasValue ? "GIÁ CAO NHẤT HIỆN TẠI" : "GIÁ KHỞI ĐIỂM" : "GIÁ NIÊM YẾT")</small>
+            <strong>@currentPrice.ToString("N0") <span>₫</span></strong>
+            @if (product.IsAuction) { <p>@product.BidCount lượt đặt giá</p> }
+        </div>
+
+        @if (product.IsAuction)
+        {
+            <div class="auction-clock @(auctionOpen ? string.Empty : "is-ended")"><span class="auction-clock-icon">◆</span><div><small>@(auctionOpen ? "PHIÊN ĐẤU GIÁ KẾT THÚC SAU" : "TRẠNG THÁI PHIÊN")</small><strong data-auction-countdown data-end="@product.AuctionEndTime?.ToUniversalTime().ToString("O")">@(auctionOpen ? "Đang tính..." : "Đã kết thúc")</strong></div></div>
+        }
+
+        <div class="stock-signal @(product.Inventory.Quantity > 0 ? "in-stock" : "out-stock")"><span></span><div><strong>@(product.Inventory.Quantity > 0 ? "Sẵn hàng" : "Tạm hết hàng")</strong><small>@(product.Inventory.Quantity > 0 ? $"Còn {product.Inventory.Quantity} sản phẩm trong kho" : "Seller đang cập nhật tồn kho")</small></div></div>
+
+        @if (product.IsAuction && auctionOpen && !Model.IsOwner)
+        {
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form class="bid-form" asp-action="Bid" asp-route-id="@product.Id" method="post" data-loading-form>
+                    <label for="bidAmount">Giá bạn muốn đặt</label><div class="money-input bid-money"><input id="bidAmount" name="bidAmount" type="number" min="@(currentPrice + 1)" step="1" value="@Model.BidAmount" required /><span>VND</span></div><small>Giá tối thiểu: @((currentPrice + 1).ToString("N0")) ₫</small>
+                    <button class="btn btn-primary btn-lg w-100" type="submit" data-loading-text="Đang đặt giá..."><span>Đặt giá ngay</span><b>→</b></button>
+                </form>
+            }
+            else
+            {
+                <a class="btn btn-primary btn-lg w-100" asp-controller="Auth" asp-action="Login" asp-route-returnUrl="/products/@product.Id">Đăng nhập để đặt giá <span>→</span></a>
+            }
+        }
+        else if (!product.IsAuction && product.Inventory.Quantity > 0)
+        {
+            <button class="btn btn-primary btn-lg w-100" type="button" disabled>Mua ngay · Module Order đang tích hợp</button>
+        }
+
+        @if (Model.IsOwner)
+        {
+            <div class="owner-listing-panel"><span>✓</span><div><strong>Đây là listing của bạn</strong><small>Bạn có thể chỉnh sửa nội dung hoặc theo dõi các lượt bid.</small></div><a class="btn btn-secondary-soft" asp-action="Edit" asp-route-id="@product.Id">Chỉnh sửa</a></div>
+        }
+
+        <div class="seller-card-mini"><span class="seller-avatar">@product.SellerUsername[..1].ToUpperInvariant()</span><div><small>ĐƯỢC BÁN BỞI</small><strong>@@@product.SellerUsername <i>✓</i></strong><p>Seller đã xác minh</p></div><a asp-controller="Store" asp-action="Public" asp-route-sellerId="@product.SellerId">Xem Store →</a></div>
+        <div class="purchase-protection"><span>◆</span><p><strong>Buyer protection</strong><small>Thông tin Seller đã được xác minh trong hệ thống CloneEbay.</small></p></div>
+    </section>
+</article>
+
+<section class="product-detail-content reveal reveal-delay-1">
+    <article class="product-description-panel"><span class="section-kicker">CHI TIẾT LISTING</span><h2>Về sản phẩm này</h2><p>@product.Description</p><div class="product-spec-grid"><span><small>HÌNH THỨC</small><strong>@(product.IsAuction ? "Auction" : "Fixed price")</strong></span><span><small>DANH MỤC</small><strong>@product.CategoryName</strong></span><span><small>TÌNH TRẠNG</small><strong>@(product.Status == "Active" ? "Đang bán" : product.Status == "OutOfStock" ? "Hết hàng" : product.Status == "Hidden" ? "Đang ẩn" : "Đã kết thúc")</strong></span></div></article>
+    <aside class="listing-timeline"><h3>Listing activity</h3><ol><li class="done"><span>✓</span><p><strong>Listing được tạo</strong><small>@product.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</small></p></li><li class="done"><span>✓</span><p><strong>Tồn kho đã đồng bộ</strong><small>@product.Inventory.LastUpdated.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</small></p></li>@if (product.IsAuction) { <li class="@(product.Status == "AuctionEnded" ? "done" : "current")"><span>@(product.Status == "AuctionEnded" ? "✓" : "3")</span><p><strong>@(product.Status == "AuctionEnded" ? "Phiên đã đóng" : "Đang nhận bid")</strong><small>@product.BidCount lượt đặt giá</small></p></li> }</ol></aside>
+</section>
+
+@if (Model.IsOwner && product.IsAuction)
+{
+    <section class="bid-ledger reveal reveal-delay-2">
+        <div class="surface-heading compact-heading"><div><span class="section-kicker">AUCTION CONTROL</span><h2>Sổ đấu giá</h2><p>Theo dõi thứ hạng bid; hệ thống tự đóng phiên khi hết thời gian.</p></div><span class="progress-value">@(Model.Bids?.TotalBids ?? 0) bid</span></div>
+        @if (Model.Bids is null || Model.Bids.Items.Count == 0)
+        {
+            <div class="bid-empty"><span>◇</span><p><strong>Chưa có lượt đặt giá</strong><small>Bid đầu tiên sẽ xuất hiện tại đây theo thời gian thực khi tải lại trang.</small></p></div>
+        }
+        else
+        {
+            <div class="bid-table">@for (var index = 0; index < Model.Bids.Items.Count; index++) { var bid = Model.Bids.Items[index]; <div class="bid-row"><span class="bid-rank">#@(index + 1)</span><span class="seller-avatar">@(string.IsNullOrWhiteSpace(bid.BidderUsername) ? "B" : bid.BidderUsername[..1].ToUpperInvariant())</span><p><strong>@(string.IsNullOrWhiteSpace(bid.BidderUsername) ? $"Buyer #{bid.BidderId}" : bid.BidderUsername)</strong><small>@bid.BidTime.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</small></p><b>@bid.Amount.ToString("N0") ₫</b></div> }</div>
+        }
+        @if (product.Status != "AuctionEnded")
+        {
+            <form class="auction-close-bar" asp-action="CloseAuction" asp-route-id="@product.Id" method="post" data-loading-form data-confirm="Chốt phiên đấu giá này? Chỉ có thể chốt sau thời điểm kết thúc."><p><strong>Đóng phiên thủ công</strong><small>Người có bid cao nhất sẽ được ghi nhận để Module Order tạo đơn.</small></p><button class="btn btn-secondary-soft" type="submit" data-loading-text="Đang chốt phiên..."><span>Chốt phiên đấu giá</span></button></form>
+        }
+    </section>
+}

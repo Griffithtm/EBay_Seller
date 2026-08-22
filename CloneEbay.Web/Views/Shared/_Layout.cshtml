@@ -1,0 +1,131 @@
+@{
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var displayName = User.Identity?.Name ?? "Seller";
+    var initial = displayName.Length > 0 ? displayName[..1].ToUpperInvariant() : "S";
+    var roleLabel = User.IsInRole("Admin")
+        ? "Quản trị viên"
+        : User.IsInRole("Seller") && User.HasClaim("verified", "true")
+            ? "Người bán đã xác minh"
+            : "Tài khoản người mua";
+    string Active(string prefix) => currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3155d9" />
+    <meta name="description" content="CloneEbay Seller Center — xác minh người bán và xây dựng cửa hàng chuyên nghiệp." />
+    <title>@ViewData["Title"] · CloneEbay Seller</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/CloneEbay.Web.styles.css" asp-append-version="true" />
+</head>
+<body class="@(signedIn ? "has-session" : "is-guest")">
+    <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
+
+    <header class="site-header" data-site-header>
+        <nav class="navbar navbar-expand-lg" aria-label="Điều hướng chính">
+            <div class="container shell-container">
+                <a class="brand" asp-controller="Home" asp-action="Index" aria-label="CloneEbay Seller Center - Trang chủ">
+                    <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    <span class="brand-copy"><strong>CloneEbay</strong><small>Seller Center</small></span>
+                </a>
+
+                <button class="nav-toggle navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-expanded="false" aria-label="Mở menu">
+                    <span></span><span></span><span></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="mainNavigation">
+                    <ul class="navbar-nav primary-nav mx-lg-auto">
+                        <li class="nav-item"><a class="nav-link @(currentPath == "/" ? "is-active" : string.Empty)" asp-controller="Home" asp-action="Index">Tổng quan</a></li>
+                        @if (signedIn)
+                        {
+                            <li class="nav-item"><a class="nav-link @Active("/seller")" asp-controller="Seller" asp-action="Index">Xác minh Seller</a></li>
+                            @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
+                            {
+                                <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
+                            }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item"><a class="nav-link @Active("/admin")" asp-controller="AdminSeller" asp-action="Index">Duyệt hồ sơ</a></li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="nav-item"><a class="nav-link" href="/#capabilities">Tính năng</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/#how-it-works">Quy trình</a></li>
+                        }
+                    </ul>
+
+                    <div class="nav-actions">
+                        @if (signedIn)
+                        {
+                            <div class="dropdown account-menu">
+                                <button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="avatar">@initial</span>
+                                    <span class="account-copy"><strong>@displayName</strong><small>@roleLabel</small></span>
+                                    <span class="chevron" aria-hidden="true"></span>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end account-dropdown">
+                                    <div class="dropdown-heading"><span class="avatar avatar-lg">@initial</span><div><strong>@displayName</strong><small>@roleLabel</small></div></div>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" asp-controller="Seller" asp-action="Index"><span class="menu-dot blue"></span>Trạng thái Seller</a>
+                                    @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
+                                    {
+                                        <a class="dropdown-item" asp-controller="Products" asp-action="Index"><span class="menu-dot violet"></span>Quản lý sản phẩm</a>
+                                        <a class="dropdown-item" asp-controller="Store" asp-action="Edit"><span class="menu-dot orange"></span>Quản lý cửa hàng</a>
+                                    }
+                                    <div class="dropdown-divider"></div>
+                                    <form asp-controller="Auth" asp-action="Logout" method="post" data-loading-form>
+                                        <button class="dropdown-item text-danger" type="submit"><span class="menu-dot red"></span>Đăng xuất</button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <a class="nav-signin" asp-controller="Auth" asp-action="Login">Đăng nhập</a>
+                            <a class="btn btn-primary btn-sm nav-cta" asp-controller="Auth" asp-action="Register">Bắt đầu bán hàng</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="toast-region" aria-live="polite" aria-atomic="true">
+        @if (TempData["Success"] is string success)
+        {
+            <div class="app-toast toast-success" data-auto-dismiss><span class="toast-icon">✓</span><div><strong>Thành công</strong><p>@success</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        }
+        @if (TempData["Error"] is string error)
+        {
+            <div class="app-toast toast-error" data-auto-dismiss><span class="toast-icon">!</span><div><strong>Chưa thể hoàn tất</strong><p>@error</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        }
+    </div>
+
+    <main id="main-content" class="site-main" tabindex="-1">
+        <div class="container shell-container">@RenderBody()</div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container shell-container footer-grid">
+            <a class="brand brand-footer" asp-controller="Home" asp-action="Index">
+                <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span class="brand-copy"><strong>CloneEbay</strong><small>Seller Center</small></span>
+            </a>
+            <p>Nền tảng xác minh người bán và quản trị cửa hàng an toàn, hiện đại. <a asp-controller="Home" asp-action="Privacy">Quyền riêng tư</a></p>
+            <div class="system-status"><span></span>Hệ thống hoạt động bình thường</div>
+            <small>© 2026 CloneEbay · Seller Platform · Role 1 + Role 2</small>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloneebay-config
+  namespace: cloneebay
+data:
+  ASPNETCORE_ENVIRONMENT: Production
+  Jwt__Issuer: CloneEbay.API
+  Jwt__Audience: CloneEbay.Client
+  Database__ApplyMigrationsAtStartup: "false"
+  Api__BaseUrl: http://cloneebay-api
+  Api__PublicBaseUrl: ""
+  DataProtection__KeysPath: /var/cloneebay/keys
+  Redis__Enabled: "true"
+  RateLimiting__ProductCreatesPerHour: "20"

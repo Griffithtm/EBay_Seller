@@ -1,0 +1,73 @@
+@model SellerApplyViewModel
+@{ ViewData["Title"] = "Đăng ký Seller"; }
+
+<div class="page-breadcrumb reveal"><a asp-action="Index">Seller Center</a><span>›</span><strong>Đăng ký người bán</strong></div>
+
+<section class="page-intro reveal">
+    <div><span class="section-kicker">SELLER ONBOARDING</span><h1>Mở cánh cửa kinh doanh của bạn.</h1><p>Cung cấp thông tin cơ bản để đội ngũ xác minh và khởi tạo cửa hàng.</p></div>
+    <div class="intro-progress"><span><i></i></span><div><strong>Bước 1 / 2</strong><small>Thông tin xác minh</small></div></div>
+</section>
+
+<div class="onboarding-grid">
+    <section class="form-surface reveal">
+        <div class="surface-heading"><span class="surface-number">01</span><div><h2>Thông tin người bán</h2><p>Thông tin này chỉ dùng cho quá trình xác minh nội bộ.</p></div></div>
+        <form method="post" data-loading-form>
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+            <fieldset class="field-group">
+                <legend class="form-label">Bạn đăng ký với tư cách nào?</legend>
+                <div class="seller-type-grid">
+                    <label class="choice-card">
+                        <input asp-for="SellerType" type="radio" value="Individual" />
+                        <span class="choice-art individual-art"><i></i></span>
+                        <span><strong>Cá nhân</strong><small>Bán hàng dưới tên cá nhân</small></span><b>✓</b>
+                    </label>
+                    <label class="choice-card">
+                        <input asp-for="SellerType" type="radio" value="Business" />
+                        <span class="choice-art business-art"><i></i></span>
+                        <span><strong>Doanh nghiệp</strong><small>Đại diện tổ chức / công ty</small></span><b>✓</b>
+                    </label>
+                </div>
+                <span asp-validation-for="SellerType" class="field-validation"></span>
+            </fieldset>
+
+            <div class="field-group">
+                <label asp-for="LegalName" class="form-label"></label>
+                <input asp-for="LegalName" class="form-control" autocomplete="name" placeholder="Nguyễn Văn A hoặc Công ty ABC" />
+                <span asp-validation-for="LegalName" class="field-validation"></span>
+                <small class="field-hint">Nhập đúng như trên giấy tờ định danh hoặc đăng ký doanh nghiệp.</small>
+            </div>
+
+            <div class="form-row">
+                <div class="field-group">
+                    <label asp-for="ContactPhone" class="form-label"></label>
+                    <div class="input-shell"><input asp-for="ContactPhone" class="form-control phone-input" autocomplete="tel" placeholder="090 123 4567" /><span class="phone-prefix">VN +84</span></div>
+                    <span asp-validation-for="ContactPhone" class="field-validation"></span>
+                </div>
+                <div class="field-group">
+                    <label asp-for="StoreName" class="form-label"></label>
+                    <input asp-for="StoreName" class="form-control" placeholder="Ví dụ: Nova Tech Store" />
+                    <span asp-validation-for="StoreName" class="field-validation"></span>
+                </div>
+            </div>
+
+            <div class="privacy-note"><span>◆</span><p><strong>Dữ liệu của bạn được bảo vệ</strong><small>Thông tin pháp lý và liên hệ không hiển thị công khai trên trang cửa hàng.</small></p></div>
+            <div class="form-footer"><a class="btn btn-secondary-soft" asp-action="Index">Hủy</a><button class="btn btn-primary" type="submit" data-loading-text="Đang gửi hồ sơ..."><span>Gửi hồ sơ xác minh</span><b aria-hidden="true">→</b></button></div>
+        </form>
+    </section>
+
+    <aside class="onboarding-aside reveal reveal-delay-1">
+        <div class="aside-card sticky-card">
+            <span class="section-kicker">LỘ TRÌNH CỦA BẠN</span>
+            <ol class="vertical-timeline">
+                <li class="current"><span>1</span><div><strong>Gửi thông tin</strong><small>Hồ sơ cá nhân / doanh nghiệp</small></div></li>
+                <li><span>2</span><div><strong>Chờ xét duyệt</strong><small>Admin kiểm tra thông tin</small></div></li>
+                <li><span>3</span><div><strong>Kích hoạt Seller</strong><small>Mở khóa quyền bán hàng</small></div></li>
+                <li><span>4</span><div><strong>Hoàn thiện Store</strong><small>Ảnh bìa, tên và mô tả</small></div></li>
+            </ol>
+            <div class="review-time"><span class="clock-art"><i></i></span><p><strong>Quy trình minh bạch</strong><small>Bạn luôn xem được trạng thái và lý do nếu hồ sơ cần bổ sung.</small></p></div>
+        </div>
+    </aside>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+

@@ -1,0 +1,9 @@
+.vs/
+**/bin/
+**/obj/
+**/*.user
+**/*.suo
+**/.data-protection/
+CloneEbay.API/wwwroot/uploads/
+deploy/k8s/secret.yaml
+.env

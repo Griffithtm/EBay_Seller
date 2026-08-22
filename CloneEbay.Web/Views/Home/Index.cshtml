@@ -1,0 +1,105 @@
+@{
+    ViewData["Title"] = "Seller Center";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+<section class="home-hero reveal">
+    <div class="hero-copy">
+        <div class="hero-pill"><span></span>Nền tảng dành riêng cho người bán</div>
+        <h1>Xây thương hiệu.<br/><em>Bán hàng tự tin.</em></h1>
+        <p class="hero-lead">Một không gian chuyên nghiệp để xác minh tài khoản, xây dựng hồ sơ cửa hàng và sẵn sàng tiếp cận hàng triệu người mua.</p>
+        <div class="hero-actions">
+            @if (signedIn)
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Seller" asp-action="Index">Mở Seller Center <span aria-hidden="true">→</span></a>
+                @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
+                {
+                    <a class="btn btn-secondary-soft btn-lg" asp-controller="Store" asp-action="Edit">Quản lý cửa hàng</a>
+                }
+            }
+            else
+            {
+                <a class="btn btn-primary btn-lg" asp-controller="Auth" asp-action="Register">Bắt đầu miễn phí <span aria-hidden="true">→</span></a>
+                <a class="btn btn-secondary-soft btn-lg" href="#how-it-works">Xem quy trình</a>
+            }
+        </div>
+        <div class="hero-assurance">
+            <span><i>✓</i> Đăng ký nhanh</span>
+            <span><i>✓</i> Xác minh minh bạch</span>
+            <span><i>✓</i> Bảo mật JWT</span>
+        </div>
+    </div>
+
+    <div class="hero-product" aria-label="Minh họa Seller Center">
+        <div class="ambient-orb orb-one"></div>
+        <div class="ambient-orb orb-two"></div>
+        <div class="product-window">
+            <div class="window-top"><span></span><span></span><span></span><small>seller.cloneebay</small></div>
+            <div class="window-body">
+                <div class="mini-sidebar">
+                    <div class="mini-brand"></div><i class="active"></i><i></i><i></i><i></i>
+                </div>
+                <div class="mini-content">
+                    <div class="mini-heading"><div><small>Xin chào, Hoàng</small><strong>Tổng quan cửa hàng</strong></div><span class="mini-avatar">H</span></div>
+                    <div class="mini-stats">
+                        <div><small>Trạng thái</small><strong class="verified-text"><b></b>Đã xác minh</strong></div>
+                        <div><small>Độ hoàn thiện</small><strong>92%</strong><span class="mini-progress"><i></i></span></div>
+                    </div>
+                    <div class="mini-panel">
+                        <div class="mini-panel-head"><strong>Hiệu suất hồ sơ</strong><small>30 ngày</small></div>
+                        <div class="mini-chart"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="mini-task"><span>✓</span><div><strong>Cửa hàng đã sẵn sàng</strong><small>Bắt đầu đăng sản phẩm đầu tiên</small></div><b>→</b></div>
+                </div>
+            </div>
+        </div>
+        <div class="floating-card floating-verified"><span>✓</span><div><strong>Seller Verified</strong><small>Vừa được phê duyệt</small></div></div>
+        <div class="floating-card floating-secure"><span>◆</span><div><strong>Bảo mật phiên</strong><small>JWT + Refresh Token</small></div></div>
+    </div>
+</section>
+
+<section class="proof-strip reveal reveal-delay-1" aria-label="Nền tảng đáng tin cậy">
+    <div><strong>01</strong><span>Hồ sơ Seller<br/>duy nhất</span></div>
+    <div><strong>3 bước</strong><span>Để bắt đầu<br/>bán hàng</span></div>
+    <div><strong>24/7</strong><span>Health check<br/>hệ thống</span></div>
+    <div><strong>Zero</strong><span>Downtime khi<br/>triển khai</span></div>
+</section>
+
+<section id="capabilities" class="section-block">
+    <div class="section-heading reveal">
+        <div><span class="section-kicker">ROLE 1 · NỀN TẢNG CỐT LÕI</span><h2>Mọi thứ Seller cần để bắt đầu đúng cách.</h2></div>
+        <p>Không chỉ là một form đăng ký. Đây là lớp nền tảng bảo mật và nhận diện cho toàn bộ hành trình bán hàng.</p>
+    </div>
+    <div class="capability-grid">
+        <article class="feature-card feature-blue reveal">
+            <span class="feature-index">01</span><div class="feature-icon"><i></i><i></i></div>
+            <h3>Tài khoản an toàn</h3><p>JWT access token, refresh token rotation và cơ chế khóa tạm thời khi phát hiện đăng nhập bất thường.</p>
+            <ul><li>Hash mật khẩu PBKDF2</li><li>Phân quyền Buyer · Seller · Admin</li></ul>
+        </article>
+        <article class="feature-card feature-orange reveal reveal-delay-1">
+            <span class="feature-index">02</span><div class="feature-icon verification-icon"><i></i><i></i></div>
+            <h3>Xác minh minh bạch</h3><p>Theo dõi trạng thái Pending, Approved hoặc Rejected với lý do và lộ trình rõ ràng.</p>
+            <ul><li>Hồ sơ cá nhân / doanh nghiệp</li><li>Admin review theo thời gian thực</li></ul>
+        </article>
+        <article class="feature-card feature-violet reveal reveal-delay-2">
+            <span class="feature-index">03</span><div class="feature-icon store-icon"><i></i><i></i></div>
+            <h3>Store Profile nổi bật</h3><p>Tạo hiện diện thương hiệu với tên cửa hàng, mô tả và ảnh bìa được kiểm tra an toàn.</p>
+            <ul><li>Preview trực tiếp trước khi lưu</li><li>Trang cửa hàng công khai</li></ul>
+        </article>
+    </div>
+</section>
+
+<section id="how-it-works" class="process-section section-block">
+    <div class="section-heading compact reveal"><div><span class="section-kicker">QUY TRÌNH ĐƠN GIẢN</span><h2>Từ tài khoản Buyer đến Seller đã xác minh.</h2></div></div>
+    <div class="process-grid">
+        <article class="process-step reveal"><span>1</span><div><small>BƯỚC 01</small><h3>Tạo tài khoản</h3><p>Đăng ký email và nhận tài khoản Buyer bảo mật.</p></div></article>
+        <article class="process-step reveal reveal-delay-1"><span>2</span><div><small>BƯỚC 02</small><h3>Gửi hồ sơ Seller</h3><p>Cung cấp thông tin định danh và tên cửa hàng dự kiến.</p></div></article>
+        <article class="process-step reveal reveal-delay-2"><span>3</span><div><small>BƯỚC 03</small><h3>Xây dựng cửa hàng</h3><p>Sau khi duyệt, hoàn thiện thương hiệu và bắt đầu bán.</p></div></article>
+    </div>
+</section>
+
+<section class="closing-cta reveal">
+    <div><span class="section-kicker light">SẴN SÀNG ĐỂ BẮT ĐẦU?</span><h2>Biến ý tưởng kinh doanh thành cửa hàng thật.</h2><p>Hoàn thiện hồ sơ Seller đầu tiên của bạn chỉ trong vài phút.</p></div>
+    <a class="btn btn-light btn-lg" asp-controller="@(signedIn ? "Seller" : "Auth")" asp-action="@(signedIn ? "Index" : "Register")">Bắt đầu ngay <span aria-hidden="true">→</span></a>
+</section>
+

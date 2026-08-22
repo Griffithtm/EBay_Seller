@@ -1,0 +1,57 @@
+@model RegisterViewModel
+@{ ViewData["Title"] = "Tạo tài khoản"; }
+
+<section class="auth-layout auth-register-layout reveal">
+    <aside class="auth-story auth-story-register">
+        <a class="auth-back" asp-controller="Home" asp-action="Index"><span>←</span> Về trang chủ</a>
+        <div class="auth-story-content">
+            <span class="section-kicker light">BẮT ĐẦU HÀNH TRÌNH</span>
+            <h1>Một tài khoản.<br/>Cả hệ sinh thái.</h1>
+            <p>Đăng ký với vai trò Buyer, sau đó nâng cấp Seller bằng quy trình xác minh minh bạch.</p>
+            <ol class="auth-roadmap">
+                <li class="active"><span>1</span><div><strong>Tạo tài khoản</strong><small>Thông tin đăng nhập bảo mật</small></div></li>
+                <li><span>2</span><div><strong>Xác minh Seller</strong><small>Thông tin cá nhân hoặc doanh nghiệp</small></div></li>
+                <li><span>3</span><div><strong>Mở cửa hàng</strong><small>Thiết lập thương hiệu công khai</small></div></li>
+            </ol>
+        </div>
+        <div class="auth-orb auth-orb-one"></div><div class="auth-orb auth-orb-two"></div>
+    </aside>
+
+    <div class="auth-form-zone">
+        <div class="auth-card-pro auth-card-wide">
+            <div class="auth-card-heading"><span class="auth-step-label">BƯỚC ĐẦU TIÊN</span><h2>Tạo tài khoản CloneEbay</h2><p>Hoàn tất thông tin dưới đây để bắt đầu.</p></div>
+            <form method="post" data-loading-form>
+                <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                <div class="field-group">
+                    <label asp-for="Username" class="form-label"></label>
+                    <div class="input-shell"><input asp-for="Username" class="form-control" autocomplete="username" autofocus placeholder="Tên hiển thị của bạn" /><span class="field-mark user-mark">●</span></div>
+                    <span asp-validation-for="Username" class="field-validation"></span>
+                </div>
+                <div class="field-group">
+                    <label asp-for="Email" class="form-label"></label>
+                    <div class="input-shell"><input asp-for="Email" class="form-control" autocomplete="email" placeholder="seller@example.com" /><span class="field-mark">@@</span></div>
+                    <span asp-validation-for="Email" class="field-validation"></span>
+                </div>
+                <div class="form-row">
+                    <div class="field-group">
+                        <label asp-for="Password" class="form-label"></label>
+                        <div class="input-shell"><input asp-for="Password" class="form-control has-action" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự" data-password-strength /><button class="input-action" type="button" data-password-toggle data-target="Password">Hiện</button></div>
+                        <span asp-validation-for="Password" class="field-validation"></span>
+                    </div>
+                    <div class="field-group">
+                        <label asp-for="ConfirmPassword" class="form-label"></label>
+                        <div class="input-shell"><input asp-for="ConfirmPassword" class="form-control has-action" autocomplete="new-password" placeholder="Nhập lại mật khẩu" /><button class="input-action" type="button" data-password-toggle data-target="ConfirmPassword">Hiện</button></div>
+                        <span asp-validation-for="ConfirmPassword" class="field-validation"></span>
+                    </div>
+                </div>
+                <div class="password-meter" data-password-meter><span><i></i></span><small>Dùng chữ hoa, chữ thường và số để tăng bảo mật.</small></div>
+                <label class="check-control terms-check"><input type="checkbox" required /><span></span><b>Tôi đồng ý với quy trình xác minh và điều khoản sử dụng Seller Center.</b></label>
+                <button class="btn btn-primary btn-lg w-100 submit-button" type="submit" data-loading-text="Đang tạo tài khoản..."><span>Tạo tài khoản miễn phí</span><b aria-hidden="true">→</b></button>
+            </form>
+            <p class="auth-switch">Đã có tài khoản? <a asp-action="Login">Đăng nhập ngay</a></p>
+        </div>
+    </div>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+

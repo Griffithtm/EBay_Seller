@@ -1,0 +1,18 @@
+@{ ViewData["Title"] = "Quyền riêng tư"; }
+
+<div class="page-breadcrumb reveal"><a asp-action="Index">Trang chủ</a><span>›</span><strong>Quyền riêng tư</strong></div>
+
+<section class="policy-hero reveal">
+    <div class="policy-lock" aria-hidden="true"><span></span><i></i></div>
+    <div><span class="section-kicker">PRIVACY BY DESIGN</span><h1>Dữ liệu của bạn<br/>được xử lý có trách nhiệm.</h1><p>CloneEbay Seller Center chỉ thu thập thông tin cần thiết cho đăng nhập, xác minh người bán và vận hành hồ sơ cửa hàng.</p></div>
+</section>
+
+<section class="policy-grid reveal reveal-delay-1">
+    <article><span>01</span><h2>Dữ liệu tài khoản</h2><p>Email, tên hiển thị và mật khẩu đã băm được dùng để xác thực. Mật khẩu gốc không được lưu trong cơ sở dữ liệu.</p></article>
+    <article><span>02</span><h2>Hồ sơ xác minh</h2><p>Tên pháp lý và số liên hệ chỉ phục vụ quy trình Admin review; các trường này không hiển thị trên trang Store công khai.</p></article>
+    <article><span>03</span><h2>Phiên đăng nhập</h2><p>Access token và refresh token được bảo vệ trong cookie HTTP-only, có thời hạn và có thể bị thu hồi khi đăng xuất.</p></article>
+    <article><span>04</span><h2>Nội dung công khai</h2><p>Tên Store, mô tả và ảnh bìa được Seller chủ động cung cấp để hiển thị với người mua sau khi tài khoản đã xác minh.</p></article>
+</section>
+
+<div class="context-banner banner-info reveal reveal-delay-2"><span class="context-icon">i</span><div><strong>Phạm vi Role 1</strong><p>Chính sách này mô tả cách module Auth, Seller Verification và Store Profile hiện tại vận hành.</p></div><a class="btn btn-secondary-soft" asp-controller="Home" asp-action="Index">Về Seller Center</a></div>
+

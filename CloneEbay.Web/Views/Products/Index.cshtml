@@ -1,0 +1,118 @@
+@model ProductIndexViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Quản lý sản phẩm";
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    string MediaUrl(string path) => Uri.TryCreate(path, UriKind.Absolute, out _) ? path : $"{apiBase.TrimEnd('/')}/{path.TrimStart('/')}";
+    string StatusLabel(string status) => status switch { "Active" => "Đang bán", "Hidden" => "Đang ẩn", "OutOfStock" => "Hết hàng", "AuctionEnded" => "Đã kết thúc", _ => status };
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Sản phẩm</strong></div>
+
+<section class="catalog-hero reveal">
+    <div><span class="section-kicker">PRODUCT COMMAND CENTER</span><h1>Danh mục gọn gàng.<br/>Quyết định nhanh hơn.</h1><p>Quản lý listing, tồn kho và phiên đấu giá trong một workspace thống nhất.</p></div>
+    <a class="btn btn-primary btn-lg" asp-action="Create">Đăng sản phẩm mới <span aria-hidden="true">→</span></a>
+</section>
+
+<section class="catalog-metrics reveal reveal-delay-1" aria-label="Tổng quan sản phẩm">
+    <article><span class="metric-symbol blue">□</span><div><small>TỔNG LISTING</small><strong>@Model.Pagination.TotalItems</strong><p>Trong cửa hàng</p></div></article>
+    <article><span class="metric-symbol green">↑</span><div><small>ĐANG BÁN</small><strong>@Model.ActiveCount</strong><p>Trên trang công khai</p></div></article>
+    <article><span class="metric-symbol orange">!</span><div><small>CẦN CHÚ Ý</small><strong>@Model.AttentionCount</strong><p>Hết hàng hoặc đang ẩn</p></div></article>
+    <article><span class="metric-symbol violet">◆</span><div><small>ĐẤU GIÁ</small><strong>@Model.AuctionCount</strong><p>Trong trang hiện tại</p></div></article>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-2">
+    <form class="catalog-toolbar" method="get">
+        <div class="search-control"><span aria-hidden="true"></span><input type="search" name="keyword" value="@Model.Keyword" placeholder="Tìm theo tên sản phẩm..." aria-label="Tìm sản phẩm" /></div>
+        <select name="status" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Active" selected="@(Model.Status == "Active")">Đang bán</option>
+            <option value="Hidden" selected="@(Model.Status == "Hidden")">Đang ẩn</option>
+            <option value="OutOfStock" selected="@(Model.Status == "OutOfStock")">Hết hàng</option>
+            <option value="AuctionEnded" selected="@(Model.Status == "AuctionEnded")">Đấu giá kết thúc</option>
+        </select>
+        <select name="categoryId" aria-label="Lọc danh mục">
+            <option value="">Tất cả danh mục</option>
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+            }
+        </select>
+        <button class="btn btn-secondary-soft" type="submit">Áp dụng</button>
+        @if (!string.IsNullOrWhiteSpace(Model.Keyword) || !string.IsNullOrWhiteSpace(Model.Status) || Model.CategoryId.HasValue)
+        {
+            <a class="toolbar-clear" asp-action="Index">Xóa lọc</a>
+        }
+    </form>
+
+    @if (Model.Products.Count == 0)
+    {
+        <div class="product-empty">
+            <div class="product-empty-art" aria-hidden="true"><span></span><i></i></div>
+            <h2>Chưa tìm thấy sản phẩm phù hợp</h2>
+            <p>Thử thay đổi bộ lọc hoặc tạo listing đầu tiên cho cửa hàng của bạn.</p>
+            <a class="btn btn-primary" asp-action="Create">Tạo listing mới</a>
+        </div>
+    }
+    else
+    {
+        <div class="product-management-list">
+            @foreach (var product in Model.Products)
+            {
+                var statusClass = product.Status.ToLowerInvariant();
+                <article class="product-management-card">
+                    <a class="management-media" asp-action="Detail" asp-route-id="@product.Id">
+                        @if (product.Images.Count > 0)
+                        {
+                            <img src="@MediaUrl(product.Images[0])" alt="@product.Title" loading="lazy" />
+                        }
+                        else
+                        {
+                            <span class="product-placeholder variant-@(product.Id % 4)" aria-hidden="true"><i></i><b>@product.Title[..1].ToUpperInvariant()</b></span>
+                        }
+                        @if (product.IsAuction) { <span class="listing-type auction">Đấu giá</span> } else { <span class="listing-type fixed">Giá cố định</span> }
+                    </a>
+                    <div class="management-copy">
+                        <div class="management-title-row"><div><small>@product.CategoryName</small><h2><a asp-action="Detail" asp-route-id="@product.Id">@product.Title</a></h2></div><span class="product-status @statusClass"><i></i>@StatusLabel(product.Status)</span></div>
+                        <div class="management-facts">
+                            <span><small>@(product.IsAuction ? "GIÁ HIỆN TẠI" : "GIÁ BÁN")</small><strong>@((product.HighestBid ?? product.Price).ToString("N0")) ₫</strong></span>
+                            <span><small>TỒN KHO</small><strong>@product.Inventory.Quantity</strong></span>
+                            <span><small>LƯỢT BID</small><strong>@product.BidCount</strong></span>
+                            <span><small>CẬP NHẬT</small><strong>@product.UpdatedAt.ToLocalTime().ToString("dd/MM · HH:mm")</strong></span>
+                        </div>
+                        @if (product.IsAuction && product.AuctionEndTime.HasValue && product.Status != "AuctionEnded")
+                        {
+                            <div class="auction-inline"><span>◆</span><p><small>THỜI GIAN CÒN LẠI</small><strong data-auction-countdown data-end="@product.AuctionEndTime.Value.ToUniversalTime().ToString("O")">Đang tính...</strong></p></div>
+                        }
+                    </div>
+                    <div class="management-controls">
+                        <form class="inventory-quick" asp-action="Inventory" asp-route-id="@product.Id" method="post" data-loading-form>
+                            <label for="quantity-@product.Id">Tồn kho</label><div><input id="quantity-@product.Id" type="number" name="quantity" min="0" value="@product.Inventory.Quantity" /><button type="submit" aria-label="Lưu tồn kho @product.Title">Lưu</button></div>
+                        </form>
+                        <div class="row-actions">
+                            <a class="btn btn-secondary-soft" asp-action="Edit" asp-route-id="@product.Id">Chỉnh sửa</a>
+                            <details class="product-actions-menu"><summary aria-label="Thao tác khác">•••</summary><div>
+                                <a asp-action="Detail" asp-route-id="@product.Id">Xem listing <span>↗</span></a>
+                                @if (product.Status != "AuctionEnded")
+                                {
+                                    <form asp-action="ToggleVisibility" asp-route-id="@product.Id" method="post" data-loading-form><button type="submit">@(product.Status == "Hidden" ? "Hiển thị lại" : "Tạm ẩn")</button></form>
+                                }
+                                <form asp-action="Delete" asp-route-id="@product.Id" method="post" data-loading-form data-confirm="Xóa vĩnh viễn sản phẩm @product.Title?"><button class="danger" type="submit">Xóa sản phẩm</button></form>
+                            </div></details>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+
+        @if (Model.Pagination.TotalPages > 1)
+        {
+            <nav class="catalog-pagination" aria-label="Phân trang sản phẩm">
+                <a class="@(Model.Pagination.Page <= 1 ? "is-disabled" : string.Empty)" asp-action="Index" asp-route-page="@(Model.Pagination.Page - 1)" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status" asp-route-categoryId="@Model.CategoryId">← Trước</a>
+                <span>Trang <strong>@Model.Pagination.Page</strong> / @Model.Pagination.TotalPages</span>
+                <a class="@(Model.Pagination.Page >= Model.Pagination.TotalPages ? "is-disabled" : string.Empty)" asp-action="Index" asp-route-page="@(Model.Pagination.Page + 1)" asp-route-keyword="@Model.Keyword" asp-route-status="@Model.Status" asp-route-categoryId="@Model.CategoryId">Sau →</a>
+            </nav>
+        }
+    }
+</section>
+

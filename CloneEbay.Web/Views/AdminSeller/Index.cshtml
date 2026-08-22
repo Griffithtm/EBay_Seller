@@ -1,0 +1,97 @@
+@model IReadOnlyList<SellerApplicationDto>
+@{
+    ViewData["Title"] = "Duyệt hồ sơ Seller";
+    var activeStatus = (ViewData["Status"]?.ToString() ?? "Pending").Trim();
+    var statusLabel = activeStatus switch
+    {
+        "Approved" => "Đã phê duyệt",
+        "Rejected" => "Đã từ chối",
+        _ => "Chờ xét duyệt"
+    };
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Seller Center</a><span>›</span><strong>Quản trị hồ sơ</strong></div>
+
+<section class="admin-hero reveal">
+    <div>
+        <span class="section-kicker">ADMIN WORKSPACE</span>
+        <h1>Kiểm duyệt Seller<br/>rõ ràng, nhất quán.</h1>
+        <p>Xác minh thông tin người bán, phản hồi có lý do và giữ chất lượng hệ sinh thái CloneEbay.</p>
+    </div>
+    <div class="admin-summary-card">
+        <span class="summary-orbit" aria-hidden="true"><i></i></span>
+        <div><small>ĐANG HIỂN THỊ</small><strong>@Model.Count</strong><p>hồ sơ · @statusLabel.ToLowerInvariant()</p></div>
+    </div>
+</section>
+
+<section class="admin-workspace reveal reveal-delay-1">
+    <div class="admin-toolbar">
+        <div class="status-tabs" role="tablist" aria-label="Lọc hồ sơ theo trạng thái">
+            <a class="@(activeStatus == "Pending" ? "is-active" : string.Empty)" asp-action="Index" asp-route-status="Pending"><span></span>Chờ duyệt</a>
+            <a class="@(activeStatus == "Approved" ? "is-active" : string.Empty)" asp-action="Index" asp-route-status="Approved"><span></span>Đã duyệt</a>
+            <a class="@(activeStatus == "Rejected" ? "is-active" : string.Empty)" asp-action="Index" asp-route-status="Rejected"><span></span>Từ chối</a>
+        </div>
+        <div class="toolbar-note"><span>◆</span>Dữ liệu trực tiếp từ hệ thống</div>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="table-empty">
+            <div class="empty-inbox" aria-hidden="true"><span></span><i></i></div>
+            <h2>Không có hồ sơ @statusLabel.ToLowerInvariant()</h2>
+            <p>Khi có dữ liệu mới, hồ sơ sẽ tự động xuất hiện trong nhóm tương ứng.</p>
+        </div>
+    }
+    else
+    {
+        <div class="application-list">
+            @foreach (var application in Model)
+            {
+                var initial = string.IsNullOrWhiteSpace(application.SellerUsername) ? "S" : application.SellerUsername[..1].ToUpperInvariant();
+                var itemStatus = application.Status.ToLowerInvariant();
+                <article class="application-card">
+                    <div class="application-identity">
+                        <span class="seller-avatar">@initial</span>
+                        <div><strong>@application.StoreName</strong><a href="mailto:@application.SellerEmail">@application.SellerEmail</a></div>
+                    </div>
+                    <dl class="application-facts">
+                        <div><dt>Người đại diện</dt><dd>@application.LegalName</dd></div>
+                        <div><dt>Loại tài khoản</dt><dd>@(application.SellerType == "Business" ? "Doanh nghiệp" : "Cá nhân")</dd></div>
+                        <div><dt>Liên hệ</dt><dd>@application.ContactPhone</dd></div>
+                        <div><dt>Ngày gửi</dt><dd>@application.SubmittedAtUtc.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</dd></div>
+                    </dl>
+                    <div class="application-state">
+                        <span class="status-pill @itemStatus"><i></i>@(application.Status == "Approved" ? "Đã duyệt" : application.Status == "Rejected" ? "Từ chối" : "Chờ duyệt")</span>
+                        <small>#SELLER-@application.StoreId.ToString("D5")</small>
+                    </div>
+
+                    @if (application.Status == "Pending")
+                    {
+                        <div class="review-actions">
+                            <form asp-action="Approve" asp-route-id="@application.StoreId" method="post" data-loading-form data-confirm="Phê duyệt hồ sơ của @application.StoreName?">
+                                <button class="btn btn-success-soft" type="submit" data-loading-text="Đang duyệt..."><span>✓ Phê duyệt</span></button>
+                            </form>
+                            <details class="reject-panel">
+                                <summary class="btn btn-danger-soft">Từ chối</summary>
+                                <form asp-action="Reject" asp-route-id="@application.StoreId" method="post" data-loading-form>
+                                    <label for="reason-@application.StoreId">Lý do cần bổ sung</label>
+                                    <textarea id="reason-@application.StoreId" name="reason" class="form-control" required minlength="5" maxlength="500" placeholder="Mô tả rõ thông tin người bán cần cập nhật..."></textarea>
+                                    <div><button class="btn btn-secondary-soft" type="button" data-close-details>Hủy</button><button class="btn btn-danger" type="submit" data-loading-text="Đang phản hồi..."><span>Xác nhận từ chối</span></button></div>
+                                </form>
+                            </details>
+                        </div>
+                    }
+                    else if (application.Status == "Rejected" && !string.IsNullOrWhiteSpace(application.RejectionReason))
+                    {
+                        <div class="review-note"><span>!</span><p><strong>Phản hồi của Admin</strong>@application.RejectionReason</p></div>
+                    }
+                    else
+                    {
+                        <a class="btn btn-secondary-soft" asp-controller="Store" asp-action="Public" asp-route-sellerId="@application.SellerId" target="_blank" rel="noopener">Xem cửa hàng <span aria-hidden="true">↗</span></a>
+                    }
+                </article>
+            }
+        </div>
+    }
+</section>
+

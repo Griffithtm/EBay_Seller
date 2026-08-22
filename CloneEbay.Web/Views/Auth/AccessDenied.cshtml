@@ -1,0 +1,10 @@
+@{ ViewData["Title"] = "Không có quyền truy cập"; }
+
+<section class="state-page reveal">
+    <div class="state-visual state-locked"><span></span><i></i></div>
+    <span class="section-kicker">QUYỀN TRUY CẬP</span>
+    <h1>Khu vực này chưa mở cho tài khoản của bạn.</h1>
+    <p>Bạn cần có đúng vai trò hoặc hoàn tất xác minh Seller trước khi sử dụng tính năng này.</p>
+    <div class="state-actions"><a class="btn btn-primary" asp-controller="Seller" asp-action="Index">Kiểm tra trạng thái Seller</a><a class="btn btn-secondary-soft" asp-controller="Home" asp-action="Index">Về trang chủ</a></div>
+    <div class="state-help"><span>?</span><p><strong>Tại sao tôi thấy trang này?</strong><small>Quyền được kiểm tra cả trên phiên đăng nhập và trạng thái xác minh trong cơ sở dữ liệu.</small></p></div>
+</section>

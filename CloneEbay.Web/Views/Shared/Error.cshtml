@@ -1,0 +1,15 @@
+@model ErrorViewModel
+@{ ViewData["Title"] = "Đã xảy ra sự cố"; }
+
+<section class="state-page error-page reveal">
+    <div class="state-art error-art" aria-hidden="true"><span>!</span><i></i><i></i></div>
+    <span class="section-kicker">SYSTEM NOTICE</span>
+    <h1>Chúng mình gặp một<br/>sự cố ngoài dự kiến.</h1>
+    <p>Yêu cầu chưa thể hoàn tất lúc này. Bạn có thể quay lại trang chủ hoặc thử tải lại sau ít phút.</p>
+    @if (Model.ShowRequestId)
+    {
+        <div class="request-code"><small>MÃ THEO DÕI</small><code>@Model.RequestId</code></div>
+    }
+    <div class="state-actions"><a class="btn btn-primary btn-lg" asp-controller="Home" asp-action="Index">Về trang chủ</a><button class="btn btn-secondary-soft btn-lg" type="button" onclick="window.location.reload()">Thử lại</button></div>
+</section>
+

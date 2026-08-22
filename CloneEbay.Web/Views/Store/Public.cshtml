@@ -1,0 +1,59 @@
+@model StoreProfileDto
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = Model.StoreName;
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    var bannerUrl = string.IsNullOrWhiteSpace(Model.BannerImageUrl)
+        ? null
+        : Uri.TryCreate(Model.BannerImageUrl, UriKind.Absolute, out _)
+            ? Model.BannerImageUrl
+            : $"{apiBase.TrimEnd('/')}/{Model.BannerImageUrl.TrimStart('/')}";
+    var initial = string.IsNullOrWhiteSpace(Model.StoreName) ? "S" : Model.StoreName[..1].ToUpperInvariant();
+}
+
+<article class="public-store reveal">
+    <header class="public-store-hero @(bannerUrl is null ? "no-banner" : string.Empty)">
+        @if (bannerUrl is not null)
+        {
+            <img src="@bannerUrl" alt="Ảnh bìa của cửa hàng @Model.StoreName" />
+        }
+        else
+        {
+            <div class="public-banner-art" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
+        }
+        <div class="banner-shade"></div>
+        <div class="public-store-nav"><a asp-controller="Home" asp-action="Index" class="brand-on-banner"><span class="brand-symbol mini" aria-hidden="true"><i></i><i></i><i></i><i></i></span>CloneEbay</a><span>Gian hàng chính thức</span></div>
+    </header>
+
+    <section class="public-store-profile">
+        <span class="public-avatar">@initial</span>
+        <div class="public-title-block"><div class="title-line"><h1>@Model.StoreName</h1><span class="verified-badge"><i>✓</i>Seller đã xác minh</span></div><p>@@@Model.SellerUsername · Thành viên từ @Model.CreatedAtUtc.ToLocalTime().ToString("MM/yyyy")</p></div>
+        <button class="btn btn-primary" type="button" data-demo-follow><span>+</span> Theo dõi cửa hàng</button>
+    </section>
+
+    <section class="store-trust-strip">
+        <div><span class="trust-icon">✓</span><p><strong>Danh tính đã xác minh</strong><small>Thông tin Seller được kiểm duyệt</small></p></div>
+        <div><span class="trust-icon">◆</span><p><strong>Giao dịch bảo vệ</strong><small>Hệ thống phân quyền an toàn</small></p></div>
+        <div><span class="trust-icon">↗</span><p><strong>Hồ sơ minh bạch</strong><small>Cập nhật lần cuối @Model.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</small></p></div>
+    </section>
+
+    <div class="public-store-body">
+        <section class="store-about">
+            <span class="section-kicker">CÂU CHUYỆN CỬA HÀNG</span>
+            <h2>Xin chào từ @Model.StoreName.</h2>
+            <p>@(string.IsNullOrWhiteSpace(Model.Description) ? "Cửa hàng đang hoàn thiện câu chuyện thương hiệu. Hãy quay lại sớm để khám phá những sản phẩm được tuyển chọn dành cho bạn." : Model.Description)</p>
+        </section>
+        <aside class="buyer-confidence">
+            <span class="confidence-mark">✓</span>
+            <h3>Mua sắm với sự an tâm</h3>
+            <p>Đây là cửa hàng của Seller đã hoàn tất quy trình xác minh trên CloneEbay.</p>
+            <ul><li><span>✓</span>Tài khoản Seller hợp lệ</li><li><span>✓</span>Thông tin cửa hàng công khai</li><li><span>✓</span>Phiên truy cập được bảo vệ</li></ul>
+        </aside>
+    </div>
+
+    <section class="store-coming-soon">
+        <div class="coming-art" aria-hidden="true"><i></i><span></span></div>
+        <div><span class="section-kicker">SẮP RA MẮT</span><h2>Bộ sưu tập sản phẩm đang được chuẩn bị.</h2><p>Module đăng bán sẽ kết nối vào không gian này ở giai đoạn tiếp theo.</p></div>
+    </section>
+</article>
+

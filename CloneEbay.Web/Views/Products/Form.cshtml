@@ -1,0 +1,92 @@
+@model ProductFormViewModel
+@inject IConfiguration Configuration
+@{
+    var editing = Model.Id.HasValue;
+    ViewData["Title"] = editing ? "Chỉnh sửa sản phẩm" : "Đăng sản phẩm";
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    string MediaUrl(string path) => Uri.TryCreate(path, UriKind.Absolute, out _) ? path : $"{apiBase.TrimEnd('/')}/{path.TrimStart('/')}";
+}
+
+<div class="page-breadcrumb reveal"><a asp-action="Index">Sản phẩm</a><span>›</span><strong>@(editing ? "Chỉnh sửa listing" : "Listing mới")</strong></div>
+
+<section class="listing-form-hero reveal">
+    <div><span class="section-kicker">LISTING STUDIO</span><h1>@(editing ? "Tinh chỉnh sản phẩm." : "Đưa sản phẩm của bạn lên kệ.")</h1><p>Một listing rõ ràng, hình ảnh tốt và giá hợp lý sẽ tạo niềm tin ngay từ lần xem đầu tiên.</p></div>
+    <div class="listing-progress"><span><i></i></span><div><strong data-listing-progress>75% sẵn sàng</strong><small>Tự động cập nhật theo nội dung</small></div></div>
+</section>
+
+<form class="listing-form-grid" method="post" enctype="multipart/form-data" asp-action="@(editing ? "Edit" : "Create")" asp-route-id="@Model.Id" data-loading-form data-product-form>
+    <section class="listing-form-main">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+        <article class="listing-section reveal">
+            <div class="listing-section-head"><span>01</span><div><h2>Thông tin cơ bản</h2><p>Giúp người mua hiểu sản phẩm trong vài giây đầu tiên.</p></div></div>
+            <div class="field-group">
+                <div class="label-row"><label asp-for="Title" class="form-label"></label><span class="character-count"><b data-character-count="Title">@Model.Title.Length</b>/255</span></div>
+                <input asp-for="Title" class="form-control listing-title-input" placeholder="Ví dụ: Tai nghe Studio Pro chống ồn chủ động" data-product-title />
+                <span asp-validation-for="Title" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <div class="label-row"><label asp-for="Description" class="form-label"></label><span class="character-count"><b data-character-count="Description">@Model.Description.Length</b>/4000</span></div>
+                <textarea asp-for="Description" class="form-control" rows="7" placeholder="Mô tả tình trạng, đặc điểm nổi bật, phụ kiện đi kèm và cam kết của cửa hàng..." data-product-description></textarea>
+                <span asp-validation-for="Description" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="CategoryId" class="form-label"></label>
+                <select asp-for="CategoryId" class="form-control" data-product-category><option value="0">Chọn danh mục phù hợp</option>@foreach (var category in Model.Categories) { <option value="@category.Id">@category.Name</option> }</select>
+                <span asp-validation-for="CategoryId" class="field-validation"></span>
+            </div>
+        </article>
+
+        <article class="listing-section reveal reveal-delay-1">
+            <div class="listing-section-head"><span>02</span><div><h2>Hình thức bán & giá</h2><p>Chọn bán ngay hoặc tạo phiên đấu giá có thời hạn.</p></div></div>
+            <div class="listing-mode-grid">
+                <label class="listing-mode-card"><input asp-for="IsAuction" type="radio" value="false" data-listing-mode /><span class="mode-icon fixed-icon"><i></i></span><span><strong>Giá cố định</strong><small>Người mua đặt hàng ngay với mức giá niêm yết.</small></span><b>✓</b></label>
+                <label class="listing-mode-card"><input asp-for="IsAuction" type="radio" value="true" data-listing-mode /><span class="mode-icon auction-icon"><i></i></span><span><strong>Đấu giá</strong><small>Người mua cạnh tranh bằng các lượt đặt giá.</small></span><b>✓</b></label>
+            </div>
+            <div class="form-row listing-price-row">
+                <div class="field-group"><label asp-for="Price" class="form-label"></label><div class="money-input"><input asp-for="Price" class="form-control" step="1000" min="0.01" data-product-price /><span>VND</span></div><span asp-validation-for="Price" class="field-validation"></span></div>
+                <div class="field-group"><label asp-for="Quantity" class="form-label"></label><div class="quantity-input"><button type="button" data-number-step="-1" data-target="Quantity">−</button><input asp-for="Quantity" class="form-control" min="0" /><button type="button" data-number-step="1" data-target="Quantity">+</button></div><span asp-validation-for="Quantity" class="field-validation"></span></div>
+            </div>
+            <div class="auction-settings" data-auction-settings>
+                <div><span class="auction-setting-icon">◆</span><p><strong>Thiết lập thời hạn đấu giá</strong><small>Sau lượt bid đầu tiên, giá khởi điểm và hình thức listing sẽ được khóa.</small></p></div>
+                <div class="field-group"><label asp-for="AuctionEndTime" class="form-label"></label><input asp-for="AuctionEndTime" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local" class="form-control" /><span asp-validation-for="AuctionEndTime" class="field-validation"></span></div>
+            </div>
+        </article>
+
+        <article class="listing-section reveal reveal-delay-2">
+            <div class="listing-section-head"><span>03</span><div><h2>Hình ảnh sản phẩm</h2><p>Thêm tối đa 8 ảnh JPG, PNG hoặc WEBP, mỗi ảnh không quá 5 MB.</p></div></div>
+            <label class="product-upload-zone" for="Images" data-product-dropzone>
+                <input asp-for="Images" type="file" multiple accept="image/jpeg,image/png,image/webp" data-product-image-input />
+                <span class="product-upload-art" aria-hidden="true"><i></i><b>+</b></span>
+                <span><strong>Kéo thả ảnh vào đây hoặc chọn từ thiết bị</strong><small>Ảnh đầu tiên sẽ là ảnh đại diện của listing.</small></span>
+                <b>Chọn ảnh</b>
+            </label>
+            <span asp-validation-for="Images" class="field-validation"></span>
+            <div class="product-image-preview" data-product-image-preview>
+                @foreach (var image in Model.ExistingImages)
+                {
+                    <figure><img src="@MediaUrl(image)" alt="Ảnh hiện tại của @Model.Title" /><figcaption>Ảnh hiện tại</figcaption></figure>
+                }
+            </div>
+            <p class="image-upload-status" data-product-upload-status aria-live="polite">@(Model.ExistingImages.Count > 0 ? $"Đang dùng {Model.ExistingImages.Count} ảnh hiện tại. Chọn ảnh mới để thay thế." : "Chưa có ảnh nào được chọn.")</p>
+        </article>
+
+        <div class="listing-submit-bar reveal">
+            <a class="btn btn-secondary-soft" asp-action="Index">Hủy</a>
+            <div><span>◆</span><p><strong>Kiểm tra trước khi xuất bản</strong><small>Listing sẽ hiển thị ngay nếu tồn kho lớn hơn 0.</small></p></div>
+            <button class="btn btn-primary btn-lg" type="submit" data-loading-text="Đang lưu listing..."><span>@(editing ? "Lưu thay đổi" : "Đăng sản phẩm")</span><b aria-hidden="true">→</b></button>
+        </div>
+    </section>
+
+    <aside class="listing-preview-column reveal reveal-delay-1">
+        <div class="preview-label"><span><i></i>LIVE LISTING PREVIEW</span><small>Trải nghiệm người mua</small></div>
+        <div class="listing-preview-card">
+            <div class="listing-preview-media" data-listing-preview-media><span class="product-placeholder variant-1"><i></i><b data-product-initial>@(string.IsNullOrWhiteSpace(Model.Title) ? "P" : Model.Title[..1].ToUpperInvariant())</b></span><small data-listing-preview-type>@(Model.IsAuction ? "Đấu giá" : "Giá cố định")</small></div>
+            <div class="listing-preview-body"><span class="preview-category" data-product-category-preview>@(Model.Categories.FirstOrDefault(category => category.Id == Model.CategoryId)?.Name ?? "Danh mục sản phẩm")</span><h2 data-product-title-preview>@(string.IsNullOrWhiteSpace(Model.Title) ? "Tiêu đề sản phẩm của bạn" : Model.Title)</h2><div class="preview-price" data-product-price-preview>@Model.Price.ToString("N0") ₫</div><p data-product-description-preview>@(string.IsNullOrWhiteSpace(Model.Description) ? "Mô tả ngắn về sản phẩm sẽ xuất hiện tại đây." : Model.Description)</p><div class="preview-seller-row"><span>✓</span><p><strong>Seller đã xác minh</strong><small>Giao dịch được bảo vệ</small></p></div></div>
+        </div>
+        <div class="listing-checklist"><h3>Listing readiness</h3><ul><li data-ready="title"><span>✓</span>Tiêu đề rõ ràng</li><li data-ready="description"><span>✓</span>Mô tả đầy đủ</li><li data-ready="price"><span>✓</span>Giá hợp lệ</li><li data-ready="image"><span>✓</span>Có ảnh đại diện</li></ul></div>
+    </aside>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+
