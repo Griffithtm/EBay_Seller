@@ -12,6 +12,7 @@ using CloneEbay.Application.Auth;
 using CloneEbay.Application.Sellers;
 using CloneEbay.Application.Stores;
 using CloneEbay.Application.Products;
+using CloneEbay.Application.Coupons;
 using CloneEbay.Infrastructure;
 using CloneEbay.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -57,6 +58,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISellerService, SellerService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddOptions<JwtSettings>()
