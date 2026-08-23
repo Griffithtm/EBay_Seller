@@ -97,7 +97,7 @@ public sealed class CouponCreateRequestBody
     [Required, StringLength(50, MinimumLength = 3)]
     public string Code { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "100")]
+    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true)]
     public decimal DiscountPercent { get; set; }
 
     [Required]
@@ -118,7 +118,7 @@ public sealed class CouponUpdateRequestBody
     [StringLength(50, MinimumLength = 3)]
     public string? Code { get; set; }
 
-    [Range(typeof(decimal), "0.01", "100")]
+    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true)]
     public decimal? DiscountPercent { get; set; }
 
     public DateTime? StartDate { get; set; }

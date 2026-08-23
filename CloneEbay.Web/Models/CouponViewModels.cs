@@ -12,7 +12,7 @@ public sealed class CouponFormViewModel
     [Required(ErrorMessage = "Vui lòng nhập mã giảm giá."), StringLength(50, MinimumLength = 3, ErrorMessage = "Mã phải từ 3 đến 50 ký tự."), Display(Name = "Mã giảm giá")]
     public string Code { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "100", ErrorMessage = "Phần trăm giảm giá phải từ 0.01 đến 100."), Display(Name = "Phần trăm giảm giá (%)")]
+    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true, ErrorMessage = "Phần trăm giảm giá phải từ 0.01 đến 100."), Display(Name = "Phần trăm giảm giá (%)")]
     public decimal DiscountPercent { get; set; }
 
     [Required(ErrorMessage = "Vui lòng chọn ngày bắt đầu."), Display(Name = "Ngày bắt đầu")]
