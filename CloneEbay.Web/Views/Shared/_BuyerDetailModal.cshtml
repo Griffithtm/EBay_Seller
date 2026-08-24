@@ -1,0 +1,228 @@
+<div class="modal fade" id="buyerDetailModal" tabindex="-1" aria-labelledby="buyerDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="buyerDetailModalLabel">👤 Hồ sơ & Lịch sử Khách hàng</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="buyerModalLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+                    <p class="mt-3 text-muted fw-semibold">Đang tải thông tin cá nhân...</p>
+                </div>
+                
+                <div id="buyerModalContent" class="row g-4 d-none">
+                    <!-- Cột 1: Thông tin cá nhân & Thống kê -->
+                    <div class="col-md-5 border-end pe-md-4">
+                        <div class="p-3 bg-light rounded-3 mb-3 border">
+                            <h6 class="fw-bold text-primary mb-3">📋 Thông tin cá nhân</h6>
+                            <div class="mb-2">
+                                <span class="text-muted small d-block">Tên đăng nhập:</span>
+                                <strong id="bmUsername" class="fs-6 text-dark"></strong>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-muted small d-block">Email liên hệ:</span>
+                                <strong id="bmEmail" class="text-dark"></strong>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-light rounded-3 border">
+                            <h6 class="fw-bold text-primary mb-3">📊 Thống kê tương tác</h6>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span id="bmTotalCountLabel" class="text-muted small">Tổng số đánh giá:</span>
+                                <span id="bmTotalCountBadge" class="badge bg-primary rounded-pill px-3 py-2">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small">Đánh giá trung bình cho Shop:</span>
+                                <span id="bmAvgRating" class="badge bg-warning text-dark rounded-pill px-3 py-2">★ 0.0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cột 2: Danh sách chi tiết (Tối đa 5 dòng / trang) -->
+                    <div class="col-md-7 ps-md-4">
+                        <h6 id="bmColumn2Title" class="fw-bold text-primary mb-3">⭐ Danh sách đánh giá cho Shop</h6>
+                        <div class="table-responsive rounded-3 border mb-2">
+                            <table class="table table-hover align-middle mb-0" style="font-size: 0.8rem;">
+                                <thead id="bmTableHeader" class="table-light">
+                                </thead>
+                                <tbody id="bmOrdersTableBody"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Phân trang Cột 2 (Tối đa 5 dòng) -->
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="bmPrevBtn" onclick="changeModalPage(-1)">‹ Trang trước</button>
+                            <span class="small fw-semibold text-secondary" id="bmPageInfo">Trang 1 / 1</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="bmNextBtn" onclick="changeModalPage(1)">Trang sau ›</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentBuyerModalData = null;
+    let currentModalPage = 1;
+    const MODAL_PAGE_SIZE = 5;
+    let currentContextType = 'reviews'; // 'reviews' or 'returns'
+
+    function getVietnameseStatus(status) {
+        if (!status) return { text: '-', badgeClass: 'bg-secondary' };
+        switch (status) {
+            case 'Requested': return { text: 'Đang yêu cầu', badgeClass: 'bg-warning text-dark' };
+            case 'Accepted': return { text: 'Đã chấp nhận', badgeClass: 'bg-success' };
+            case 'Declined': return { text: 'Đã từ chối', badgeClass: 'bg-danger' };
+            case 'RefundOffered': return { text: 'Đề xuất hoàn tiền', badgeClass: 'bg-info text-dark' };
+            case 'RefundedByReturn': return { text: 'Đã hoàn tiền', badgeClass: 'bg-primary' };
+            case 'Closed': return { text: 'Đã đóng', badgeClass: 'bg-secondary' };
+
+            case 'Open': return { text: 'Đang mở', badgeClass: 'bg-danger' };
+            case 'UnderReview': return { text: 'Đang xem xét', badgeClass: 'bg-warning text-dark' };
+            case 'Resolved': return { text: 'Đã giải quyết', badgeClass: 'bg-success' };
+
+            case 'Completed': return { text: 'Đã hoàn thành', badgeClass: 'bg-success' };
+            case 'Pending': return { text: 'Đang xử lý', badgeClass: 'bg-warning text-dark' };
+            case 'Cancelled': return { text: 'Đã hủy', badgeClass: 'bg-danger' };
+            default: return { text: status, badgeClass: 'bg-secondary' };
+        }
+    }
+
+    function openBuyerModal(buyerId, contextType) {
+        currentContextType = contextType || 'reviews';
+        const modalElement = document.getElementById('buyerDetailModal');
+        const modal = new bootstrap.Modal(modalElement);
+        
+        document.getElementById('buyerModalLoading').classList.remove('d-none');
+        document.getElementById('buyerModalContent').classList.add('d-none');
+        modal.show();
+
+        fetch('/seller/buyer-summary/' + buyerId)
+            .then(res => res.json())
+            .then(res => {
+                if (!res.success || !res.data) {
+                    alert(res.message || 'Không thể lấy thông tin người mua');
+                    modal.hide();
+                    return;
+                }
+
+                currentBuyerModalData = res.data;
+                currentModalPage = 1;
+
+                const isReturnCtx = (currentContextType === 'returns');
+
+                document.getElementById('bmUsername').innerText = res.data.username || 'Khách hàng';
+                document.getElementById('bmEmail').innerText = res.data.email || 'Chưa cập nhật';
+                
+                if (isReturnCtx) {
+                    document.getElementById('bmTotalCountLabel').innerText = 'Tổng yêu cầu đổi trả:';
+                    document.getElementById('bmTotalCountBadge').innerText = (res.data.totalReturns || 0) + ' yêu cầu';
+                    document.getElementById('bmColumn2Title').innerText = '📦 Danh sách yêu cầu đổi trả';
+                } else {
+                    document.getElementById('bmTotalCountLabel').innerText = 'Tổng số đánh giá đã viết:';
+                    document.getElementById('bmTotalCountBadge').innerText = (res.data.totalReviews || 0) + ' đánh giá';
+                    document.getElementById('bmColumn2Title').innerText = '⭐ Danh sách đánh giá cho Shop';
+                }
+
+                document.getElementById('bmAvgRating').innerText = '★ ' + (res.data.averageRatingGiven || 0).toFixed(1) + ' / 5.0';
+
+                renderModalOrdersPage();
+
+                document.getElementById('buyerModalLoading').classList.add('d-none');
+                document.getElementById('buyerModalContent').classList.remove('d-none');
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Có lỗi xảy ra khi tải dữ liệu người mua.');
+                modal.hide();
+            });
+    }
+
+    function renderModalOrdersPage() {
+        if (!currentBuyerModalData) return;
+
+        const isReturnCtx = (currentContextType === 'returns');
+        const items = isReturnCtx ? (currentBuyerModalData.returns || []) : (currentBuyerModalData.reviews || []);
+        
+        const thead = document.getElementById('bmTableHeader');
+        if (isReturnCtx) {
+            thead.innerHTML = `
+                <tr>
+                    <th>Mã ĐT</th>
+                    <th>Ngày tạo</th>
+                    <th>Sản phẩm / Đơn</th>
+                    <th>Trạng thái</th>
+                </tr>
+            `;
+        } else {
+            thead.innerHTML = `
+                <tr>
+                    <th>Mã ĐG</th>
+                    <th>Ngày ĐG</th>
+                    <th>Sản phẩm</th>
+                    <th>Đánh giá</th>
+                </tr>
+            `;
+        }
+
+        const totalItems = items.length;
+        const totalPages = Math.ceil(totalItems / MODAL_PAGE_SIZE) || 1;
+
+        if (currentModalPage < 1) currentModalPage = 1;
+        if (currentModalPage > totalPages) currentModalPage = totalPages;
+
+        const startIndex = (currentModalPage - 1) * MODAL_PAGE_SIZE;
+        const pageItems = items.slice(startIndex, startIndex + MODAL_PAGE_SIZE);
+
+        const tbody = document.getElementById('bmOrdersTableBody');
+        tbody.innerHTML = '';
+
+        if (pageItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Chưa có dữ liệu nào.</td></tr>`;
+        } else {
+            pageItems.forEach(item => {
+                const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : '-';
+                const tr = document.createElement('tr');
+
+                if (isReturnCtx) {
+                    const stInfo = getVietnameseStatus(item.status);
+                    tr.innerHTML = `
+                        <td><strong class="text-primary">#${item.id}</strong></td>
+                        <td>${dateStr}</td>
+                        <td>
+                            <strong class="d-block text-dark text-truncate" style="max-width: 140px;">${item.productTitle}</strong>
+                            <small class="text-muted">Đơn #${item.orderId}</small>
+                        </td>
+                        <td><span class="badge ${stInfo.badgeClass}">${stInfo.text}</span></td>
+                    `;
+                } else {
+                    let starsHtml = '';
+                    for (let i = 0; i < item.rating; i++) {
+                        starsHtml += '★';
+                    }
+                    tr.innerHTML = `
+                        <td><strong class="text-primary">#${item.id}</strong></td>
+                        <td>${dateStr}</td>
+                        <td><strong class="text-dark text-truncate d-inline-block" style="max-width: 150px;">${item.productTitle}</strong></td>
+                        <td>
+                            <span class="text-warning fw-bold d-block">${starsHtml} (${item.rating})</span>
+                            <small class="text-muted">${item.status}</small>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('bmPageInfo').innerText = `Trang ${currentModalPage} / ${totalPages}`;
+        document.getElementById('bmPrevBtn').disabled = (currentModalPage <= 1);
+        document.getElementById('bmNextBtn').disabled = (currentModalPage >= totalPages);
+    }
+
+    function changeModalPage(delta) {
+        currentModalPage += delta;
+        renderModalOrdersPage();
+    }
+</script>

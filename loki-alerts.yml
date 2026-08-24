@@ -1,0 +1,25 @@
+groups:
+  - name: cloneebay-api-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate({application="CloneEbay.API"} |= "Exception" [5m])) by (job) 
+          > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High exception rate in CloneEbay.API"
+          description: "The API is experiencing more than 5 exceptions per second over the last 5 minutes. Check Serilog Loki logs."
+
+      - alert: TooManyAppProblems
+        expr: |
+          sum(rate({application="CloneEbay.API"} |= "AppProblemException" [5m])) by (job)
+          > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of business logic errors"
+          description: "The application is throwing a high number of AppProblemExceptions (4xx errors). Investigate if this is a spike in bad requests or a bug."

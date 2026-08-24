@@ -23,4 +23,8 @@ public sealed class User : BaseEntity
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public ICollection<Product> WonAuctions { get; set; } = new List<Product>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public Feedback? Feedback { get; set; }
+    public ICollection<ReturnRequest> ReturnRequests { get; set; } = new List<ReturnRequest>();
+    public ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
 }

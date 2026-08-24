@@ -47,6 +47,9 @@
                             {
                                 <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/seller/reviews")" asp-controller="Reviews" asp-action="Index">Đánh giá</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/seller/returns")" asp-controller="Returns" asp-action="Index">Đổi trả</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/seller/disputes")" asp-controller="Disputes" asp-action="Index">Tranh chấp</a></li>
                             }
                             @if (User.IsInRole("Admin"))
                             {
@@ -77,6 +80,9 @@
                                     {
                                         <a class="dropdown-item" asp-controller="Products" asp-action="Index"><span class="menu-dot violet"></span>Quản lý sản phẩm</a>
                                         <a class="dropdown-item" asp-controller="Store" asp-action="Edit"><span class="menu-dot orange"></span>Quản lý cửa hàng</a>
+                                        <a class="dropdown-item" asp-controller="Reviews" asp-action="Index"><span class="menu-dot green"></span>Đánh giá & Phản hồi</a>
+                                        <a class="dropdown-item" asp-controller="Returns" asp-action="Index"><span class="menu-dot blue"></span>Yêu cầu đổi trả</a>
+                                        <a class="dropdown-item" asp-controller="Disputes" asp-action="Index"><span class="menu-dot red"></span>Tranh chấp đơn hàng</a>
                                     }
                                     <div class="dropdown-divider"></div>
                                     <form asp-controller="Auth" asp-action="Logout" method="post" data-loading-form>
@@ -126,6 +132,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <partial name="_BuyerDetailModal" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
