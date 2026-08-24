@@ -49,6 +49,24 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images.Count > 0), true, true, cancellationToken);
 
+    public Task<ApiCallResult<ConversationListResponse>> GetConversationsAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<ConversationListResponse>("api/messages/conversations", true, cancellationToken);
+
+    public Task<ApiCallResult<PagedResultDto<MessageResponse>>> GetMessagesAsync(int conversationWith, int page = 1, int pageSize = 30, CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<MessageResponse>>($"api/messages/{conversationWith}?page={page}&pageSize={pageSize}", true, cancellationToken);
+
+    public Task<ApiCallResult<MessageResponse>> SendMessageAsync(SendMessageRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<MessageResponse>("api/messages", request, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkAsReadAsync(int messageId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/{messageId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkConversationAsReadAsync(int otherUserId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/conversations/{otherUserId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<UnreadCountResponse>> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<UnreadCountResponse>("api/messages/unread-count", true, cancellationToken);
+
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
     {
         var context = GetHttpContext();
