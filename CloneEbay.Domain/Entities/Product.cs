@@ -25,5 +25,6 @@ public sealed class Product : BaseEntity
     public Inventory Inventory { get; set; } = null!;
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+    public ICollection<Coupon> Coupons { get; set; } = new List<Coupon>();
     public Order? AuctionOrder { get; set; }
 }

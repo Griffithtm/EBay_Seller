@@ -12,7 +12,7 @@ public sealed class ProductFormViewModel
     [Required(ErrorMessage = "Vui lòng nhập mô tả sản phẩm."), StringLength(4000, MinimumLength = 10, ErrorMessage = "Mô tả phải từ 10 đến 4.000 ký tự."), Display(Name = "Mô tả chi tiết")]
     public string Description { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "9999999999999999", ErrorMessage = "Giá phải lớn hơn 0."), Display(Name = "Giá bán / giá khởi điểm")]
+    [Range(typeof(decimal), "0.01", "9999999999999999", ParseLimitsInInvariantCulture = true, ErrorMessage = "Giá phải lớn hơn 0."), Display(Name = "Giá bán / giá khởi điểm")]
     public decimal Price { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn danh mục."), Display(Name = "Danh mục")]

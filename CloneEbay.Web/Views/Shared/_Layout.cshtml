@@ -46,6 +46,7 @@
                             @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                             {
                                 <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/coupons")" asp-controller="Coupons" asp-action="Index">Mã giảm giá</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
                             }
                             @if (User.IsInRole("Admin"))
@@ -76,6 +77,7 @@
                                     @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                                     {
                                         <a class="dropdown-item" asp-controller="Products" asp-action="Index"><span class="menu-dot violet"></span>Quản lý sản phẩm</a>
+                                        <a class="dropdown-item" asp-controller="Coupons" asp-action="Index"><span class="menu-dot green"></span>Mã giảm giá</a>
                                         <a class="dropdown-item" asp-controller="Store" asp-action="Edit"><span class="menu-dot orange"></span>Quản lý cửa hàng</a>
                                     }
                                     <div class="dropdown-divider"></div>
