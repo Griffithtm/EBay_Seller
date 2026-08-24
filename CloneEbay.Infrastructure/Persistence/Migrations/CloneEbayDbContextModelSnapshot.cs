@@ -22,6 +22,65 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Address", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("city");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("country");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("fullName");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit")
+                        .HasColumnName("isDefault");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("state");
+
+                    b.Property<string>("Street")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("street");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("userId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Address", (string)null);
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Bid", b =>
                 {
                     b.Property<int>("Id")
@@ -81,6 +140,71 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Category", (string)null);
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Coupon", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("createdAtUtc");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("discountPercent");
+
+                    b.Property<DateTime>("EndDateUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("endDate");
+
+                    b.Property<int>("MaxUsage")
+                        .HasColumnType("int")
+                        .HasColumnName("maxUsage");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int")
+                        .HasColumnName("productId");
+
+                    b.Property<DateTime>("StartDateUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("startDate");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updatedAtUtc");
+
+                    b.Property<int>("UsageCount")
+                        .HasColumnType("int")
+                        .HasColumnName("usageCount");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Coupon", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Coupon_DateRange", "[endDate] > [startDate]");
+
+                            t.HasCheckConstraint("CK_Coupon_DiscountPercent", "[discountPercent] > 0 AND [discountPercent] <= 100");
+
+                            t.HasCheckConstraint("CK_Coupon_MaxUsage", "[maxUsage] >= 1");
+
+                            t.HasCheckConstraint("CK_Coupon_UsageCount", "[usageCount] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Dispute", b =>
@@ -233,6 +357,8 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AddressId");
+
                     b.HasIndex("AuctionProductId")
                         .IsUnique()
                         .HasFilter("[auctionProductId] IS NOT NULL");
@@ -275,6 +401,54 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderItem", (string)null);
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Payment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("method");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int")
+                        .HasColumnName("orderId");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("paidAt");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("userId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Payment", (string)null);
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Product", b =>
@@ -481,11 +655,6 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("rating");
 
-                    b.Property<string>("Response")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("response");
-
                     b.Property<int>("ReviewerId")
                         .HasColumnType("int")
                         .HasColumnName("reviewerId");
@@ -500,6 +669,49 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Review", (string)null);
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ShippingInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Carrier")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("carrier");
+
+                    b.Property<DateTime?>("EstimatedArrivalUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("estimatedArrival");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int")
+                        .HasColumnName("orderId");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TrackingNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("trackingNumber");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.ToTable("ShippingInfo", (string)null);
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Store", b =>
@@ -669,6 +881,17 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.ToTable("User", (string)null);
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Address", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Bid", b =>
                 {
                     b.HasOne("CloneEbay.Domain.Entities.User", "Bidder")
@@ -684,6 +907,17 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Bidder");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Coupon", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.Product", "Product")
+                        .WithMany("Coupons")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Product");
                 });
@@ -731,6 +965,11 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("CloneEbay.Domain.Entities.Address", "Address")
+                        .WithMany()
+                        .HasForeignKey("AddressId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CloneEbay.Domain.Entities.Product", "AuctionProduct")
                         .WithOne("AuctionOrder")
                         .HasForeignKey("CloneEbay.Domain.Entities.Order", "AuctionProductId")
@@ -741,6 +980,8 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BuyerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Address");
 
                     b.Navigation("AuctionProduct");
 
@@ -764,6 +1005,25 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.Order", "Order")
+                        .WithOne("Payment")
+                        .HasForeignKey("CloneEbay.Domain.Entities.Payment", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CloneEbay.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Product", b =>
@@ -841,6 +1101,17 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Reviewer");
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ShippingInfo", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.Order", "Order")
+                        .WithOne("ShippingInfo")
+                        .HasForeignKey("CloneEbay.Domain.Entities.ShippingInfo", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Store", b =>
                 {
                     b.HasOne("CloneEbay.Domain.Entities.User", "Seller")
@@ -860,6 +1131,10 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("CloneEbay.Domain.Entities.Order", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("Payment");
+
+                    b.Navigation("ShippingInfo");
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.Product", b =>
@@ -867,6 +1142,8 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("AuctionOrder");
 
                     b.Navigation("Bids");
+
+                    b.Navigation("Coupons");
 
                     b.Navigation("Inventory")
                         .IsRequired();
