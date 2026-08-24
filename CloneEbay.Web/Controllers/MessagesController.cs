@@ -47,6 +47,7 @@ public sealed class MessagesController(SellerApiClient apiClient) : Controller
         {
             OtherUserId = userId,
             OtherUsername = username,
+            Conversations = convs.Data?.Items ?? Array.Empty<ConversationItem>(),
             Messages = result.Data?.Items ?? Array.Empty<MessageResponse>(),
             Pagination = result.Data?.Pagination ?? new PaginationDto(1, 50, 0, 0)
         };
