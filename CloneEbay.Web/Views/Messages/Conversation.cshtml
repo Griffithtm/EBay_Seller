@@ -1,4 +1,4 @@
-﻿@model CloneEbay.Web.Models.ConversationViewModel
+@model CloneEbay.Web.Models.ConversationViewModel
 @{
     ViewData["Title"] = "Chat với " + Model.OtherUsername;
 }
@@ -149,15 +149,15 @@
                 const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const bubble = document.createElement('div');
                 bubble.className = "d-flex mb-3 justify-content-end";
-                bubble.innerHTML = 
+                bubble.innerHTML = `
                     <div class="d-flex flex-column align-items-end">
                         <div class="chat-bubble chat-sent shadow-sm">
-                            <div style="white-space: pre-wrap;"></div>
+                            <div style="white-space: pre-wrap;">${content}</div>
                         </div>
                         <div class="chat-time d-flex align-items-center">
-                             <i class="bi bi-check-all text-primary ms-1"></i>
+                            ${time} <i class="bi bi-check-all text-primary ms-1"></i>
                         </div>
-                    </div>;
+                    </div>`;
                 chatHistory.prepend(bubble);
 
                 try {
