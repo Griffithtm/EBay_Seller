@@ -1,4 +1,4 @@
-# CloneEbay Seller - Role 1 + Role 2
+# CloneEbay Seller - Role 1 + Role 2 + Role 3
 
 Role 1 provides the shared authentication and seller foundation:
 
@@ -20,6 +20,14 @@ Role 2 provides the product catalog and auction workflow assigned to Thành:
 - Two-layer product-create protection: Nginx burst limiting plus a Redis-backed 20-products/hour/seller quota.
 - Serializable bid/auction transactions, idempotent auction closing, and automatic winning Order creation.
 - Automated xUnit coverage for critical Role 1 and Role 2 acceptance rules.
+
+Role 3 provides marketing coupons for the product catalog:
+
+- Coupon CRUD scoped to one product per code, owned exclusively by the listing's verified seller.
+- `GET /api/coupons/validate` for order/checkout flows to check a code before applying a discount.
+- Computed lifecycle status (`Scheduled` / `Active` / `Expired` / `UsedUp`) plus usage-count tracking.
+- Google reCAPTCHA v3 verification on coupon creation, with score/action checks and failure logging.
+- Seller Web UI: coupon list with product/status filters and a create/edit form with the reCAPTCHA widget.
 
 ## Architecture
 
@@ -123,6 +131,13 @@ PUT /api/inventory/{productId}
 POST /api/products/{id}/bids
 GET  /api/products/{id}/bids
 POST /api/products/{id}/close-auction
+
+GET    /api/coupons?productId=&status=
+GET    /api/coupons/{id}
+POST   /api/coupons
+PUT    /api/coupons/{id}
+DELETE /api/coupons/{id}
+GET    /api/coupons/validate?code=&productId=
 ```
 
 `PUT /api/store` accepts either `application/json` for partial updates or `multipart/form-data` when uploading a banner. JSON field names follow the shared contract: `storeName`, `description`, and `bannerImageURL`.
@@ -172,6 +187,14 @@ The auction smoke test intentionally waits for the configured auction end and le
 Development startup seeds four idempotent Role 2 listings for `seller.approved@cloneebay.local`. The seeder restores any individually missing demo listing without duplicating the others.
 
 The Nginx edge configuration and verification commands are documented in `deploy/nginx/README.md`.
+
+## Role 3 behavior
+
+A coupon always belongs to exactly one product (`productId`), and only that product's owning seller can create, read, update, or delete it — `POST/PUT/DELETE /api/coupons*` all require the `VerifiedSeller` policy plus ownership of the target product. Coupon codes are case-insensitive and unique per product (not globally), and `discountPercent` must be within `(0, 100]`. Status is computed on read, never stored: `Scheduled` before `startDate`, `Active` between `startDate` and `endDate` while `usageCount < maxUsage`, `Expired` after `endDate`, and `UsedUp` once `usageCount` reaches `maxUsage`. Coupons that have already been redeemed at least once (`usageCount > 0`) cannot be deleted.
+
+`GET /api/coupons/validate?code=&productId=` is anonymous by design so a buyer-facing checkout flow (Role 4 / Order module) can check a code before applying a discount; it returns `isValid` plus a machine-readable `reason` (`COUPON_NOT_FOUND`, `NOT_STARTED`, `EXPIRED`, `USAGE_LIMIT_REACHED`) instead of an error status.
+
+Coupon creation is protected by Google reCAPTCHA v3: the Seller Web create form requests a token scoped to the `create_coupon` action and forwards it as `recaptchaToken`; the API verifies it against Google's `siteverify` endpoint, checks the action name and the `Recaptcha:MinimumScore` threshold (default `0.5`), and logs every rejected attempt (missing/invalid token, action mismatch, low score, upstream failure). Verification is fully opt-in via `Recaptcha:Enabled` — set to `false` (the default) for local development so every token is accepted, and set the real `Recaptcha:SecretKey` (API) / `Recaptcha:SiteKey` (Web) only where a Google reCAPTCHA v3 site is registered.
 
 ## Kubernetes
 

@@ -49,6 +49,33 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images.Count > 0), true, true, cancellationToken);
 
+    public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<CouponDto>("api/coupons", new
+        {
+            productId = model.ProductId,
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage,
+            recaptchaToken = model.RecaptchaToken
+        }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<CouponDto>> UpdateCouponAsync(
+        int id,
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<CouponDto>($"api/coupons/{id}", new
+        {
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage
+        }, cancellationToken: cancellationToken);
+
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
     {
         var context = GetHttpContext();

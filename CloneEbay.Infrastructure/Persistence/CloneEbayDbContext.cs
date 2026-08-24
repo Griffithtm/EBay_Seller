@@ -18,6 +18,10 @@ public sealed class CloneEbayDbContext(DbContextOptions<CloneEbayDbContext> opti
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<Address> Addresses => Set<Address>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<ShippingInfo> ShippingInfos => Set<ShippingInfo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

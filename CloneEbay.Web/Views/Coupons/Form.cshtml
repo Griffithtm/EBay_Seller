@@ -1,0 +1,105 @@
+@model CouponFormViewModel
+@inject IConfiguration Configuration
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Chỉnh sửa mã giảm giá" : "Tạo mã giảm giá";
+    var recaptchaEnabled = Configuration.GetValue<bool>("Recaptcha:Enabled");
+    var recaptchaSiteKey = Configuration["Recaptcha:SiteKey"];
+}
+
+<div class="page-breadcrumb reveal"><a asp-action="Index">Mã giảm giá</a><span>›</span><strong>@(isEdit ? "Chỉnh sửa mã" : "Mã mới")</strong></div>
+
+<section class="listing-form-hero reveal">
+    <div><span class="section-kicker">COUPON &amp; MARKETING</span><h1>@(isEdit ? "Tinh chỉnh mã giảm giá." : "Tạo ưu đãi cho sản phẩm.")</h1><p>Mã giảm giá gắn với một sản phẩm cụ thể, có thời hạn và giới hạn số lượt sử dụng.</p></div>
+</section>
+
+<form class="listing-form-grid" method="post" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" data-loading-form id="coupon-form">
+    <section class="listing-form-main">
+        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="RecaptchaToken" id="RecaptchaToken" />
+
+        <article class="listing-section reveal">
+            <div class="listing-section-head"><span>01</span><div><h2>Sản phẩm áp dụng</h2><p>Mỗi mã chỉ áp dụng cho một sản phẩm.</p></div></div>
+            <div class="field-group">
+                <label asp-for="ProductId" class="form-label"></label>
+                @if (isEdit)
+                {
+                    <input class="form-control" value="@(Model.ProductOptions.FirstOrDefault(p => p.Id == Model.ProductId)?.Title ?? $"Sản phẩm #{Model.ProductId}")" disabled />
+                    <input type="hidden" asp-for="ProductId" />
+                }
+                else
+                {
+                    <select asp-for="ProductId" class="form-control">
+                        <option value="">-- Chọn sản phẩm --</option>
+                        @foreach (var product in Model.ProductOptions)
+                        {
+                            <option value="@product.Id">@product.Title</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="ProductId" class="field-validation"></span>
+            </div>
+        </article>
+
+        <article class="listing-section reveal reveal-delay-1">
+            <div class="listing-section-head"><span>02</span><div><h2>Thông tin mã giảm giá</h2><p>Mã, mức giảm và giới hạn sử dụng.</p></div></div>
+            <div class="field-group">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" placeholder="VD: SUMMER10" />
+                <span asp-validation-for="Code" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="DiscountPercent" class="form-label"></label>
+                <input asp-for="DiscountPercent" type="number" step="0.01" min="0.01" max="100" class="form-control" />
+                <span asp-validation-for="DiscountPercent" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="MaxUsage" class="form-label"></label>
+                <input asp-for="MaxUsage" type="number" min="1" class="form-control" />
+                <span asp-validation-for="MaxUsage" class="field-validation"></span>
+            </div>
+        </article>
+
+        <article class="listing-section reveal reveal-delay-2">
+            <div class="listing-section-head"><span>03</span><div><h2>Thời gian hiệu lực</h2><p>Mã chỉ dùng được trong khoảng thời gian này.</p></div></div>
+            <div class="field-group">
+                <label asp-for="StartDate" class="form-label"></label>
+                <input asp-for="StartDate" type="datetime-local" class="form-control" />
+                <span asp-validation-for="StartDate" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="EndDate" class="form-label"></label>
+                <input asp-for="EndDate" type="datetime-local" class="form-control" />
+                <span asp-validation-for="EndDate" class="field-validation"></span>
+            </div>
+        </article>
+
+        <div class="form-actions">
+            <a class="btn btn-secondary-soft" asp-action="Index">Hủy</a>
+            <button class="btn btn-primary" type="submit" id="coupon-submit">@(isEdit ? "Lưu thay đổi" : "Tạo mã giảm giá")</button>
+        </div>
+    </section>
+</form>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    @if (!isEdit && recaptchaEnabled && !string.IsNullOrWhiteSpace(recaptchaSiteKey))
+    {
+        <script src="https://www.google.com/recaptcha/api.js?render=@recaptchaSiteKey"></script>
+        <script>
+            document.getElementById('coupon-form').addEventListener('submit', function (event) {
+                if (document.getElementById('RecaptchaToken').value) {
+                    return;
+                }
+                event.preventDefault();
+                grecaptcha.ready(function () {
+                    grecaptcha.execute('@recaptchaSiteKey', { action: 'create_coupon' }).then(function (token) {
+                        document.getElementById('RecaptchaToken').value = token;
+                        document.getElementById('coupon-form').submit();
+                    });
+                });
+            });
+        </script>
+    }
+}
