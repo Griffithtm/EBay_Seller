@@ -76,6 +76,46 @@ public sealed class SellerApiClient(
             maxUsage = model.MaxUsage
         }, cancellationToken: cancellationToken);
 
+    public Task<ApiCallResult<PagedResultDto<OrderSummaryDto>>> GetOrdersAsync(
+        string? status = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<OrderSummaryDto>>($"api/orders?status={Uri.EscapeDataString(status ?? "")}&page={page}&pageSize={pageSize}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> GetOrderDetailAsync(
+        int id,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<OrderDetailDto>($"api/orders/{id}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderConfirmDto>> ConfirmOrderAsync(
+        int id,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<OrderConfirmDto>($"api/orders/{id}/confirm", null, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<UpdateShippingStatusResponseDto>> UpdateShippingStatusAsync(
+        int id,
+        string status,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<UpdateShippingStatusResponseDto>($"api/orders/{id}/status", new { status }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<ShippingLabelResponseDto>> CreateShippingLabelAsync(
+        int id,
+        string carrier,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<ShippingLabelResponseDto>($"api/orders/{id}/shipping-label", new { carrier }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<ShippingInfoDto>> GetShippingInfoAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<ShippingInfoDto>($"api/shipping/{orderId}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<PaymentDetailDto>> GetPaymentInfoAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PaymentDetailDto>($"api/orders/{orderId}/payment", cancellationToken: cancellationToken);
+
+
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
     {
         var context = GetHttpContext();

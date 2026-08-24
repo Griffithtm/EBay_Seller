@@ -1,0 +1,106 @@
+@model ApiCallResult<PagedResultDto<OrderSummaryDto>>
+@{
+    ViewData["Title"] = "Quản lý Đơn hàng";
+    var currentStatus = ViewBag.CurrentStatus as string;
+
+    string StatusBadgeClass(string status) => status switch
+    {
+        "Pending" => "bg-warning text-dark",
+        "Confirmed" => "bg-primary",
+        "Shipped" => "bg-info text-dark",
+        "Delivered" => "bg-success",
+        "Cancelled" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    string StatusLabel(string status) => status switch
+    {
+        "Pending" => "Chờ xác nhận",
+        "Confirmed" => "Đã xác nhận",
+        "Shipped" => "Đã giao vận chuyển",
+        "Delivered" => "Đã giao hàng",
+        "Cancelled" => "Đã hủy",
+        _ => status
+    };
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Đơn hàng</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">FULFILLMENT &amp; SHIPPING</span>
+        <h1>Quản lý Đơn hàng &amp;<br />Phiếu vận chuyển</h1>
+        <p>Theo dõi tiến trình đơn hàng của cửa hàng, xác nhận giữ kho và sinh phiếu vận chuyển giả lập.</p>
+    </div>
+</section>
+
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @error
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<section class="catalog-workspace reveal reveal-delay-2 mt-4">
+    <form class="catalog-toolbar" method="get">
+        <select name="status" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Pending" selected="@(currentStatus == "Pending")">Chờ xác nhận (Pending)</option>
+            <option value="Confirmed" selected="@(currentStatus == "Confirmed")">Đã xác nhận (Confirmed)</option>
+            <option value="Shipped" selected="@(currentStatus == "Shipped")">Đã giao vận chuyển (Shipped)</option>
+            <option value="Delivered" selected="@(currentStatus == "Delivered")">Đã giao thành công (Delivered)</option>
+            <option value="Cancelled" selected="@(currentStatus == "Cancelled")">Đã hủy (Cancelled)</option>
+        </select>
+        <button class="btn btn-secondary-soft" type="submit">Lọc đơn hàng</button>
+        @if (!string.IsNullOrWhiteSpace(currentStatus))
+        {
+            <a class="toolbar-clear" asp-action="Index">Xóa lọc</a>
+        }
+    </form>
+
+    @if (Model?.Data is null || Model.Data.Items.Count == 0)
+    {
+        <div class="product-empty my-5 text-center">
+            <h2>Không có đơn hàng nào</h2>
+            <p>Hiện chưa có đơn hàng nào chứa sản phẩm thuộc cửa hàng của bạn trong danh mục này.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive mt-3">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã đơn (#)</th>
+                        <th>Ngày đặt hàng</th>
+                        <th>Doanh thu (Phần Seller)</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.Data.Items)
+                    {
+                        <tr>
+                            <td><strong>#@order.Id</strong></td>
+                            <td>@order.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="text-success font-weight-bold">@order.TotalPrice.ToString("N0") VNĐ</td>
+                            <td><span class="badge @StatusBadgeClass(order.Status)">@StatusLabel(order.Status)</span></td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@order.Id">Chi tiết &amp; Xử lý →</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

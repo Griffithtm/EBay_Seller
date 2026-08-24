@@ -46,6 +46,7 @@
                             @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                             {
                                 <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/orders")" asp-controller="Orders" asp-action="Index">Đơn hàng</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/coupons")" asp-controller="Coupons" asp-action="Index">Mã giảm giá</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
                             }
