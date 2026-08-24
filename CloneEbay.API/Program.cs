@@ -9,11 +9,17 @@ using CloneEbay.API.Security;
 using CloneEbay.API.Storage;
 using CloneEbay.Application.Abstractions.Security;
 using CloneEbay.Application.Auth;
+using CloneEbay.Application.Dashboard;
 using CloneEbay.Application.Sellers;
 using CloneEbay.Application.Stores;
 using CloneEbay.Application.Products;
 using CloneEbay.Application.Coupons;
 using CloneEbay.Application.Orders;
+using CloneEbay.Application.Reviews;
+using CloneEbay.Application.Returns;
+using CloneEbay.Application.Disputes;
+using CloneEbay.Application.Messages;
+using CloneEbay.API.Hubs;
 using CloneEbay.Infrastructure;
 using CloneEbay.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,12 +29,17 @@ using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Host.UseSerilog((ctx, cfg) => cfg
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "CloneEbay.API")
+    .WriteTo.Console(new CompactJsonFormatter()));
+
 var dataProtectionPath = builder.Configuration["DataProtection:KeysPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, ".data-protection");
 Directory.CreateDirectory(dataProtectionPath);
@@ -61,6 +72,12 @@ builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IReturnService, ReturnService>();
+builder.Services.AddScoped<IDisputeService, DisputeService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddSignalR();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddOptions<JwtSettings>()
@@ -90,6 +107,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/messages"))
+                    context.Token = token;
+                return Task.CompletedTask;
+            },
             OnChallenge = async context =>
             {
                 context.HandleResponse();
@@ -189,6 +213,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<MessageHub>("/hubs/messages");
 app.MapHealthChecks("/health/live", new() { Predicate = registration => registration.Tags.Contains("live") });
 app.MapHealthChecks("/health/ready", new() { Predicate = registration => registration.Tags.Contains("ready") });
 app.MapHealthChecks("/health/startup", new() { Predicate = registration => registration.Tags.Contains("startup") });

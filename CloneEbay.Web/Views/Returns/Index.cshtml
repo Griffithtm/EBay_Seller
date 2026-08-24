@@ -1,0 +1,115 @@
+@model PagedResultDto<ReturnRequestResponseDto>
+@{
+    ViewData["Title"] = "Yêu cầu đổi trả";
+    var statusFilter = ViewBag.StatusFilter as string;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Đổi trả</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">RETURNS COMMAND CENTER</span>
+        <h1>Xử lý đổi trả.<br/>Bảo vệ quyền lợi.</h1>
+        <p>Quản lý các yêu cầu đổi trả từ người mua và cập nhật tiến độ.</p>
+    </div>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-1">
+    <form method="get" class="d-flex align-items-center gap-2 mb-4 p-3 bg-light rounded-3 border">
+        <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" placeholder="Mã đơn (#1) / khách / lý do..." class="form-control" style="max-width: 250px;" />
+        <select name="status" aria-label="Lọc trạng thái" class="form-select" style="max-width: 180px;">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Requested" selected="@(statusFilter == "Requested")">Đã yêu cầu</option>
+            <option value="Accepted" selected="@(statusFilter == "Accepted")">Đã chấp nhận</option>
+            <option value="RefundOffered" selected="@(statusFilter == "RefundOffered")">Đã hoàn tiền</option>
+            <option value="Declined" selected="@(statusFilter == "Declined")">Đã từ chối</option>
+            <option value="RefundedByReturn" selected="@(statusFilter == "RefundedByReturn")">Đã hoàn tiền (Trả hàng)</option>
+            <option value="Closed" selected="@(statusFilter == "Closed")">Đã đóng</option>
+        </select>
+        <input type="date" name="fromDate" value="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Từ ngày" />
+        <input type="date" name="toDate" value="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Đến ngày" />
+        <button type="submit" class="btn btn-primary px-4">Lọc</button>
+        <a asp-action="ExportCsv" asp-route-status="@statusFilter" asp-route-fromDate="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" asp-route-searchTerm="@ViewBag.SearchTerm" class="btn btn-outline-success ms-auto">📊 Xuất Excel (CSV)</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border">
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày yêu cầu</th>
+                    <th>Mã Đơn hàng</th>
+                    <th>Khách hàng</th>
+                    <th>Lý do</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <span class="text-muted">Chưa có yêu cầu đổi trả nào.</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var req in Model.Items)
+                    {
+                        <tr>
+                            <td>@req.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>#@req.OrderId</td>
+                            <td><a href="javascript:void(0)" onclick="openBuyerModal(@req.BuyerId, 'returns')" class="fw-bold text-primary text-decoration-underline" title="Nhấn xem hồ sơ & lịch sử đơn hàng">@req.BuyerUsername</a></td>
+                            <td>@req.Reason</td>
+                            <td>
+                                <strong>
+                                    @(req.Status switch {
+                                        "Requested" => "Đang yêu cầu",
+                                        "Accepted" => "Đã chấp nhận",
+                                        "Declined" => "Đã từ chối",
+                                        "RefundOffered" => "Đề xuất hoàn tiền",
+                                        "RefundedByReturn" => "Đã hoàn tiền",
+                                        "Closed" => "Đã đóng",
+                                        _ => req.Status
+                                    })
+                                </strong>
+                            </td>
+                            <td class="text-right action-cells">
+                                @if (req.Status != "Closed")
+                                {
+                                    <form asp-action="UpdateStatus" method="post" class="d-inline-flex" style="gap: 8px;">
+                                        <input type="hidden" name="id" value="@req.Id" />
+                                        <select name="status" class="form-control form-control-sm" style="min-width: 150px;" required>
+                                            <option value="">Chuyển trạng thái...</option>
+                                            <option value="Accepted">Chấp nhận</option>
+                                            <option value="RefundOffered">Đề xuất hoàn tiền</option>
+                                            <option value="RefundedByReturn">Đã hoàn tiền & nhận hàng</option>
+                                            <option value="Declined">Từ chối (chỉ áp dụng đổi ý)</option>
+                                            <option value="Closed">Đóng yêu cầu</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm">Cập nhật</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Pagination.TotalPages > 1)
+    {
+        <div class="pagination-container">
+            <ul class="pagination">
+                @for (int i = 1; i <= Model.Pagination.TotalPages; i++)
+                {
+                    <li>
+                        <a href="?page=@i&status=@statusFilter&fromDate=@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))&toDate=@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))&searchTerm=@ViewBag.SearchTerm" class="btn btn-sm @(i == Model.Pagination.Page ? "btn-primary" : "btn-outline-secondary")">@i</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</section>

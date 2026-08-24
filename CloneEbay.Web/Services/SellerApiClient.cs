@@ -76,6 +76,51 @@ public sealed class SellerApiClient(
             maxUsage = model.MaxUsage
         }, cancellationToken: cancellationToken);
 
+    public Task<ApiCallResult<ConversationListResponse>> GetConversationsAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<ConversationListResponse>("api/messages/conversations", true, cancellationToken);
+
+    public Task<ApiCallResult<PagedResultDto<MessageResponse>>> GetMessagesAsync(int conversationWith, int page = 1, int pageSize = 30, CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<MessageResponse>>($"api/messages/{conversationWith}?page={page}&pageSize={pageSize}", true, cancellationToken);
+
+    public Task<ApiCallResult<MessageResponse>> SendMessageAsync(SendMessageRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<MessageResponse>("api/messages", request, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkAsReadAsync(int messageId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/{messageId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkConversationAsReadAsync(int otherUserId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/conversations/{otherUserId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<UnreadCountResponse>> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<UnreadCountResponse>("api/messages/unread-count", true, cancellationToken);
+
+    public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<CouponDto>("api/coupons", new
+        {
+            productId = model.ProductId,
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage,
+            recaptchaToken = model.RecaptchaToken
+        }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<CouponDto>> UpdateCouponAsync(
+        int id,
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<CouponDto>($"api/coupons/{id}", new
+        {
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage
+        }, cancellationToken: cancellationToken);
+
     public Task<ApiCallResult<PagedResultDto<OrderSummaryDto>>> GetOrdersAsync(
         string? status = null,
         int page = 1,
@@ -297,6 +342,34 @@ public sealed class SellerApiClient(
         Expires = new DateTimeOffset(expiresAtUtc)
     };
 
+    public Task<ApiCallResult<PagedResultDto<ReviewResponseDto>>> GetReviewsAsync(int? productId, int? sellerId, bool? hasReply, DateTime? fromDate = null, DateTime? toDate = null, string? searchTerm = null, int page = 1, CancellationToken ct = default) =>
+        GetAsync<PagedResultDto<ReviewResponseDto>>($"api/reviews?productId={productId}&sellerId={sellerId}&hasReply={hasReply}&fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}&searchTerm={Uri.EscapeDataString(searchTerm ?? string.Empty)}&page={page}", true, ct);
+
+    public Task<ApiCallResult<ReviewResponseDto>> ReplyToReviewAsync(int reviewId, string response, CancellationToken ct = default) =>
+        PostAsync<ReviewResponseDto>($"api/reviews/{reviewId}/reply", new { Response = response }, true, ct);
+
+    public Task<ApiCallResult<FeedbackResponseDto>> GetFeedbackAsync(int sellerId, CancellationToken ct = default) =>
+        GetAsync<FeedbackResponseDto>($"api/feedback/{sellerId}", false, ct);
+
+    public Task<ApiCallResult<PagedResultDto<ReturnRequestResponseDto>>> GetReturnsAsync(string? status, DateTime? fromDate = null, DateTime? toDate = null, string? searchTerm = null, int page = 1, CancellationToken ct = default) =>
+        GetAsync<PagedResultDto<ReturnRequestResponseDto>>($"api/returns?status={status}&fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}&searchTerm={Uri.EscapeDataString(searchTerm ?? string.Empty)}&page={page}", true, ct);
+
+    public Task<ApiCallResult<ReturnRequestResponseDto>> UpdateReturnStatusAsync(int returnId, string status, CancellationToken ct = default) =>
+        PutAsync<ReturnRequestResponseDto>($"api/returns/{returnId}/status", new { Status = status }, true, ct);
+
+    public Task<ApiCallResult<PagedResultDto<DisputeResponseDto>>> GetDisputesAsync(string? status, DateTime? fromDate = null, DateTime? toDate = null, string? searchTerm = null, int page = 1, CancellationToken ct = default) =>
+        GetAsync<PagedResultDto<DisputeResponseDto>>($"api/disputes?status={status}&fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}&searchTerm={Uri.EscapeDataString(searchTerm ?? string.Empty)}&page={page}", true, ct);
+
+    public Task<ApiCallResult<DisputeResponseDto>> ResolveDisputeAsync(int disputeId, string resolution, CancellationToken ct = default) =>
+        PutAsync<DisputeResponseDto>($"api/disputes/{disputeId}/resolve", new { Resolution = resolution }, true, ct);
+
+    public Task<ApiCallResult<BuyerSummaryResponseDto>> GetBuyerSummaryAsync(int buyerId, CancellationToken ct = default) =>
+        GetAsync<BuyerSummaryResponseDto>($"api/seller/buyer-summary/{buyerId}", true, ct);
+
     private HttpContext GetHttpContext() =>
         httpContextAccessor.HttpContext ?? throw new InvalidOperationException("HTTP context is unavailable.");
 }
+
+
+
+
