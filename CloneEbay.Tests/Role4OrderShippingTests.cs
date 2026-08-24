@@ -328,6 +328,46 @@ public sealed class Role4OrderShippingTests
             var order = _orders.FirstOrDefault(o => o.Id == orderId && o.Items.Any(i => i.Product.SellerId == sellerId));
             return Task.FromResult(order?.Payment);
         }
+
+        public Task CreateMockOrderAsync(int sellerId, DateTime now, CancellationToken cancellationToken = default)
+        {
+            var newId = _orders.Count > 0 ? _orders.Max(o => o.Id) + 1 : 1;
+            var order = new Order
+            {
+                Id = newId,
+                BuyerId = 999,
+                OrderDateUtc = now,
+                TotalPrice = 100,
+                Status = "Pending",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductId = 1, Quantity = 1, UnitPrice = 100, Product = new Product { SellerId = sellerId, Title = "Test Product" } }
+                },
+                Payment = new Payment { Amount = 100, Method = "VNPay", Status = "Completed", PaidAtUtc = now }
+            };
+            _orders.Add(order);
+            return Task.CompletedTask;
+        }
+
+        public Task<Order> CreateManualOrderAsync(int sellerId, CreateManualOrderRequest request, DateTime now, CancellationToken cancellationToken = default)
+        {
+            var newId = _orders.Count > 0 ? _orders.Max(o => o.Id) + 1 : 1;
+            var order = new Order
+            {
+                Id = newId,
+                BuyerId = 999,
+                OrderDateUtc = now,
+                TotalPrice = request.Quantity * request.UnitPrice,
+                Status = "Pending",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductId = request.ProductId, Quantity = request.Quantity, UnitPrice = request.UnitPrice, Product = new Product { SellerId = sellerId, Title = "Test Product" } }
+                },
+                Payment = new Payment { Amount = request.Quantity * request.UnitPrice, Method = request.PaymentMethod, Status = request.PaymentStatus, PaidAtUtc = now }
+            };
+            _orders.Add(order);
+            return Task.FromResult(order);
+        }
     }
 
     private sealed class FixedClock : IClock

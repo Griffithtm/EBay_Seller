@@ -56,7 +56,7 @@
         <article class="listing-section reveal reveal-delay-2">
             <div class="listing-section-head"><span>03</span><div><h2>Hình ảnh sản phẩm</h2><p>Thêm tối đa 8 ảnh JPG, PNG hoặc WEBP, mỗi ảnh không quá 5 MB.</p></div></div>
             <label class="product-upload-zone" for="Images" data-product-dropzone>
-                <input asp-for="Images" type="file" multiple accept="image/jpeg,image/png,image/webp" data-product-image-input />
+                <input asp-for="Images" type="file" multiple accept="image/jpeg,image/png,image/webp" data-product-image-input data-val="false" />
                 <span class="product-upload-art" aria-hidden="true"><i></i><b>+</b></span>
                 <span><strong>Kéo thả ảnh vào đây hoặc chọn từ thiết bị</strong><small>Ảnh đầu tiên sẽ là ảnh đại diện của listing.</small></span>
                 <b>Chọn ảnh</b>

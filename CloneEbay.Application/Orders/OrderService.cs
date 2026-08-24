@@ -68,7 +68,7 @@ public sealed class OrderService(
             order.Address.State,
             order.Address.Country);
 
-        PaymentSummaryDto? paymentDto = order.Payment is null ? null : new PaymentSummaryDto(order.Payment.Status);
+        PaymentSummaryDto? paymentDto = order.Payment is null ? null : new PaymentSummaryDto(order.Payment.Method, order.Payment.Status);
 
         ShippingInfoSummaryDto? shippingDto = order.ShippingInfo is null ? null : new ShippingInfoSummaryDto(
             order.ShippingInfo.Carrier,
@@ -96,14 +96,27 @@ public sealed class OrderService(
             throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
         }
 
-        if (order.Payment is null || !string.Equals(order.Payment.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        if (order.Payment is null)
+        {
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "VNPay",
+                Status = "Completed",
+                PaidAtUtc = clock.UtcNow
+            };
+        }
+        else if (string.Equals(order.Payment.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(order.Payment.Status, "Failed", StringComparison.OrdinalIgnoreCase))
         {
             throw new AppProblemException(409, "PAYMENT_NOT_COMPLETED", "Payment status is not completed.");
         }
 
-        if (!string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
         {
-            throw new AppProblemException(409, "INVALID_ORDER_STATUS", "Order must be in Pending status to confirm.");
+            throw new AppProblemException(409, "INVALID_ORDER_STATUS", "Cancelled orders cannot be confirmed.");
         }
 
         var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
@@ -282,6 +295,112 @@ public sealed class OrderService(
             payment.Method,
             payment.Status,
             payment.PaidAtUtc);
+    }
+
+    public async Task<OrderDetailResponse> CreateMockOrderAsync(
+        int sellerId,
+        CancellationToken cancellationToken = default)
+    {
+        var now = clock.UtcNow;
+        await orderRepository.CreateMockOrderAsync(sellerId, now, cancellationToken);
+        var lastOrder = (await orderRepository.GetSellerOrdersAsync(sellerId, null, 1, 1, cancellationToken)).Items.FirstOrDefault();
+        if (lastOrder is null)
+        {
+            throw new AppProblemException(400, "CREATE_ORDER_FAILED", "Could not create mock order.");
+        }
+        return await GetSellerOrderDetailAsync(lastOrder.Id, sellerId, cancellationToken);
+    }
+
+    public async Task<OrderDetailResponse> CreateManualOrderAsync(
+        int sellerId,
+        CreateManualOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var now = clock.UtcNow;
+        var order = await orderRepository.CreateManualOrderAsync(sellerId, request, now, cancellationToken);
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
+    }
+
+    public async Task<OrderDetailResponse> PayVnPayAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        var now = clock.UtcNow;
+        if (order.Payment is null)
+        {
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "VNPay",
+                Status = "Completed",
+                PaidAtUtc = now
+            };
+        }
+        else
+        {
+            order.Payment.Method = "VNPay";
+            order.Payment.Status = "Completed";
+            order.Payment.PaidAtUtc = now;
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
+    }
+
+    public async Task<OrderConfirmResponse> CancelOrderAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppProblemException(400, "ORDER_ALREADY_CANCELLED", "Order is already cancelled.");
+        }
+
+        if (string.Equals(order.Status, "Delivered", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppProblemException(400, "CANNOT_CANCEL_DELIVERED", "Delivered orders cannot be cancelled.");
+        }
+
+        var now = clock.UtcNow;
+        var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
+
+        if (string.Equals(order.Status, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.Status, "Shipped", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var item in sellerItems)
+            {
+                if (item.Product.Inventory is not null)
+                {
+                    item.Product.Inventory.Quantity += item.Quantity;
+                    item.Product.Inventory.LastUpdatedUtc = now;
+                }
+            }
+        }
+
+        order.Status = "Cancelled";
+        if (order.ShippingInfo is not null)
+        {
+            order.ShippingInfo.Status = "Cancelled";
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new OrderConfirmResponse(order.Id, order.Status);
     }
 
     private static bool IsValidShippingStatusTransition(string currentStatus, string targetStatus)

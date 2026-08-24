@@ -13,8 +13,140 @@ public sealed class UpgradeRole1Auth : Migration
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
-            IF OBJECT_ID(N'[dbo].[User]', N'U') IS NULL OR OBJECT_ID(N'[dbo].[Store]', N'U') IS NULL
-                THROW 51000, 'Apply doc/clone_ebay_sqlserver_schema.sql before the Role 1 upgrade migration.', 1;
+            IF OBJECT_ID(N'[dbo].[User]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[User] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [username] NVARCHAR(100),
+                    [email] NVARCHAR(100) UNIQUE,
+                    [password] NVARCHAR(255),
+                    [role] NVARCHAR(20),
+                    [avatarURL] NVARCHAR(MAX)
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Category]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Category] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [name] NVARCHAR(100)
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Product]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Product] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [title] NVARCHAR(255),
+                    [description] NVARCHAR(MAX),
+                    [price] DECIMAL(10,2),
+                    [images] NVARCHAR(MAX),
+                    [categoryId] INT FOREIGN KEY REFERENCES [Category](id),
+                    [sellerId] INT FOREIGN KEY REFERENCES [User](id),
+                    [isAuction] BIT,
+                    [auctionEndTime] DATETIME,
+                    [status] NVARCHAR(20) DEFAULT('Active'),
+                    [createdAtUtc] DATETIME2 DEFAULT(SYSUTCDATETIME()),
+                    [updatedAtUtc] DATETIME2 DEFAULT(SYSUTCDATETIME()),
+                    [auctionClosedAtUtc] DATETIME2 NULL,
+                    [auctionWinnerId] INT NULL
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[OrderTable]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[OrderTable] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [buyerId] INT FOREIGN KEY REFERENCES [User](id),
+                    [addressId] INT,
+                    [orderDate] DATETIME,
+                    [totalPrice] DECIMAL(10,2),
+                    [status] NVARCHAR(20)
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[OrderItem]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[OrderItem] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [orderId] INT FOREIGN KEY REFERENCES [OrderTable](id),
+                    [productId] INT FOREIGN KEY REFERENCES [Product](id),
+                    [quantity] INT,
+                    [unitPrice] DECIMAL(10,2)
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Bid]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Bid] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [productId] INT FOREIGN KEY REFERENCES [Product](id),
+                    [bidderId] INT FOREIGN KEY REFERENCES [User](id),
+                    [amount] DECIMAL(10,2),
+                    [bidTime] DATETIME
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Inventory]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Inventory] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [productId] INT FOREIGN KEY REFERENCES [Product](id),
+                    [quantity] INT,
+                    [lastUpdated] DATETIME
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Store]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Store] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [sellerId] INT FOREIGN KEY REFERENCES [User](id),
+                    [storeName] NVARCHAR(100),
+                    [description] NVARCHAR(MAX),
+                    [bannerImageURL] NVARCHAR(MAX)
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Address]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Address] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [userId] INT FOREIGN KEY REFERENCES [User](id),
+                    [fullName] NVARCHAR(100),
+                    [phone] NVARCHAR(20),
+                    [street] NVARCHAR(100),
+                    [city] NVARCHAR(50),
+                    [state] NVARCHAR(50),
+                    [country] NVARCHAR(50),
+                    [isDefault] BIT
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Payment]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Payment] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [orderId] INT FOREIGN KEY REFERENCES [OrderTable](id),
+                    [userId] INT FOREIGN KEY REFERENCES [User](id),
+                    [amount] DECIMAL(10,2),
+                    [method] NVARCHAR(50),
+                    [status] NVARCHAR(20),
+                    [paidAt] DATETIME
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[ShippingInfo]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[ShippingInfo] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [orderId] INT FOREIGN KEY REFERENCES [OrderTable](id),
+                    [carrier] NVARCHAR(100),
+                    [trackingNumber] NVARCHAR(100),
+                    [status] NVARCHAR(50),
+                    [estimatedArrival] DATETIME
+                );
+            END;
 
             UPDATE [dbo].[User]
             SET [username] = CONCAT('legacy-user-', [id])

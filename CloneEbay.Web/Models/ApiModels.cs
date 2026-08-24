@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json.Serialization;
 
@@ -49,6 +50,13 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "COUPON_CODE_ALREADY_EXISTS" => "Mã này đã tồn tại cho sản phẩm đã chọn.",
         "COUPON_ALREADY_USED" => "Mã đã được sử dụng nên không thể xóa.",
         "RECAPTCHA_VERIFICATION_FAILED" => "Xác thực reCAPTCHA thất bại. Vui lòng thử lại.",
+        "ORDER_NOT_FOUND" => "Không tìm thấy đơn hàng hoặc đơn không thuộc cửa hàng của bạn.",
+        "PAYMENT_NOT_COMPLETED" => "Đơn hàng chưa được thanh toán thành công nên chưa thể xác nhận.",
+        "INSUFFICIENT_INVENTORY" => "Tồn kho không đủ để xác nhận đơn hàng này.",
+        "INVALID_STATUS_TRANSITION" => "Chuyển trạng thái vận chuyển không hợp lệ theo quy trình.",
+        "ORDER_NOT_CONFIRMED" => "Chỉ có thể in phiếu vận chuyển cho đơn hàng đã được xác nhận.",
+        "SHIPPING_INFO_NOT_FOUND" => "Không tìm thấy thông tin vận chuyển cho đơn hàng.",
+        "PAYMENT_NOT_FOUND" => "Không tìm thấy thông tin thanh toán cho đơn hàng.",
         _ => Error?.Message ?? "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
     };
 }
@@ -149,6 +157,7 @@ public sealed record CouponDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
+
 public sealed record AuctionCloseDto(
     int ProductId,
     int? WinnerId,
@@ -156,3 +165,88 @@ public sealed record AuctionCloseDto(
     int? OrderId,
     bool OrderCreationPending,
     DateTime ClosedAt);
+
+public sealed record OrderSummaryDto(
+    int Id,
+    DateTime OrderDate,
+    decimal TotalPrice,
+    string Status);
+
+public sealed record OrderItemDto(
+    int ProductId,
+    string Title,
+    int Quantity,
+    decimal UnitPrice);
+
+public sealed record AddressDto(
+    int Id,
+    string FullName,
+    string Phone,
+    string Street,
+    string City,
+    string? State,
+    string Country);
+
+public sealed record PaymentSummaryDto(string Method, string Status);
+
+public sealed record PaymentDetailDto(
+    decimal Amount,
+    string Method,
+    string Status,
+    DateTime? PaidAt);
+
+public sealed record ShippingInfoDto(
+    string Carrier,
+    string TrackingNumber,
+    string Status,
+    DateTime? EstimatedArrival);
+
+public sealed record OrderDetailDto(
+    int Id,
+    string Status,
+    IReadOnlyList<OrderItemDto> OrderItems,
+    AddressDto? Address,
+    PaymentSummaryDto? Payment,
+    ShippingInfoDto? Shipping);
+
+public sealed record OrderConfirmDto(int Id, string Status);
+public sealed record UpdateShippingStatusResponseDto(int Id, string Status);
+public sealed record ShippingLabelResponseDto(int OrderId, string Carrier, string TrackingNumber, string Status, string LabelUrl);
+
+public sealed class CreateManualOrderViewModel
+{
+    [Required(ErrorMessage = "Vui lòng nhập họ tên người nhận.")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
+    public string Phone { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập địa chỉ / số nhà.")]
+    public string Street { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập Thành phố / Tỉnh.")]
+    public string City { get; set; } = string.Empty;
+
+    public string? State { get; set; }
+
+    [Required(ErrorMessage = "Vui lòng nhập Quốc gia.")]
+    public string Country { get; set; } = "Vietnam";
+
+    [Required(ErrorMessage = "Vui lòng chọn sản phẩm.")]
+    public int ProductId { get; set; }
+
+    [Range(1, 1000, ErrorMessage = "Số lượng phải từ 1 trở lên.")]
+    public int Quantity { get; set; } = 1;
+
+    [Range(0.01, 100000000, ErrorMessage = "Đơn giá không hợp lệ.")]
+    public decimal UnitPrice { get; set; }
+
+    [Required(ErrorMessage = "Vui lòng chọn hình thức thanh toán.")]
+    public string PaymentMethod { get; set; } = "COD";
+
+    [Required(ErrorMessage = "Vui lòng chọn trạng thái thanh toán.")]
+    public string PaymentStatus { get; set; } = "Completed";
+
+    public IReadOnlyList<ProductDto> AvailableProducts { get; set; } = new List<ProductDto>();
+}
+

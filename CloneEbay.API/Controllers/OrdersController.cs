@@ -78,4 +78,42 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         var result = await orderService.GetPaymentInfoAsync(id, currentSellerId, cancellationToken);
         return Ok(ApiEnvelope<PaymentDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
+
+    [HttpPost("mock")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CreateMockOrder(CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CreateMockOrderAsync(currentSellerId, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("manual")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CreateManualOrder(
+        [FromBody] CreateManualOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CreateManualOrderAsync(currentSellerId, request, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/pay-vnpay")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> PayVnPay(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.PayVnPayAsync(id, currentSellerId, cancellationToken);
+        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    public async Task<ActionResult<ApiEnvelope<OrderConfirmResponse>>> CancelOrder(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CancelOrderAsync(id, currentSellerId, cancellationToken);
+        return Ok(ApiEnvelope<OrderConfirmResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
 }
