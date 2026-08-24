@@ -14,6 +14,9 @@ using CloneEbay.Application.Stores;
 using CloneEbay.Application.Products;
 using CloneEbay.Application.Coupons;
 using CloneEbay.Application.Orders;
+using CloneEbay.Application.Reviews;
+using CloneEbay.Application.Returns;
+using CloneEbay.Application.Disputes;
 using CloneEbay.Infrastructure;
 using CloneEbay.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,12 +26,17 @@ using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Host.UseSerilog((ctx, cfg) => cfg
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "CloneEbay.API")
+    .WriteTo.Console(new CompactJsonFormatter()));
+
 var dataProtectionPath = builder.Configuration["DataProtection:KeysPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, ".data-protection");
 Directory.CreateDirectory(dataProtectionPath);
@@ -61,6 +69,9 @@ builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IReturnService, ReturnService>();
+builder.Services.AddScoped<IDisputeService, DisputeService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddOptions<JwtSettings>()
