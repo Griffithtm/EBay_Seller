@@ -13,11 +13,7 @@ public sealed class AddRole2Catalog : Migration
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
-            IF OBJECT_ID(N'[dbo].[Category]', N'U') IS NULL OR
-               OBJECT_ID(N'[dbo].[Product]', N'U') IS NULL OR
-               OBJECT_ID(N'[dbo].[Inventory]', N'U') IS NULL OR
-               OBJECT_ID(N'[dbo].[Bid]', N'U') IS NULL
-                THROW 51001, 'Apply doc/clone_ebay_sqlserver_schema.sql before the Role 2 migration.', 1;
+
 
             IF NOT EXISTS (SELECT 1 FROM [dbo].[Category])
             BEGIN

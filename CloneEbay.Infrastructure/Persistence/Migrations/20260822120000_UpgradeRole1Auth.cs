@@ -103,6 +103,46 @@ public sealed class UpgradeRole1Auth : Migration
                 );
             END;
 
+            IF OBJECT_ID(N'[dbo].[Address]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Address] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [userId] INT FOREIGN KEY REFERENCES [User](id),
+                    [fullName] NVARCHAR(100),
+                    [phone] NVARCHAR(20),
+                    [street] NVARCHAR(100),
+                    [city] NVARCHAR(50),
+                    [state] NVARCHAR(50),
+                    [country] NVARCHAR(50),
+                    [isDefault] BIT
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[Payment]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[Payment] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [orderId] INT FOREIGN KEY REFERENCES [OrderTable](id),
+                    [userId] INT FOREIGN KEY REFERENCES [User](id),
+                    [amount] DECIMAL(10,2),
+                    [method] NVARCHAR(50),
+                    [status] NVARCHAR(20),
+                    [paidAt] DATETIME
+                );
+            END;
+
+            IF OBJECT_ID(N'[dbo].[ShippingInfo]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [dbo].[ShippingInfo] (
+                    [id] INT IDENTITY(1,1) PRIMARY KEY,
+                    [orderId] INT FOREIGN KEY REFERENCES [OrderTable](id),
+                    [carrier] NVARCHAR(100),
+                    [trackingNumber] NVARCHAR(100),
+                    [status] NVARCHAR(50),
+                    [estimatedArrival] DATETIME
+                );
+            END;
+
             UPDATE [dbo].[User]
             SET [username] = CONCAT('legacy-user-', [id])
             WHERE [username] IS NULL OR LTRIM(RTRIM([username])) = '';

@@ -12,6 +12,10 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
     public async Task<IActionResult> Index(string? status = null, int page = 1, CancellationToken cancellationToken = default)
     {
         var result = await apiClient.GetOrdersAsync(status, page, pageSize: 20, cancellationToken);
+        if (!result.Success && result.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return RedirectToAction("Login", "Auth");
+        }
         ViewBag.CurrentStatus = status;
         return View(result);
     }
@@ -22,6 +26,10 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
         var result = await apiClient.GetOrderDetailAsync(id, cancellationToken);
         if (!result.Success || result.Data is null)
         {
+            if (result.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
             TempData["ErrorMessage"] = result.ErrorMessage;
             return RedirectToAction(nameof(Index));
         }

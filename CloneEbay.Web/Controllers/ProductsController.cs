@@ -28,7 +28,14 @@ public sealed class ProductsController(SellerApiClient apiClient) : Controller
         await Task.WhenAll(productsTask, categoriesTask);
         var productResult = await productsTask;
         var categoryResult = await categoriesTask;
-        if (!productResult.Success) TempData["Error"] = productResult.ErrorMessage;
+        if (!productResult.Success)
+        {
+            if (productResult.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+            TempData["Error"] = productResult.ErrorMessage;
+        }
 
         return View(new ProductIndexViewModel
         {

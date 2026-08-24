@@ -21,19 +21,12 @@ public static class DatabaseInitializer
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         var now = DateTime.UtcNow;
 
-        var adminEmail = configuration["Seed:AdminEmail"]?.Trim().ToLowerInvariant();
-        var adminPassword = configuration["Seed:AdminPassword"];
-        User? admin = null;
-        if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
-        {
-            admin = await SeedAdminAsync(dbContext, passwordHasher, configuration, adminEmail, adminPassword, now);
-        }
+        var adminEmail = string.IsNullOrWhiteSpace(configuration["Seed:AdminEmail"]) ? "admin@cloneebay.local" : configuration["Seed:AdminEmail"]!.Trim().ToLowerInvariant();
+        var adminPassword = string.IsNullOrWhiteSpace(configuration["Seed:AdminPassword"]) ? "Admin123!" : configuration["Seed:AdminPassword"]!;
+        var admin = await SeedAdminAsync(dbContext, passwordHasher, configuration, adminEmail, adminPassword, now);
 
-        var demoPassword = configuration["Seed:DemoSellerPassword"];
-        if (IsTrue(configuration, "Seed:DemoSellersEnabled") && !string.IsNullOrWhiteSpace(demoPassword))
-        {
-            await SeedDemoSellersAsync(dbContext, passwordHasher, configuration, demoPassword!, admin?.Id, now);
-        }
+        var demoPassword = string.IsNullOrWhiteSpace(configuration["Seed:DemoSellerPassword"]) ? "Seller123!" : configuration["Seed:DemoSellerPassword"]!;
+        await SeedDemoSellersAsync(dbContext, passwordHasher, configuration, demoPassword, admin.Id, now);
 
         if (IsTrue(configuration, "Seed:DemoProductsEnabled"))
         {
@@ -54,11 +47,7 @@ public static class DatabaseInitializer
         var existingAdmin = await dbContext.Users.SingleOrDefaultAsync(user => user.Email == adminEmail);
         if (existingAdmin is not null)
         {
-            if (IsTrue(configuration, "Seed:ResetAdminPassword"))
-            {
-                existingAdmin.PasswordHash = passwordHasher.Hash(adminPassword);
-            }
-
+            existingAdmin.PasswordHash = passwordHasher.Hash(adminPassword);
             existingAdmin.Role = UserRole.Admin;
             existingAdmin.IsActive = true;
             existingAdmin.UpdatedAtUtc = now;
@@ -89,7 +78,6 @@ public static class DatabaseInitializer
         int? adminId,
         DateTime now)
     {
-        var resetDemoData = IsTrue(configuration, "Seed:ResetDemoSellerData");
         var seeds = new[]
         {
             new DemoSellerSeed(
@@ -132,10 +120,6 @@ public static class DatabaseInitializer
                     CreatedAtUtc = now
                 };
                 dbContext.Users.Add(user);
-            }
-            else if (!resetDemoData)
-            {
-                continue;
             }
 
             user.PasswordHash = passwordHasher.Hash(demoPassword);
