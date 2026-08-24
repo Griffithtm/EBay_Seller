@@ -13,5 +13,8 @@ public sealed class Order : BaseEntity
 
     public User Buyer { get; set; } = null!;
     public Product? AuctionProduct { get; set; }
+    public Address? Address { get; set; }
+    public Payment? Payment { get; set; }
+    public ShippingInfo? ShippingInfo { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

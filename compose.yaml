@@ -49,6 +49,8 @@ services:
       DataProtection__KeysPath: /var/cloneebay/keys
       Redis__Enabled: "true"
       Redis__ConnectionString: redis:6379,abortConnect=false
+      Recaptcha__Enabled: ${RECAPTCHA_ENABLED:-false}
+      Recaptcha__SecretKey: ${RECAPTCHA_SECRET_KEY:-}
     depends_on:
       sqlserver:
         condition: service_healthy

@@ -1,12 +1,14 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace CloneEbay.Infrastructure.Persistence.Migrations
 {
-    public partial class AddModule7Messaging : Migration
+    /// <inheritdoc />
+    public partial class IntegrateRole7Messaging : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -51,6 +53,7 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                 columns: new[] { "SenderId", "ReceiverId", "Timestamp" });
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

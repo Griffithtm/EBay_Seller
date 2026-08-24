@@ -1,0 +1,135 @@
+@model PagedResultDto<ReviewResponseDto>
+@{
+    ViewData["Title"] = "Đánh giá & Phản hồi";
+    var hasReplyFilter = ViewBag.HasReplyFilter as bool?;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Đánh giá</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">REVIEW COMMAND CENTER</span>
+        <h1>Lắng nghe khách hàng.<br/>Nâng cao uy tín.</h1>
+        <p>Quản lý đánh giá, trả lời người mua và theo dõi mức độ hài lòng.</p>
+    </div>
+</section>
+
+@if (ViewBag.Feedback is FeedbackResponseDto fb)
+{
+    <div class="row g-3 mb-4 reveal">
+        <div class="col-md-4">
+            <div class="p-3 bg-white border rounded-3 shadow-sm text-center">
+                <div class="text-muted small">Đánh giá trung bình</div>
+                <div class="fs-3 fw-bold text-warning">★ @fb.AverageRating.ToString("0.0") / 5.0</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 bg-white border rounded-3 shadow-sm text-center">
+                <div class="text-muted small">Tỷ lệ hài lòng (Tích cực)</div>
+                <div class="fs-3 fw-bold text-success">👍 @fb.PositiveRate.ToString("0.0")%</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 bg-white border rounded-3 shadow-sm text-center">
+                <div class="text-muted small">Tổng số đánh giá</div>
+                <div class="fs-3 fw-bold text-primary">💬 @fb.TotalReviews</div>
+            </div>
+        </div>
+    </div>
+}
+
+<section class="catalog-workspace reveal reveal-delay-1">
+    <form method="get" class="d-flex align-items-center gap-2 mb-4 p-3 bg-light rounded-3 border">
+        <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" placeholder="Tìm tên SP / khách / nội dung..." class="form-control" style="max-width: 250px;" />
+        <select name="hasReply" aria-label="Lọc phản hồi" class="form-select" style="max-width: 180px;">
+            <option value="">Tất cả đánh giá</option>
+            <option value="false" selected="@(hasReplyFilter == false)">Chưa phản hồi</option>
+            <option value="true" selected="@(hasReplyFilter == true)">Đã phản hồi</option>
+        </select>
+        <input type="date" name="fromDate" value="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Từ ngày" />
+        <input type="date" name="toDate" value="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Đến ngày" />
+        <button type="submit" class="btn btn-primary px-4">Lọc</button>
+        <a asp-action="ExportCsv" asp-route-hasReply="@hasReplyFilter" asp-route-fromDate="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" asp-route-searchTerm="@ViewBag.SearchTerm" class="btn btn-outline-success ms-auto">📊 Xuất Excel (CSV)</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border">
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày đánh giá</th>
+                    <th>Sản phẩm</th>
+                    <th>Khách hàng</th>
+                    <th>Đánh giá</th>
+                    <th>Nội dung</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <span class="text-muted">Chưa có đánh giá nào phù hợp với bộ lọc.</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var review in Model.Items)
+                    {
+                        <tr>
+                            <td>@review.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <a asp-controller="Products" asp-action="Detail" asp-route-id="@review.ProductId">@review.ProductTitle</a>
+                                <small class="text-muted d-block">Mã ĐG: #@review.Id</small>
+                            </td>
+                            <td><a href="javascript:void(0)" onclick="openBuyerModal(@review.ReviewerId, 'reviews')" class="fw-bold text-primary text-decoration-underline" title="Nhấn xem hồ sơ & lịch sử đơn hàng">@review.ReviewerUsername</a></td>
+                            <td>
+                                <span style="color: #f59e0b;">
+                                    @for (int i = 0; i < review.Rating; i++)
+                                    {
+                                        <text>★</text>
+                                    }
+                                </span>
+                            </td>
+                            <td>
+                                <div>@review.Comment</div>
+                                @if (review.Response != null)
+                                {
+                                    <div style="margin-top: 8px; padding: 8px; background: #f3f4f6; border-left: 3px solid #3b82f6; border-radius: 4px;">
+                                        <small class="text-muted d-block">Phản hồi của bạn:</small>
+                                        @review.Response
+                                    </div>
+                                }
+                            </td>
+                            <td class="text-right action-cells">
+                                @if (review.Response == null)
+                                {
+                                    <form asp-action="Reply" method="post" class="d-inline-flex" style="gap: 8px;">
+                                        <input type="hidden" name="id" value="@review.Id" />
+                                        <input type="text" name="response" class="form-control form-control-sm" placeholder="Viết phản hồi..." required />
+                                        <button type="submit" class="btn btn-primary btn-sm">Gửi</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Pagination.TotalPages > 1)
+    {
+        <div class="pagination-container">
+            <ul class="pagination">
+                @for (int i = 1; i <= Model.Pagination.TotalPages; i++)
+                {
+                    <li>
+                        <a href="?page=@i&hasReply=@hasReplyFilter&fromDate=@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))&toDate=@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))&searchTerm=@ViewBag.SearchTerm" class="btn btn-sm @(i == Model.Pagination.Page ? "btn-primary" : "btn-outline-secondary")">@i</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</section>

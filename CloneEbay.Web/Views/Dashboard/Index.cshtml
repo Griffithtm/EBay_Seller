@@ -1,0 +1,330 @@
+@model DashboardIndexViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Báo cáo doanh số";
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    string MediaUrl(string? path) => string.IsNullOrWhiteSpace(path)
+        ? string.Empty
+        : (Uri.TryCreate(path, UriKind.Absolute, out _) ? path : $"{apiBase.TrimEnd('/')}/{path.TrimStart('/')}");
+    var isWeek = Model.Period == "week";
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Seller" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Báo cáo & Doanh số</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">SALES & REVENUE ANALYTICS</span>
+        <h1>Báo cáo kinh doanh.<br/>Quyết định chính xác.</h1>
+        <p>Theo dõi doanh thu, tốc độ tiêu thụ sản phẩm và chỉ số chất lượng dịch vụ trong thời gian thực.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <select name="period" class="form-select" onchange="this.form.submit()" aria-label="Chọn kỳ báo cáo">
+                <option value="week" selected="@(isWeek)">Kỳ: Tuần này (7 ngày)</option>
+                <option value="month" selected="@(!isWeek)">Kỳ: Tháng này</option>
+            </select>
+        </form>
+        <a class="btn btn-outline-primary btn-sm" href="@Url.Action("Index", new { period = Model.Period })" title="Làm mới số liệu">↻</a>
+    </div>
+</section>
+
+<!-- 3 KPI Cards -->
+<section class="catalog-metrics reveal reveal-delay-1" aria-label="Tổng quan doanh số">
+    <article>
+        <span class="metric-symbol blue">₫</span>
+        <div>
+            <small>TỔNG DOANH THU</small>
+            <strong>@Model.Summary.TotalRevenue.ToString("N0") ₫</strong>
+            <p>@(isWeek ? "Trong 7 ngày qua" : "Trong tháng hiện tại")</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol green">✓</span>
+        <div>
+            <small>TỔNG ĐƠN HOÀN TẤT</small>
+            <strong>@Model.Summary.TotalOrders</strong>
+            <p>Đơn hàng có sản phẩm của bạn</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol violet">★</span>
+        <div>
+            <small>GIÁ TRỊ ĐƠN TB (AOV)</small>
+            <strong>@Model.Summary.AverageOrderValue.ToString("N0") ₫</strong>
+            <p>Doanh thu trung bình mỗi đơn</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol orange">◆</span>
+        <div>
+            <small>HIỆU SUẤT GIAN HÀNG</small>
+            <strong>@(Model.Performance.SellerLevel == "TopRated" ? "Top Rated" : "Above Standard")</strong>
+            <p>Tỷ lệ hài lòng: @Model.Performance.PositiveFeedbackRate.ToString("0.#")%</p>
+        </div>
+    </article>
+</section>
+
+<div class="row g-4 mt-2">
+    <!-- Revenue Chart -->
+    <div class="col-lg-8 reveal reveal-delay-2">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold mb-1 text-dark">Biểu đồ doanh thu</h5>
+                    <small class="text-muted">Biến động doanh thu theo @(isWeek ? "các ngày trong tuần" : "các tuần trong tháng")</small>
+                </div>
+                <span class="badge bg-primary-subtle text-primary fw-medium px-3 py-2 rounded-pill">
+                    @(isWeek ? "Tuần này" : "Tháng này"): @Model.RevenueChart.TotalRevenue.ToString("N0") ₫
+                </span>
+            </div>
+            <div class="position-relative" style="min-height: 280px; max-height: 320px;">
+                <canvas id="revenueChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seller Performance Quality -->
+    <div class="col-lg-4 reveal reveal-delay-2">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h5 class="fw-bold mb-3 text-dark">Chỉ số vận hành (Seller Level)</h5>
+            <div class="d-flex flex-column gap-3">
+                <div class="p-3 rounded-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary small fw-medium">Giao hàng đúng hạn</span>
+                        <span class="badge bg-success-subtle text-success">@(100 - Model.Performance.LateShipmentRate)%</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: @(100 - Model.Performance.LateShipmentRate)%" aria-valuenow="@(100 - Model.Performance.LateShipmentRate)" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary small fw-medium">Tỷ lệ khiếu nại (Disputes)</span>
+                        <span class="badge bg-primary-subtle text-primary">@Model.Performance.DisputeRate%</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: @(Model.Performance.DisputeRate > 0 ? Model.Performance.DisputeRate : 2)%" aria-valuenow="@Model.Performance.DisputeRate" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary small fw-medium">Phản hồi tích cực</span>
+                        <span class="badge bg-info-subtle text-info">@Model.Performance.PositiveFeedbackRate%</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: @Model.Performance.PositiveFeedbackRate%" aria-valuenow="@Model.Performance.PositiveFeedbackRate" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="alert alert-info py-2 px-3 mb-0 small rounded-3">
+                    💡 Đạt tối thiểu 10 đơn hàng thành công và duy trì tỷ lệ hài lòng cao để được xếp hạng <strong>Top Rated Seller</strong>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Products Table -->
+<section class="catalog-workspace mt-4 reveal reveal-delay-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="fw-bold mb-0 text-dark">Top sản phẩm bán chạy nhất</h4>
+            <small class="text-muted">Danh sách sản phẩm đóng góp doanh số cao nhất trong kỳ</small>
+        </div>
+        <a class="btn btn-secondary-soft btn-sm" asp-controller="Products" asp-action="Index">Quản lý kho hàng →</a>
+    </div>
+
+    @if (Model.TopProducts.Count == 0)
+    {
+        <div class="product-empty my-3">
+            <div class="product-empty-art" aria-hidden="true"><span></span><i></i></div>
+            <h2>Chưa có đơn hàng nào trong kỳ này</h2>
+            <p>Khi có khách hàng mua sản phẩm hoặc chốt đấu giá thành công, danh sách top sản phẩm sẽ hiển thị tại đây.</p>
+            <a class="btn btn-primary btn-sm" asp-controller="Products" asp-action="Create">Đăng thêm sản phẩm</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive bg-white rounded-4 shadow-sm p-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Sản phẩm</th>
+                        <th class="text-center">Hình thức</th>
+                        <th class="text-end">Đã bán</th>
+                        <th class="text-end">Doanh thu mang lại</th>
+                        <th class="text-end">Tồn kho còn lại</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.TopProducts.Count; i++)
+                    {
+                        var product = Model.TopProducts[i];
+                        <tr>
+                            <td class="fw-bold text-secondary">@(i + 1)</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                    {
+                                        <img src="@MediaUrl(product.ImageUrl)" alt="@product.Title" class="rounded-3" style="width: 48px; height: 48px; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                                        <span class="justify-content-center align-items-center bg-light text-primary fw-bold rounded-3 shadow-sm" style="display: none; width: 48px; height: 48px; font-size: 1.1rem;">
+                                            @product.Title[..1].ToUpperInvariant()
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="d-inline-flex justify-content-center align-items-center bg-light text-primary fw-bold rounded-3 shadow-sm" style="width: 48px; height: 48px; font-size: 1.1rem;">
+                                            @product.Title[..1].ToUpperInvariant()
+                                        </span>
+                                    }
+                                    <div>
+                                        <a asp-controller="Products" asp-action="Detail" asp-route-id="@product.ProductId" class="fw-bold text-dark text-decoration-none">
+                                            @product.Title
+                                        </a>
+                                        <div class="small text-muted">Mã SP: #@product.ProductId</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                @if (product.IsAuction)
+                                {
+                                    <span class="badge" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; padding: 6px 12px; border-radius: 20px;">⚡ Đấu giá</span>
+                                }
+                                else
+                                {
+                                    <span class="badge" style="background-color: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; font-weight: 600; padding: 6px 12px; border-radius: 20px;">🏷️ Giá cố định</span>
+                                }
+                            </td>
+                            <td class="text-end fw-bold text-dark">
+                                @product.QuantitySold
+                            </td>
+                            <td class="text-end fw-bold text-primary">
+                                @product.Revenue.ToString("N0") ₫
+                            </td>
+                            <td class="text-end">
+                                @if (product.RemainingStock > 0)
+                                {
+                                    <span class="badge" style="background-color: #dcfce7; color: #166534; font-weight: 600; padding: 6px 10px; border-radius: 20px;">@product.RemainingStock</span>
+                                }
+                                else
+                                {
+                                    <span class="badge" style="background-color: #fee2e2; color: #991b1b; font-weight: 600; padding: 6px 10px; border-radius: 20px;">0 (Hết hàng)</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const ctx = document.getElementById("revenueChartCanvas");
+            if (!ctx) return;
+
+            const chartData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueChart.Points));
+            const labels = chartData.map(p => p.Label);
+            const revenues = chartData.map(p => p.Revenue);
+            const orders = chartData.map(p => p.OrderCount);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Doanh thu (VNĐ)',
+                            data: revenues,
+                            backgroundColor: 'rgba(49, 85, 217, 0.75)',
+                            borderColor: '#3155d9',
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Số đơn hàng',
+                            data: orders,
+                            type: 'line',
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 4,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    weight: 500
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.yAxisID === 'y') {
+                                        return context.dataset.label + ': ' + Number(context.raw).toLocaleString('vi-VN') + ' ₫';
+                                    }
+                                    return context.dataset.label + ': ' + context.raw + ' đơn';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: {
+                                callback: function(value) {
+                                    return (value >= 1000000 ? (value / 1000000) + 'M' : (value >= 1000 ? (value / 1000) + 'k' : value)) + ' ₫';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}

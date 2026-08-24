@@ -1,0 +1,111 @@
+@model PagedResultDto<DisputeResponseDto>
+@{
+    ViewData["Title"] = "Quản lý Tranh chấp";
+    var statusFilter = ViewBag.StatusFilter as string;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Tranh chấp</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">DISPUTE RESOLUTION</span>
+        <h1>Giải quyết tranh chấp.<br/>Nhanh chóng & công bằng.</h1>
+        <p>Quản lý các tranh chấp phát sinh từ đơn hàng để bảo vệ quyền lợi hai bên.</p>
+    </div>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-1">
+    <form method="get" class="d-flex align-items-center gap-2 mb-4 p-3 bg-light rounded-3 border">
+        <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" placeholder="Mã đơn (#1) / người tạo / mô tả..." class="form-control" style="max-width: 250px;" />
+        <select name="status" aria-label="Lọc trạng thái" class="form-select" style="max-width: 180px;">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Open" selected="@(statusFilter == "Open")">Đang mở</option>
+            <option value="UnderReview" selected="@(statusFilter == "UnderReview")">Đang xem xét</option>
+            <option value="Resolved" selected="@(statusFilter == "Resolved")">Đã giải quyết</option>
+        </select>
+        <input type="date" name="fromDate" value="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Từ ngày" />
+        <input type="date" name="toDate" value="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" class="form-control" style="max-width: 150px;" title="Đến ngày" />
+        <button type="submit" class="btn btn-primary px-4">Lọc</button>
+        <a asp-action="ExportCsv" asp-route-status="@statusFilter" asp-route-fromDate="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" asp-route-searchTerm="@ViewBag.SearchTerm" class="btn btn-outline-success ms-auto">📊 Xuất Excel (CSV)</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Mã Đơn hàng</th>
+                    <th>Người tạo</th>
+                    <th>Mô tả</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <span class="text-muted">Chưa có tranh chấp nào.</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var dispute in Model.Items)
+                    {
+                        <tr>
+                            <td>#@dispute.Id</td>
+                            <td>#@dispute.OrderId</td>
+                            <td><a href="javascript:void(0)" onclick="openBuyerModal(@dispute.RaiserId, 'disputes')" class="fw-bold text-primary text-decoration-underline" title="Nhấn xem hồ sơ & lịch sử đơn hàng">@dispute.RaiserUsername</a></td>
+                            <td>
+                                <div>@dispute.Description</div>
+                                @if (dispute.Resolution != null)
+                                {
+                                    <div style="margin-top: 8px; padding: 8px; background: #ecfdf5; border-left: 3px solid #10b981; border-radius: 4px;">
+                                        <small class="text-muted d-block">Kết quả giải quyết:</small>
+                                        @dispute.Resolution
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                <strong>
+                                    @(dispute.Status switch {
+                                        "Open" => "Đang mở",
+                                        "UnderReview" => "Đang xem xét",
+                                        "Resolved" => "Đã giải quyết",
+                                        _ => dispute.Status
+                                    })
+                                </strong>
+                            </td>
+                            <td class="text-right action-cells">
+                                @if (dispute.Status != "Resolved")
+                                {
+                                    <form asp-action="Resolve" method="post" class="d-inline-flex" style="gap: 8px;">
+                                        <input type="hidden" name="id" value="@dispute.Id" />
+                                        <input type="text" name="resolution" class="form-control form-control-sm" placeholder="Nhập kết quả..." style="min-width: 150px;" required />
+                                        <button type="submit" class="btn btn-primary btn-sm">Giải quyết</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Pagination.TotalPages > 1)
+    {
+        <div class="pagination-container">
+            <ul class="pagination">
+                @for (int i = 1; i <= Model.Pagination.TotalPages; i++)
+                {
+                    <li>
+                        <a href="?page=@i&status=@statusFilter&fromDate=@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))&toDate=@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))&searchTerm=@ViewBag.SearchTerm" class="btn btn-sm @(i == Model.Pagination.Page ? "btn-primary" : "btn-outline-secondary")">@i</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</section>

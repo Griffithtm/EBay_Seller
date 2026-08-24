@@ -9,19 +9,22 @@ public sealed class MessageRepository(CloneEbayDbContext dbContext) : IMessageRe
 {
     public async Task<IReadOnlyList<ConversationSummary>> GetConversationsAsync(int userId, CancellationToken cancellationToken = default)
     {
-        // Find latest messages for each conversation where user is either sender or receiver
-        var latestMessagesQuery = dbContext.Messages
-            .Where(m => m.SenderId == userId || m.ReceiverId == userId)
-            .GroupBy(m => new
-            {
-                // Group by the pair of users
-                User1 = m.SenderId < m.ReceiverId ? m.SenderId : m.ReceiverId,
-                User2 = m.SenderId > m.ReceiverId ? m.SenderId : m.ReceiverId
-            })
-            .Select(g => g.OrderByDescending(x => x.Timestamp).First());
+        var userMessages = dbContext.Messages
+            .AsNoTracking()
+            .Where(m => m.SenderId == userId || m.ReceiverId == userId);
 
-        // Join with Users to get the other user's name
-        var conversations = await latestMessagesQuery
+        var latestMessageIds = await userMessages
+            .GroupBy(m => m.SenderId == userId ? m.ReceiverId : m.SenderId)
+            .Select(group => group
+                .OrderByDescending(message => message.Timestamp)
+                .ThenByDescending(message => message.Id)
+                .Select(message => message.Id)
+                .First())
+            .ToListAsync(cancellationToken);
+
+        var conversations = await dbContext.Messages
+            .AsNoTracking()
+            .Where(message => latestMessageIds.Contains(message.Id))
             .Select(m => new
             {
                 OtherUserId = m.SenderId == userId ? m.ReceiverId : m.SenderId,
