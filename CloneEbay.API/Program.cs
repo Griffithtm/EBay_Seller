@@ -9,6 +9,7 @@ using CloneEbay.API.Security;
 using CloneEbay.API.Storage;
 using CloneEbay.Application.Abstractions.Security;
 using CloneEbay.Application.Auth;
+using CloneEbay.Application.Dashboard;
 using CloneEbay.Application.Sellers;
 using CloneEbay.Application.Stores;
 using CloneEbay.Application.Products;
@@ -72,6 +73,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReturnService, ReturnService>();
 builder.Services.AddScoped<IDisputeService, DisputeService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddOptions<JwtSettings>()

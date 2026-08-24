@@ -1,4 +1,4 @@
-# CloneEbay Seller - Role 1 + Role 2 + Role 3
+# CloneEbay Seller - Roles 1–6
 
 Role 1 provides the shared authentication and seller foundation:
 
@@ -28,6 +28,17 @@ Role 3 provides marketing coupons for the product catalog:
 - Computed lifecycle status (`Scheduled` / `Active` / `Expired` / `UsedUp`) plus usage-count tracking.
 - Google reCAPTCHA v3 verification on coupon creation, with score/action checks and failure logging.
 - Seller Web UI: coupon list with product/status filters and a create/edit form with the reCAPTCHA widget.
+
+Role 6 provides the Sales & Analytics Dashboard and CI/CD automation assigned to Luân (Member 6):
+
+- High-performance Dashboard Summary API (Total Revenue, Total Orders, Average Order Value - AOV).
+- Top Selling Products API with revenue and remaining stock analytics.
+- Revenue Chart API with automated time-bucket aggregation (Weekly 7-day and Monthly weekly-slices).
+- Seller Performance Indicators (Late shipment rate, Dispute rate, and eBay Seller Level evaluation).
+- Two-layer optimization: Query optimization (`AsNoTracking()`, selective projections) + Redis Distributed Caching (5-minute TTL).
+- Responsive Seller Analytics UI with interactive Chart.js visualizations, KPI cards, top products table, and skeleton loading (< 1s load time).
+- GitHub Actions CI/CD Pipeline (`.github/workflows/ci-cd.yml`) for automated solution build, xUnit test execution, and Docker container packaging.
+- Comprehensive automated xUnit test coverage (`Role6DashboardTests.cs`) and acceptance smoke test script (`smoke-role6-dashboard.ps1`).
 
 ## Architecture
 
@@ -138,6 +149,11 @@ POST   /api/coupons
 PUT    /api/coupons/{id}
 DELETE /api/coupons/{id}
 GET    /api/coupons/validate?code=&productId=
+
+GET  /api/dashboard/summary
+GET  /api/dashboard/top-products
+GET  /api/dashboard/revenue-chart
+GET  /api/dashboard/performance
 ```
 
 `PUT /api/store` accepts either `application/json` for partial updates or `multipart/form-data` when uploading a banner. JSON field names follow the shared contract: `storeName`, `description`, and `bannerImageURL`.
@@ -180,6 +196,7 @@ dotnet test CloneEbay_Seller.sln
 .\scripts\smoke-role1.ps1 -ApiBaseUrl https://localhost:7000
 .\scripts\smoke-role2.ps1 -ApiBaseUrl https://localhost:7000
 .\scripts\smoke-role2-auction.ps1 -ApiBaseUrl https://localhost:7000
+.\scripts\smoke-role6-dashboard.ps1 -ApiBaseUrl https://localhost:7000
 ```
 
 The auction smoke test intentionally waits for the configured auction end and leaves its closed auction/order as traceable acceptance data.
