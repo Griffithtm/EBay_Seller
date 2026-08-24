@@ -26,6 +26,7 @@ public sealed class ConversationViewModel
 {
     public int OtherUserId { get; set; }
     public string OtherUsername { get; set; } = string.Empty;
+    public IReadOnlyList<ConversationItem> Conversations { get; set; } = Array.Empty<ConversationItem>();
     public IReadOnlyList<MessageResponse> Messages { get; set; } = Array.Empty<MessageResponse>();
     public PaginationDto Pagination { get; set; } = new(1, 30, 0, 0);
 }
