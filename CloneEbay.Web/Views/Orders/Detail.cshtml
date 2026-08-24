@@ -96,11 +96,11 @@
                 <h5 class="card-title mb-0">Xử lý &amp; Cập nhật Đơn hàng</h5>
             </div>
             <div class="card-body">
-                @if (Model.Status == "Pending")
+                @if (Model.Status == "Pending" || Model.Status == "WaitingPayment")
                 {
                     <div class="p-3 bg-light rounded border">
                         <h6>1. Xác nhận đơn hàng (Trừ tồn kho)</h6>
-                        <p class="small text-muted mb-3">Xác nhận đơn sau khi buyer đã thanh toán thành công để khóa tồn kho cho sản phẩm.</p>
+                        <p class="small text-muted mb-3">Bấm xác nhận để đổi trạng thái đơn sang Confirmed và tự động trừ tồn kho cho sản phẩm.</p>
                         <form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-success">✔ Xác nhận đơn hàng &amp; Trừ tồn kho</button>

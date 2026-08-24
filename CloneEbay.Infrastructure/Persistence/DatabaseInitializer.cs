@@ -234,7 +234,6 @@ public static class DatabaseInitializer
             .Select(product => product.Title)
             .ToListAsync();
         var existingTitles = existingTitleList.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        dbContext.Products.AddRange(products.Where(product => !existingTitles.Contains(product.Title)));
         await dbContext.SaveChangesAsync();
 
         await SeedDemoOrdersAsync(dbContext, seller, now);
@@ -242,7 +241,7 @@ public static class DatabaseInitializer
 
     private static async Task SeedDemoOrdersAsync(CloneEbayDbContext dbContext, User seller, DateTime now)
     {
-        if (await dbContext.Orders.AnyAsync(o => o.Items.Any(i => i.Product.SellerId == seller.Id)))
+        if (await dbContext.Orders.AnyAsync(o => o.Payment != null && o.Items.Any(i => i.Product.SellerId == seller.Id)))
         {
             return;
         }

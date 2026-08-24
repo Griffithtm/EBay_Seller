@@ -94,32 +94,6 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<UnreadCountResponse>> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
         GetAsync<UnreadCountResponse>("api/messages/unread-count", true, cancellationToken);
 
-    public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
-        CouponFormViewModel model,
-        CancellationToken cancellationToken = default) =>
-        PostAsync<CouponDto>("api/coupons", new
-        {
-            productId = model.ProductId,
-            code = model.Code,
-            discountPercent = model.DiscountPercent,
-            startDate = model.StartDate.ToUniversalTime(),
-            endDate = model.EndDate.ToUniversalTime(),
-            maxUsage = model.MaxUsage,
-            recaptchaToken = model.RecaptchaToken
-        }, cancellationToken: cancellationToken);
-
-    public Task<ApiCallResult<CouponDto>> UpdateCouponAsync(
-        int id,
-        CouponFormViewModel model,
-        CancellationToken cancellationToken = default) =>
-        PutAsync<CouponDto>($"api/coupons/{id}", new
-        {
-            code = model.Code,
-            discountPercent = model.DiscountPercent,
-            startDate = model.StartDate.ToUniversalTime(),
-            endDate = model.EndDate.ToUniversalTime(),
-            maxUsage = model.MaxUsage
-        }, cancellationToken: cancellationToken);
 
     public Task<ApiCallResult<PagedResultDto<OrderSummaryDto>>> GetOrdersAsync(
         string? status = null,

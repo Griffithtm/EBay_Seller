@@ -49,15 +49,6 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "COUPON_CODE_ALREADY_EXISTS" => "Mã này đã tồn tại cho sản phẩm đã chọn.",
         "COUPON_ALREADY_USED" => "Mã đã được sử dụng nên không thể xóa.",
         "RECAPTCHA_VERIFICATION_FAILED" => "Xác thực reCAPTCHA thất bại. Vui lòng thử lại.",
-        "COUPON_NOT_FOUND" => "Không tìm thấy mã giảm giá.",
-        "COUPON_CODE_INVALID" => "Mã giảm giá phải từ 3 đến 50 ký tự.",
-        "COUPON_DISCOUNT_INVALID" => "Phần trăm giảm giá phải lớn hơn 0 và tối đa 100.",
-        "COUPON_DATE_RANGE_INVALID" => "Ngày kết thúc phải sau ngày bắt đầu.",
-        "COUPON_MAX_USAGE_INVALID" => "Số lượt sử dụng tối đa phải từ 1 trở lên.",
-        "COUPON_MAX_USAGE_BELOW_USED" => "Số lượt tối đa không được thấp hơn số lượt đã dùng.",
-        "COUPON_CODE_ALREADY_EXISTS" => "Mã này đã tồn tại cho sản phẩm đã chọn.",
-        "COUPON_ALREADY_USED" => "Mã đã được sử dụng nên không thể xóa.",
-        "RECAPTCHA_VERIFICATION_FAILED" => "Xác thực reCAPTCHA thất bại. Vui lòng thử lại.",
         "ORDER_NOT_FOUND" => "Không tìm thấy đơn hàng hoặc đơn không thuộc cửa hàng của bạn.",
         "PAYMENT_NOT_COMPLETED" => "Đơn hàng chưa được thanh toán thành công nên chưa thể xác nhận.",
         "INSUFFICIENT_INVENTORY" => "Tồn kho không đủ để xác nhận đơn hàng này.",
@@ -165,20 +156,6 @@ public sealed record CouponDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
-public sealed record CouponDto(
-    int Id,
-    string Code,
-    decimal DiscountPercent,
-    DateTime StartDate,
-    DateTime EndDate,
-    int MaxUsage,
-    int UsageCount,
-    int ProductId,
-    string ProductTitle,
-    int SellerId,
-    string Status,
-    DateTime CreatedAt,
-    DateTime UpdatedAt);
 
 public sealed record AuctionCloseDto(
     int ProductId,

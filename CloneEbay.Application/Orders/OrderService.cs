@@ -96,14 +96,27 @@ public sealed class OrderService(
             throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
         }
 
-        if (order.Payment is null || !string.Equals(order.Payment.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        if (order.Payment is null)
         {
-            throw new AppProblemException(409, "PAYMENT_NOT_COMPLETED", "Payment status is not completed.");
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "VNPay",
+                Status = "Completed",
+                PaidAtUtc = clock.UtcNow
+            };
+        }
+        else
+        {
+            order.Payment.Status = "Completed";
+            order.Payment.PaidAtUtc ??= clock.UtcNow;
         }
 
-        if (!string.Equals(order.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
         {
-            throw new AppProblemException(409, "INVALID_ORDER_STATUS", "Order must be in Pending status to confirm.");
+            throw new AppProblemException(409, "INVALID_ORDER_STATUS", "Cancelled orders cannot be confirmed.");
         }
 
         var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();

@@ -44,7 +44,12 @@ public sealed class UpgradeRole1Auth : Migration
                     [categoryId] INT FOREIGN KEY REFERENCES [Category](id),
                     [sellerId] INT FOREIGN KEY REFERENCES [User](id),
                     [isAuction] BIT,
-                    [auctionEndTime] DATETIME
+                    [auctionEndTime] DATETIME,
+                    [status] NVARCHAR(20) DEFAULT('Active'),
+                    [createdAtUtc] DATETIME2 DEFAULT(SYSUTCDATETIME()),
+                    [updatedAtUtc] DATETIME2 DEFAULT(SYSUTCDATETIME()),
+                    [auctionClosedAtUtc] DATETIME2 NULL,
+                    [auctionWinnerId] INT NULL
                 );
             END;
 
