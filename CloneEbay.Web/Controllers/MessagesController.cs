@@ -41,8 +41,8 @@ public sealed class MessagesController(SellerApiClient apiClient) : Controller
         // We need the username. Let's find it from conversations list for now, or the API should return it.
         // As a quick fix, we fetch conversations to find the username.
         var convs = await apiClient.GetConversationsAsync();
-        var username = convs.Data?.Items.FirstOrDefault(c => c.WithUserId == userId)?.WithUsername ?? $"User {userId}";
-
+        var defaultUsername = userId switch { 3 => "seller-approved", 4 => "seller-pending", _ => $"Người dùng {userId}" };
+        var username = convs.Data?.Items.FirstOrDefault(c => c.WithUserId == userId)?.WithUsername ?? defaultUsername;
         var viewModel = new ConversationViewModel
         {
             OtherUserId = userId,

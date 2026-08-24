@@ -1,6 +1,6 @@
-@model CloneEbay.Web.Models.ConversationViewModel
+﻿@model CloneEbay.Web.Models.ConversationViewModel
 @{
-    ViewData["Title"] = "Chat v?i " + Model.OtherUsername;
+    ViewData["Title"] = "Chat với " + Model.OtherUsername;
 }
 
 <style>
@@ -13,20 +13,20 @@
 
 <div class="container mt-4">
     <div class="row border rounded shadow-sm bg-white" style="height: 80vh;">
-        <!-- Sidebar: Danh s�ch h?i tho?i -->
+        <!-- Sidebar: Danh sách hội thoại -->
         <div class="col-md-4 border-end d-none d-md-flex flex-column p-0 h-100">
             <div class="p-3 border-bottom">
-                <h4 class="mb-3 fw-bold">�o?n chat</h4>
+                <h4 class="mb-3 fw-bold">Đoạn chat</h4>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control border-start-0" placeholder="T�m theo t�n...">
+                    <input type="text" class="form-control border-start-0" placeholder="Tìm theo tên...">
                 </div>
             </div>
             
             <div class="list-group list-group-flush flex-grow-1 overflow-auto">
                 @if (Model.Conversations.Count == 0)
                 {
-                    <p class="text-muted text-center mt-3">Chua c� cu?c h?i tho?i n�o.</p>
+                    <p class="text-muted text-center mt-3">Chưa có cuộc hội thoại nào.</p>
                 }
                 else
                 {
@@ -89,7 +89,7 @@
                                 {
                                     <div class="card mb-2" style="width: 18rem; max-width: 100%;">
                                       <div class="card-body p-2">
-                                        <h6 class="card-subtitle mb-2 text-muted">S?n ph?m d�nh k�m (ID: @msg.RelatedProductId)</h6>
+                                        <h6 class="card-subtitle mb-2 text-muted">Sản phẩm đính kèm (ID: @msg.RelatedProductId)</h6>
                                       </div>
                                     </div>
                                 }
@@ -116,10 +116,10 @@
                 <form id="sendMessageForm" class="d-flex align-items-center">
                     <input type="hidden" id="receiverId" value="@Model.OtherUserId" />
                     
-                    <button type="button" class="btn btn-light text-muted me-2" title="G?i ?nh (UI)"><i class="bi bi-image"></i></button>
-                    <button type="button" class="btn btn-light text-muted me-2" title="��nh k�m s?n ph?m (UI)"><i class="bi bi-box-seam"></i></button>
+                    <button type="button" class="btn btn-light text-muted me-2" title="Gửi ảnh (UI)"><i class="bi bi-image"></i></button>
+                    <button type="button" class="btn btn-light text-muted me-2" title="Đính kèm sản phẩm (UI)"><i class="bi bi-box-seam"></i></button>
                     
-                    <input type="text" id="messageInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nh?p n?i dung tin nh?n" autocomplete="off" required>
+                    <input type="text" id="messageInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nhập nội dung tin nhắn" autocomplete="off" required>
                     
                     <button type="submit" class="btn btn-primary rounded-circle ms-2 shadow-sm" style="width: 40px; height: 40px; padding: 0;">
                         <i class="bi bi-send-fill" style="margin-left: -2px;"></i>
