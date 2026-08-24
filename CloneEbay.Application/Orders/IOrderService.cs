@@ -42,4 +42,23 @@ public interface IOrderService
         int orderId,
         int sellerId,
         CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> CreateMockOrderAsync(
+        int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> CreateManualOrderAsync(
+        int sellerId,
+        CreateManualOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> PayVnPayAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderConfirmResponse> CancelOrderAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default);
 }

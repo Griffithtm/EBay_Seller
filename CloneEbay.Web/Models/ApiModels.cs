@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json.Serialization;
 
@@ -186,7 +187,7 @@ public sealed record AddressDto(
     string? State,
     string Country);
 
-public sealed record PaymentSummaryDto(string Status);
+public sealed record PaymentSummaryDto(string Method, string Status);
 
 public sealed record PaymentDetailDto(
     decimal Amount,
@@ -211,4 +212,41 @@ public sealed record OrderDetailDto(
 public sealed record OrderConfirmDto(int Id, string Status);
 public sealed record UpdateShippingStatusResponseDto(int Id, string Status);
 public sealed record ShippingLabelResponseDto(int OrderId, string Carrier, string TrackingNumber, string Status, string LabelUrl);
+
+public sealed class CreateManualOrderViewModel
+{
+    [Required(ErrorMessage = "Vui lòng nhập họ tên người nhận.")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
+    public string Phone { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập địa chỉ / số nhà.")]
+    public string Street { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập Thành phố / Tỉnh.")]
+    public string City { get; set; } = string.Empty;
+
+    public string? State { get; set; }
+
+    [Required(ErrorMessage = "Vui lòng nhập Quốc gia.")]
+    public string Country { get; set; } = "Vietnam";
+
+    [Required(ErrorMessage = "Vui lòng chọn sản phẩm.")]
+    public int ProductId { get; set; }
+
+    [Range(1, 1000, ErrorMessage = "Số lượng phải từ 1 trở lên.")]
+    public int Quantity { get; set; } = 1;
+
+    [Range(0.01, 100000000, ErrorMessage = "Đơn giá không hợp lệ.")]
+    public decimal UnitPrice { get; set; }
+
+    [Required(ErrorMessage = "Vui lòng chọn hình thức thanh toán.")]
+    public string PaymentMethod { get; set; } = "COD";
+
+    [Required(ErrorMessage = "Vui lòng chọn trạng thái thanh toán.")]
+    public string PaymentStatus { get; set; } = "Completed";
+
+    public IReadOnlyList<ProductDto> AvailableProducts { get; set; } = new List<ProductDto>();
+}
 

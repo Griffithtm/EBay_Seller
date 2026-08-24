@@ -1,4 +1,5 @@
 using CloneEbay.Application.Common;
+using CloneEbay.Application.Orders;
 using CloneEbay.Domain.Entities;
 
 namespace CloneEbay.Application.Abstractions.Persistence;
@@ -27,5 +28,13 @@ public interface IOrderRepository
     Task<Payment?> GetPaymentByOrderIdAsync(
         int orderId,
         int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task CreateMockOrderAsync(int sellerId, DateTime now, CancellationToken cancellationToken = default);
+
+    Task<Order> CreateManualOrderAsync(
+        int sellerId,
+        CreateManualOrderRequest request,
+        DateTime now,
         CancellationToken cancellationToken = default);
 }

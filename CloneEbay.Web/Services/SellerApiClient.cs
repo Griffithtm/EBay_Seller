@@ -47,7 +47,13 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<ProductDto>> UpdateProductAsync(
         ProductFormViewModel model,
         CancellationToken cancellationToken = default) =>
-        SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images.Count > 0), true, true, cancellationToken);
+        SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images is { Count: > 0 }), true, true, cancellationToken);
+
+    public Task<ApiCallResult<PagedResultDto<ProductDto>>> GetProductsAsync(
+        int page = 1,
+        int pageSize = 100,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<ProductDto>>($"api/products?page={page}&pageSize={pageSize}", cancellationToken: cancellationToken);
 
     public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
         CouponFormViewModel model,
@@ -133,6 +139,25 @@ public sealed class SellerApiClient(
         int orderId,
         CancellationToken cancellationToken = default) =>
         GetAsync<PaymentDetailDto>($"api/orders/{orderId}/payment", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CreateMockOrderAsync(
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>("api/orders/mock", new { }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CreateManualOrderAsync(
+        CreateManualOrderViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>("api/orders/manual", model, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> PayVnPayAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/pay-vnpay", new { }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderConfirmDto>> CancelOrderAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderConfirmDto>($"api/orders/{orderId}/cancel", new { }, cancellationToken: cancellationToken);
 
 
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
@@ -296,7 +321,7 @@ public sealed class SellerApiClient(
         {
             content.Add(new StringContent(model.AuctionEndTime.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)), "AuctionEndTime");
         }
-        if (includeImages)
+        if (includeImages && model.Images is not null)
         {
             foreach (var image in model.Images)
             {

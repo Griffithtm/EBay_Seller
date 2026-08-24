@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace CloneEbay.Web.Models;
 
@@ -27,8 +28,9 @@ public sealed class ProductFormViewModel
     [Range(0, int.MaxValue, ErrorMessage = "Tồn kho không được âm."), Display(Name = "Số lượng tồn kho")]
     public int Quantity { get; set; }
 
+    [ValidateNever]
     [Display(Name = "Hình ảnh sản phẩm")]
-    public List<IFormFile> Images { get; set; } = [];
+    public List<IFormFile>? Images { get; set; } = [];
 
     public IReadOnlyList<string> ExistingImages { get; set; } = [];
     public IReadOnlyList<CategoryDto> Categories { get; set; } = [];

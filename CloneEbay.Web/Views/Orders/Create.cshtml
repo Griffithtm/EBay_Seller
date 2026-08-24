@@ -1,0 +1,201 @@
+@model CreateManualOrderViewModel
+@{
+    ViewData["Title"] = "Tạo Đơn Hàng Mới";
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><a asp-action="Index">Đơn hàng</a><span>›</span><strong>Tạo đơn mới</strong></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Tạo Đơn Hàng Mới (Nhập Thủ Công)</h2>
+        <p class="text-muted mb-0">Điền thông tin người mua, chọn sản phẩm và hình thức thanh toán để lên đơn.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Quay lại danh sách</a>
+</div>
+
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @error
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <div class="row g-4">
+        <!-- Cột trái: Thông tin người mua & Giao hàng -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">📍 Thông tin Người nhận &amp; Địa chỉ</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label">Họ tên người nhận <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control" placeholder="Vd: Nguyễn Văn A" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Phone" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                        <input asp-for="Phone" class="form-control" placeholder="Vd: 0912345678" />
+                        <span asp-validation-for="Phone" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Street" class="form-label">Số nhà, Tên đường <span class="text-danger">*</span></label>
+                        <input asp-for="Street" class="form-control" placeholder="Vd: 123 Đường Nguyễn Huệ, Phường Bến Nghé" />
+                        <span asp-validation-for="Street" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="City" class="form-label">Thành phố / Tỉnh <span class="text-danger">*</span></label>
+                            <input asp-for="City" class="form-control" placeholder="Vd: Hồ Chí Minh" />
+                            <span asp-validation-for="City" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="State" class="form-label">Quận / Huyện</label>
+                            <input asp-for="State" class="form-control" placeholder="Vd: Quận 1" />
+                            <span asp-validation-for="State" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Country" class="form-label">Quốc gia <span class="text-danger">*</span></label>
+                        <input asp-for="Country" class="form-control" placeholder="Vd: Vietnam" />
+                        <span asp-validation-for="Country" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột phải: Chọn sản phẩm & Thanh toán -->
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">📦 Sản phẩm &amp; Thanh toán</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="ProductId" class="form-label">Chọn sản phẩm thuộc cửa hàng <span class="text-danger">*</span></label>
+                        <select asp-for="ProductId" class="form-select" id="productSelect">
+                            <option value="">-- Chọn sản phẩm --</option>
+                            @foreach (var p in Model.AvailableProducts)
+                            {
+                                var stock = p.Inventory?.Quantity ?? 0;
+                                if (stock <= 0)
+                                {
+                                    <option value="@p.Id" data-price="@p.Price" disabled class="text-danger">@p.Title (@p.Price.ToString("N0") VNĐ) - ⚠️ HẾT HÀNG (Kho: 0)</option>
+                                }
+                                else
+                                {
+                                    <option value="@p.Id" data-price="@p.Price">@p.Title (@p.Price.ToString("N0") VNĐ) - (Kho còn: @stock)</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="ProductId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Quantity" class="form-label">Số lượng <span class="text-danger">*</span></label>
+                            <input asp-for="Quantity" type="number" class="form-control" min="1" max="1000" id="quantityInput" />
+                            <span asp-validation-for="Quantity" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="UnitPrice" class="form-label">Đơn giá (VNĐ) <span class="text-danger">*</span></label>
+                            <input asp-for="UnitPrice" type="number" step="1000" class="form-control" id="unitPriceInput" />
+                            <span asp-validation-for="UnitPrice" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="text-muted">Tổng cộng giá trị đơn hàng:</strong>
+                            <strong class="text-success fs-4" id="totalAmountText">0 VNĐ</strong>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PaymentMethod" class="form-label">Hình thức thanh toán <span class="text-danger">*</span></label>
+                            <select asp-for="PaymentMethod" class="form-select" id="paymentMethodSelect">
+                                <option value="VNPay">VNPay</option>
+                                <option value="COD">Thanh toán khi nhận hàng (COD)</option>
+                            </select>
+                            <span asp-validation-for="PaymentMethod" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PaymentStatus" class="form-label">Trạng thái thanh toán <span class="text-danger">*</span></label>
+                            <select asp-for="PaymentStatus" class="form-select">
+                                <option value="Completed">Đã thanh toán (Completed)</option>
+                                <option value="Pending">Chưa thanh toán (Pending)</option>
+                            </select>
+                            <span asp-validation-for="PaymentStatus" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div id="vnpayBox" class="alert alert-primary border-primary mb-3 small">
+                        💳 <strong>Thanh toán qua VNPay:</strong> Đơn hàng sẽ liên kết với cổng thanh toán trực tuyến VNPay.
+                    </div>
+                    <div id="codBox" class="alert alert-secondary mb-3 small d-none">
+                        💵 <strong>Thanh toán COD:</strong> Người mua sẽ thanh toán tiền mặt trực tiếp khi nhận hàng.
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success btn-lg w-100">🛒 Tạo Đơn Hàng Mới</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const productSelect = document.getElementById('productSelect');
+            const unitPriceInput = document.getElementById('unitPriceInput');
+            const quantityInput = document.getElementById('quantityInput');
+            const totalAmountText = document.getElementById('totalAmountText');
+
+            function updateTotal() {
+                const qty = parseInt(quantityInput.value) || 0;
+                const price = parseFloat(unitPriceInput.value) || 0;
+                const total = qty * price;
+                totalAmountText.textContent = total.toLocaleString('vi-VN') + ' VNĐ';
+            }
+
+            productSelect.addEventListener('change', function () {
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const price = selectedOption.getAttribute('data-price');
+                if (price) {
+                    unitPriceInput.value = price;
+                }
+                updateTotal();
+            });
+
+            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+            const vnpayBox = document.getElementById('vnpayBox');
+            const codBox = document.getElementById('codBox');
+
+            function togglePaymentNotice() {
+                if (paymentMethodSelect.value === 'VNPay') {
+                    vnpayBox.classList.remove('d-none');
+                    codBox.classList.add('d-none');
+                } else {
+                    vnpayBox.classList.add('d-none');
+                    codBox.classList.remove('d-none');
+                }
+            }
+
+            paymentMethodSelect.addEventListener('change', togglePaymentNotice);
+            unitPriceInput.addEventListener('input', updateTotal);
+            quantityInput.addEventListener('input', updateTotal);
+            updateTotal();
+            togglePaymentNotice();
+        });
+    </script>
+}

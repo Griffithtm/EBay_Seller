@@ -24,6 +24,7 @@ public sealed record AddressDto(
     string Country);
 
 public sealed record PaymentSummaryDto(
+    string Method,
     string Status);
 
 public sealed record PaymentDetailResponse(
@@ -66,3 +67,16 @@ public sealed record CreateShippingLabelResponse(
     string TrackingNumber,
     string Status,
     string LabelUrl);
+
+public sealed record CreateManualOrderRequest(
+    [Required] string FullName,
+    [Required] string Phone,
+    [Required] string Street,
+    [Required] string City,
+    string? State,
+    [Required] string Country,
+    [Required] int ProductId,
+    [Range(1, 1000)] int Quantity,
+    [Range(0.01, 100000000)] decimal UnitPrice,
+    [Required] string PaymentMethod,
+    [Required] string PaymentStatus);

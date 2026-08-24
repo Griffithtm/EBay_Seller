@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CloneEbay.Web.styles.css" asp-append-version="true" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="@(signedIn ? "has-session" : "is-guest")">
     <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -117,13 +118,17 @@
     </header>
 
     <div class="toast-region" aria-live="polite" aria-atomic="true">
-        @if (TempData["Success"] is string success)
-        {
-            <div class="app-toast toast-success" data-auto-dismiss><span class="toast-icon">✓</span><div><strong>Thành công</strong><p>@success</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        @{
+            var succ = (TempData["SuccessMessage"] ?? TempData["Success"]) as string;
+            var err = (TempData["ErrorMessage"] ?? TempData["Error"]) as string;
         }
-        @if (TempData["Error"] is string error)
+        @if (!string.IsNullOrEmpty(succ))
         {
-            <div class="app-toast toast-error" data-auto-dismiss><span class="toast-icon">!</span><div><strong>Chưa thể hoàn tất</strong><p>@error</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+            <div class="app-toast toast-success" data-auto-dismiss><span class="toast-icon">✓</span><div><strong>Thành công</strong><p>@succ</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        }
+        @if (!string.IsNullOrEmpty(err))
+        {
+            <div class="app-toast toast-error" data-auto-dismiss><span class="toast-icon">!</span><div><strong>Chưa thể hoàn tất</strong><p>@err</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
         }
     </div>
 
