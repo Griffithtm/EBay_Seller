@@ -108,6 +108,35 @@ Kiểm tra API sống chưa: mở `https://localhost:7000/swagger` — thấy tr
 
 ---
 
+### 2.4. Role 4 — Quản lý Đơn hàng & Phiếu vận chuyển (Module 4) — mới thêm
+
+1. **Xem danh sách đơn hàng của Seller (F4.1)**:
+   - Đăng nhập `seller.approved@cloneebay.local` → Gọi API `GET /api/orders?status=Pending`.
+   - Trong kết quả trả về `data.items[]`, trường `totalPrice` chỉ tính tổng tiền hàng của seller hiện tại (nếu đơn có sản phẩm của seller khác, tiền của seller khác không được cộng vào).
+2. **Xem chi tiết đơn hàng (F4.1 & F4.5 Detail)**:
+   - Gọi `GET /api/orders/{id}` với đơn hàng ở trên.
+   - Danh sách `orderItems` chỉ hiển thị sản phẩm thuộc về seller này. Có thông tin `address`, `payment`, `shipping`.
+3. **Xác nhận đơn hàng & Trừ tồn kho (F4.2)**:
+   - Gọi `PUT /api/orders/{id}/confirm` trên đơn ở trạng thái `Pending` và `Payment.status = Completed`.
+   - Đơn chuyển sang `status: "Confirmed"`, đồng thời `Inventory.quantity` của sản phẩm bị trừ đúng số lượng.
+   - Test ngoại lệ 1 (Payment chưa completed): Thử confirm đơn có Payment pending → Báo lỗi `409 PAYMENT_NOT_COMPLETED`.
+   - Test ngoại lệ 2 (Kho không đủ): Thử confirm đơn có số lượng lớn hơn kho → Báo lỗi `409 INSUFFICIENT_INVENTORY`, không trừ kho 1 phần.
+4. **Tạo nhãn vận chuyển (F4.4)**:
+   - Gọi `POST /api/orders/{id}/shipping-label` với body `{"carrier": "GHN"}` trên đơn đã `Confirmed`.
+   - Trả về mã `trackingNumber` tự sinh (vd `GHN-20260824...`) và `status: "LabelCreated"`.
+   - Trạng thái `OrderTable.status` **VẪN LÀ `"Confirmed"`** (chưa tự chuyển `Shipped`).
+   - Test ngoại lệ: Gọi tạo nhãn trên đơn `Pending` → Báo lỗi `409 ORDER_NOT_CONFIRMED`.
+5. **Cập nhật trạng thái vận chuyển & State Machine (F4.3)**:
+   - Gọi `PUT /api/orders/{id}/status` với body `{"status": "HandedToCarrier"}`.
+   - Trạng thái đơn tự động đồng bộ sang `status: "Shipped"`.
+   - Tiếp tục cập nhật sang `InTransit` và `Delivered`.
+   - Test ngoại lệ: Đơn đang ở `Delivered`, cố chuyển ngược về `Preparing` → Báo lỗi `422 INVALID_STATUS_TRANSITION`.
+6. **Xem thông tin Vận chuyển & Thanh toán Read-Only (F4.5)**:
+   - Gọi `GET /api/shipping/{orderId}` → Trả về carrier, trackingNumber, status, estimatedArrival.
+   - Gọi `GET /api/orders/{id}/payment` → Trả về amount, method, status, paidAt (Read-only).
+
+---
+
 ## 3. Test nhanh bằng Swagger (không cần giao diện Web)
 
 1. Mở `https://localhost:7000/swagger`.
