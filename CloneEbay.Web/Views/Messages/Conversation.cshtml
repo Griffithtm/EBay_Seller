@@ -1,0 +1,147 @@
+@model CloneEbay.Web.Models.ConversationViewModel
+@{
+    ViewData["Title"] = "Chat với " + Model.OtherUsername;
+    // Assuming we have a way to get the current user ID, we'll need it for rendering.
+    // For now, we compare SenderId with OtherUserId. If SenderId == OtherUserId, it's a received message.
+}
+
+<style>
+    .chat-bubble { max-width: 75%; padding: 10px 15px; border-radius: 20px; margin-bottom: 5px; }
+    .chat-received { background-color: #ffffff; border: 1px solid #dee2e6; border-bottom-left-radius: 5px; }
+    .chat-sent { background-color: #d1f4cc; border-bottom-right-radius: 5px; }
+    .chat-time { font-size: 0.75rem; color: #6c757d; margin-top: 5px; }
+    #chatHistory { background-color: #f8f9fa; }
+</style>
+
+<div class="container mt-4">
+    <div class="row" style="height: 80vh;">
+        <div class="col-md-12 d-flex flex-column h-100 border rounded shadow-sm overflow-hidden p-0">
+            
+            <!-- Chat Header -->
+            <div class="bg-white border-bottom p-3 d-flex align-items-center">
+                <a asp-action="Index" class="btn btn-sm btn-light me-2 d-md-none"><i class="bi bi-chevron-left"></i></a>
+                <img src="https://ui-avatars.com/api/?name=@Model.OtherUsername&background=random" class="rounded-circle me-3" style="width: 40px; height: 40px;">
+                <h5 class="mb-0 fw-bold">@Model.OtherUsername</h5>
+                <div class="ms-auto">
+                    <button class="btn btn-sm btn-light"><i class="bi bi-info-circle"></i></button>
+                </div>
+            </div>
+
+            <!-- Message History -->
+            <div id="chatHistory" class="flex-grow-1 p-3 overflow-auto d-flex flex-column-reverse">
+                <!-- flex-column-reverse makes it scroll from bottom, we need to render items in reverse if we want oldest at top. Wait, if it's column-reverse, we render newest first in HTML, and it appears at bottom. -->
+                @foreach (var msg in Model.Messages)
+                {
+                    bool isReceived = msg.SenderId == Model.OtherUserId;
+
+                    <div class="d-flex mb-3 @(isReceived ? "justify-content-start" : "justify-content-end")">
+                        @if (isReceived)
+                        {
+                            <img src="https://ui-avatars.com/api/?name=@Model.OtherUsername&background=random" class="rounded-circle me-2 align-self-end" style="width: 30px; height: 30px; margin-bottom: 25px;">
+                        }
+                        
+                        <div class="d-flex flex-column @(isReceived ? "align-items-start" : "align-items-end")">
+                            <div class="chat-bubble @(isReceived ? "chat-received" : "chat-sent") shadow-sm">
+                                @if (msg.RelatedProductId.HasValue)
+                                {
+                                    <div class="card mb-2" style="width: 18rem; max-width: 100%;">
+                                      <div class="card-body p-2">
+                                        <h6 class="card-subtitle mb-2 text-muted">Sản phẩm đính kèm (ID: @msg.RelatedProductId)</h6>
+                                      </div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(msg.AttachmentUrl))
+                                {
+                                    <img src="@msg.AttachmentUrl" class="img-fluid rounded mb-2" style="max-height: 200px;" />
+                                }
+                                <div style="white-space: pre-wrap;">@msg.Content</div>
+                            </div>
+                            <div class="chat-time d-flex align-items-center">
+                                @msg.Timestamp.ToLocalTime().ToString("HH:mm")
+                                @if (!isReceived)
+                                {
+                                    <i class="bi bi-check-all text-primary ms-1"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Input Footer -->
+            <div class="bg-white border-top p-3">
+                <form id="sendMessageForm" class="d-flex align-items-center">
+                    <input type="hidden" id="receiverId" value="@Model.OtherUserId" />
+                    
+                    <button type="button" class="btn btn-light text-muted me-2" title="Gửi ảnh (Chưa hỗ trợ up file, chỉ là UI)"><i class="bi bi-image"></i></button>
+                    <button type="button" class="btn btn-light text-muted me-2" title="Đính kèm sản phẩm"><i class="bi bi-box-seam"></i></button>
+                    
+                    <input type="text" id="messageInput" class="form-control rounded-pill bg-light border-0 px-3" placeholder="Nhập nội dung tin nhắn" autocomplete="off" required>
+                    
+                    <button type="submit" class="btn btn-primary rounded-circle ms-2 shadow-sm" style="width: 40px; height: 40px; padding: 0;">
+                        <i class="bi bi-send-fill" style="margin-left: -2px;"></i>
+                    </button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- SignalR Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const receiverId = document.getElementById('receiverId').value;
+            const messageInput = document.getElementById('messageInput');
+            const chatHistory = document.getElementById('chatHistory');
+            const sendForm = document.getElementById('sendMessageForm');
+
+            // Lấy token từ cookie (rất khó vì HttpOnly).
+            // ASP.NET Core: ta có thể tạo 1 endpoint API trên MVC để fetch token cho WS,
+            // HOẶC sử dụng authentication cookie thay vì bearer token cho MVC-to-API SignalR?
+            // Thực tế SignalR hub đang ở API layer, yêu cầu access_token.
+            // Để đơn giản, ta sẽ gọi POST REST API để gửi tin nhắn, 
+            // SignalR chỉ dùng để NHẬN tin mới nếu có (sẽ implement chi tiết sau nếu cần).
+
+            sendForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const content = messageInput.value.trim();
+                if (!content) return;
+
+                messageInput.value = ''; // clear input
+
+                // Tạm thời render tin nhắn vừa gửi (Optimistic UI)
+                const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const bubble = document.createElement('div');
+                bubble.className = "d-flex mb-3 justify-content-end";
+                bubble.innerHTML = `
+                    <div class="d-flex flex-column align-items-end">
+                        <div class="chat-bubble chat-sent shadow-sm">
+                            <div style="white-space: pre-wrap;">${content}</div>
+                        </div>
+                        <div class="chat-time d-flex align-items-center">
+                            ${time} <i class="bi bi-check-all text-primary ms-1"></i>
+                        </div>
+                    </div>`;
+                chatHistory.prepend(bubble); // prepend vì đang flex-column-reverse
+
+                // Gửi qua API MVC
+                try {
+                    const response = await fetch('/Messages/Send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ReceiverId: parseInt(receiverId), Content: content })
+                    });
+                    
+                    if (!response.ok) {
+                        console.error('Failed to send message');
+                    }
+                } catch(err) {
+                    console.error(err);
+                }
+            });
+        });
+    </script>
+}

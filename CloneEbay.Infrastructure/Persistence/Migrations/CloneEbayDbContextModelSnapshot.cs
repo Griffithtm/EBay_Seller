@@ -319,6 +319,48 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Message", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("ReceiverId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RelatedProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SenderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId", "IsRead");
+
+                    b.HasIndex("SenderId", "ReceiverId", "Timestamp");
+
+                    b.ToTable("Messages");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -963,6 +1005,25 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Message", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.User", "Receiver")
+                        .WithMany("ReceivedMessages")
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CloneEbay.Domain.Entities.User", "Sender")
+                        .WithMany("SentMessages")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Order", b =>
                 {
                     b.HasOne("CloneEbay.Domain.Entities.Address", "Address")
@@ -1163,11 +1224,15 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Products");
 
+                    b.Navigation("ReceivedMessages");
+
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("ReturnRequests");
 
                     b.Navigation("Reviews");
+
+                    b.Navigation("SentMessages");
 
                     b.Navigation("Store");
 
