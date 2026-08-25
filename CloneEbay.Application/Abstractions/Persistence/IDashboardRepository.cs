@@ -33,4 +33,11 @@ public interface IDashboardRepository
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Distinct buyers in the period, split into one-time vs repeat (>1 order) — spec C.1 "Sales Report".</summary>
+    Task<(int TotalBuyers, int OneTimeBuyers, int RepeatBuyers)> GetBuyerInsightsAsync(
+        int sellerId,
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
 }

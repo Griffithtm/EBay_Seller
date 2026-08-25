@@ -374,6 +374,49 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<SellerPerformanceLevelDto>> SetSellerPerformanceLevelAsync(int sellerId, string level, CancellationToken ct = default) =>
         PutAsync<SellerPerformanceLevelDto>($"api/admin/seller/{sellerId}/performance-level", new { level }, cancellationToken: ct);
 
+    public Task<ApiCallResult<ReportDownloadDto>> CreateReportDownloadAsync(CreateReportDownloadViewModel model, CancellationToken ct = default) =>
+        PostAsync<ReportDownloadDto>("api/reports/downloads", new
+        {
+            source = model.Source,
+            type = model.Type,
+            rangeStartUtc = model.RangeStartUtc?.ToUniversalTime(),
+            rangeEndUtc = model.RangeEndUtc?.ToUniversalTime()
+        }, cancellationToken: ct);
+
+    public Task<ApiCallResult<PagedResultDto<ReportDownloadDto>>> GetReportDownloadsAsync(CancellationToken ct = default) =>
+        GetAsync<PagedResultDto<ReportDownloadDto>>("api/reports/downloads?pageSize=50", true, ct);
+
+    public Task<ApiCallResult<ReportScheduleDto>> CreateReportScheduleAsync(CreateReportScheduleViewModel model, CancellationToken ct = default) =>
+        PostAsync<ReportScheduleDto>("api/reports/schedules", new
+        {
+            source = model.Source,
+            type = model.Type,
+            frequency = model.Frequency,
+            deliveryEmail = model.DeliveryEmail,
+            endDateUtc = model.EndDateUtc?.ToUniversalTime()
+        }, cancellationToken: ct);
+
+    public Task<ApiCallResult<PagedResultDto<ReportScheduleDto>>> GetReportSchedulesAsync(CancellationToken ct = default) =>
+        GetAsync<PagedResultDto<ReportScheduleDto>>("api/reports/schedules?onlyActive=false&pageSize=50", true, ct);
+
+    public Task<ApiCallResult<ReportScheduleDto>> DeactivateReportScheduleAsync(int id, CancellationToken ct = default) =>
+        PostAsync<ReportScheduleDto>($"api/reports/schedules/{id}/deactivate", new { }, cancellationToken: ct);
+
+    public Task<ApiCallResult<PaymentReportResponseDto>> GetPaymentsReportAsync(string period, string compared, CancellationToken ct = default) =>
+        GetAsync<PaymentReportResponseDto>($"api/payments/reports?period={Uri.EscapeDataString(period)}&compared={Uri.EscapeDataString(compared)}", true, ct);
+
+    public Task<ApiCallResult<PerformanceSummaryDto>> GetPerformanceSummaryAsync(string period, CancellationToken ct = default) =>
+        GetAsync<PerformanceSummaryDto>($"api/performance/summary?period={Uri.EscapeDataString(period)}", true, ct);
+
+    public Task<ApiCallResult<PerformanceSalesReportDto>> GetPerformanceSalesAsync(string period, CancellationToken ct = default) =>
+        GetAsync<PerformanceSalesReportDto>($"api/performance/sales?period={Uri.EscapeDataString(period)}", true, ct);
+
+    public Task<ApiCallResult<PerformanceTrafficDto>> GetPerformanceTrafficAsync(string period, CancellationToken ct = default) =>
+        GetAsync<PerformanceTrafficDto>($"api/performance/traffic?period={Uri.EscapeDataString(period)}", true, ct);
+
+    public Task<ApiCallResult<PerformanceServiceMetricsDto>> GetPerformanceServiceMetricsAsync(string period, CancellationToken ct = default) =>
+        GetAsync<PerformanceServiceMetricsDto>($"api/performance/service-metrics?period={Uri.EscapeDataString(period)}", true, ct);
+
     public Task<ApiCallResult<Dictionary<string, string>>> UploadMessageAttachmentAsync(IFormFile file, CancellationToken ct = default)
     {
         return SendAsync<Dictionary<string, string>>(

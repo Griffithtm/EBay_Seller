@@ -152,6 +152,22 @@ public sealed class DashboardRepository(CloneEbayDbContext dbContext) : IDashboa
         return (orders.Count, lateShipmentRate, disputeRate, positiveFeedbackRate);
     }
 
+    public async Task<(int TotalBuyers, int OneTimeBuyers, int RepeatBuyers)> GetBuyerInsightsAsync(
+        int sellerId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        var orderCountsByBuyer = await BaseSellerOrderItems(sellerId, fromUtc, toUtc)
+            .Select(item => new { item.OrderId, item.Order.BuyerId })
+            .Distinct()
+            .GroupBy(x => x.BuyerId)
+            .Select(g => g.Select(x => x.OrderId).Distinct().Count())
+            .ToListAsync(cancellationToken);
+
+        var totalBuyers = orderCountsByBuyer.Count;
+        var oneTimeBuyers = orderCountsByBuyer.Count(c => c == 1);
+        var repeatBuyers = totalBuyers - oneTimeBuyers;
+        return (totalBuyers, oneTimeBuyers, repeatBuyers);
+    }
+
     private IQueryable<OrderItem> BaseSellerOrderItems(int sellerId, DateTime fromUtc, DateTime toUtc) =>
         dbContext.OrderItems
             .AsNoTracking()

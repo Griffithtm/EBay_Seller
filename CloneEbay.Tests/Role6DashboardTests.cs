@@ -166,6 +166,10 @@ public sealed class Role6DashboardTests
             DateTime toUtc,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(PerformanceResult);
+
+        public Task<(int TotalBuyers, int OneTimeBuyers, int RepeatBuyers)> GetBuyerInsightsAsync(
+            int sellerId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult((0, 0, 0));
     }
 
     /// <summary>Returns a fixed, pre-configured level; the other members are unused by DashboardService.</summary>

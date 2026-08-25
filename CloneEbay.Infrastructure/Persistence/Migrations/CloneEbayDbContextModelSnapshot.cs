@@ -626,6 +626,144 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshToken", (string)null);
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ReportDownload", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("completedAtUtc");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)")
+                        .HasColumnName("fileUrl");
+
+                    b.Property<DateTime?>("RangeEndUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("rangeEndUtc");
+
+                    b.Property<DateTime?>("RangeStartUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("rangeStartUtc");
+
+                    b.Property<string>("RangeTimeZone")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("rangeTimeZone");
+
+                    b.Property<string>("ReferenceCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("referenceCode");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("requestedAtUtc");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("type");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("userId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ReferenceCode")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "RequestedAtUtc");
+
+                    b.ToTable("ReportDownload", (string)null);
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ReportSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("createdAtUtc");
+
+                    b.Property<string>("DeliveryEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("deliveryEmail");
+
+                    b.Property<DateTime?>("EndDateUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("endDateUtc");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("frequency");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("isActive");
+
+                    b.Property<DateTime?>("LastRunAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("lastRunAtUtc");
+
+                    b.Property<DateTime?>("NextRunAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("nextRunAtUtc");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("type");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("userId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive", "NextRunAtUtc");
+
+                    b.HasIndex("UserId", "Source", "Type", "IsActive");
+
+                    b.ToTable("ReportSchedule", (string)null);
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.ReturnRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -1190,6 +1328,28 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("CloneEbay.Domain.Entities.User", "User")
                         .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ReportDownload", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CloneEbay.Domain.Entities.ReportSchedule", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.User", "User")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
