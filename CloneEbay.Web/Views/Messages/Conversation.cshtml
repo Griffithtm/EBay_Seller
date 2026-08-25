@@ -46,8 +46,11 @@
         color: #8e8e8e;
         margin-top: 2px;
         margin-bottom: 8px;
-        display: flex;
+        display: none;
         align-items: center;
+    }
+    .message-row:first-child .chat-time {
+        display: flex;
     }
     .message-row.sent .chat-time { justify-content: flex-end; }
     
@@ -175,7 +178,8 @@
                                 }
                                 @if (!string.IsNullOrEmpty(msg.AttachmentUrl))
                                 {
-                                    <img src="@msg.AttachmentUrl" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />
+                                    var attUrl = msg.AttachmentUrl.StartsWith("http") ? msg.AttachmentUrl : $"{apiUrl.TrimEnd('/')}/{msg.AttachmentUrl.TrimStart('/')}";
+                                    <img src="@attUrl" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />
                                 }
                                 <span class="chat-bubble-text">@msg.Content</span>
                             </div>
@@ -258,16 +262,14 @@
                 
                 let attachmentHtml = '';
                 if (attachmentUrl) {
-                    attachmentHtml = `<img src="${attachmentUrl}" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />`;
+                    const fullUrl = attachmentUrl.startsWith('http') ? attachmentUrl : `@apiUrl.TrimEnd('/')/${attachmentUrl.replace(/^\//, '')}`;
+                    attachmentHtml = `<img src="${fullUrl}" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />`;
                 }
 
                 row.innerHTML = `
                     ${avatarHtml}
                     <div class="d-flex flex-column ${alignClass} w-100">
-                        <div class="chat-bubble ${bubbleClass}">
-                            ${attachmentHtml}
-                            <span class="chat-bubble-text">${content}</span>
-                        </div>
+                        <div class="chat-bubble ${bubbleClass}">${attachmentHtml}<span class="chat-bubble-text">${content}</span></div>
                         <div class="chat-time">
                             ${timeStr} ${checkHtml}
                         </div>
@@ -352,7 +354,8 @@
                     if (res.ok) {
                         const data = await res.json();
                         pendingAttachmentUrl = data.url;
-                        imagePreview.src = data.url;
+                        const fullUrl = data.url.startsWith('http') ? data.url : `@apiUrl.TrimEnd('/')/${data.url.replace(/^\//, '')}`;
+                        imagePreview.src = fullUrl;
                         imagePreviewContainer.classList.remove('d-none');
                     } else {
                         alert("Lỗi upload ảnh.");

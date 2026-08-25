@@ -172,6 +172,9 @@
                     .withAutomaticReconnect()
                     .build();
                 
+                window.__apiUrl = '@apiUrl';
+                window.__chatConnection = connection;
+                
                 connection.on("messageReceived", function (message) {
                     // If we are not currently viewing this conversation, increase badge count
                     // (The conversation page itself will mark as read when opened)
@@ -191,6 +194,12 @@
                 } catch (e) {}
             });
         </script>
+        
+        var isChatPage = currentPath.StartsWith("/Messages/Conversation", StringComparison.OrdinalIgnoreCase);
+        if (!isChatPage)
+        {
+            <partial name="_ChatWidget" />
+        }
     }
 </body>
 </html>

@@ -1,0 +1,431 @@
+<style>
+    .cw-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        font-family: inherit;
+    }
+    
+    .cw-trigger {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background-color: #0084ff; /* Messenger blue */
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative;
+    }
+    
+    .cw-trigger:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    
+    .cw-popup {
+        position: absolute;
+        bottom: 72px;
+        right: 0;
+        width: 350px;
+        height: 480px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transform-origin: bottom right;
+        animation: cw-pop 0.2s ease-out forwards;
+    }
+    
+    @@keyframes cw-pop {
+        0% { transform: scale(0.9); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .cw-panel {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .cw-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #dee2e6;
+        background-color: #ffffff;
+    }
+    
+    .cw-body {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+    
+    .cw-body::-webkit-scrollbar { width: 6px; }
+    .cw-body::-webkit-scrollbar-thumb { background-color: #c1c1c1; border-radius: 3px; }
+    
+    .cw-conv-item {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .cw-conv-item:hover { background-color: #f8f9fa; }
+    
+    .cw-bubble {
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        word-wrap: break-word;
+        max-width: 85%;
+        display: inline-block;
+        white-space: pre-wrap;
+    }
+    .cw-received { background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
+    .cw-sent { background-color: #0084ff; color: white; border-bottom-right-radius: 4px; }
+    
+    .cw-msg-row { display: flex; margin-bottom: 8px; width: 100%; }
+    .cw-msg-row.received { justify-content: flex-start; }
+    .cw-msg-row.sent { justify-content: flex-end; }
+    
+    .cw-time { font-size: 0.65rem; color: #8e8e8e; margin-top: 2px; display: none; }
+    .cw-msg-row:last-child .cw-time { display: block; }
+    .cw-msg-row.sent .cw-time { text-align: right; }
+    
+    .cw-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        color: #6c757d;
+    }
+</style>
+
+<div id="cw-container" class="cw-container">
+    <div id="cw-trigger" class="cw-trigger">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span id="cw-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.7rem; border: 2px solid white;">0</span>
+    </div>
+    
+    <div id="cw-popup" class="cw-popup d-none">
+        
+        <!-- Panel 1: List -->
+        <div id="cw-panel-list" class="cw-panel">
+            <div class="cw-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">Chat</h6>
+                <button type="button" class="btn-close btn-sm cw-close"></button>
+            </div>
+            <div class="cw-body p-0">
+                <div id="cw-list-loading" class="cw-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
+                <div id="cw-conv-list" class="list-group list-group-flush d-none"></div>
+            </div>
+        </div>
+        
+        <!-- Panel 2: Chat -->
+        <div id="cw-panel-chat" class="cw-panel d-none">
+            <div class="cw-header d-flex align-items-center py-2 px-2">
+                <button type="button" id="cw-btn-back" class="btn btn-sm btn-link text-dark p-1 me-1"><i class="bi bi-chevron-left"></i></button>
+                <img id="cw-chat-avatar" src="" class="rounded-circle me-2" style="width: 28px; height: 28px;">
+                <h6 id="cw-chat-name" class="mb-0 fw-bold text-truncate flex-grow-1" style="font-size: 0.95rem;"></h6>
+                <button type="button" class="btn-close btn-sm cw-close me-1"></button>
+            </div>
+            
+            <div id="cw-chat-history" class="cw-body p-2 bg-light">
+                <!-- Messages appended here -->
+            </div>
+            
+            <div class="p-2 border-top bg-white">
+                <form id="cw-send-form" class="d-flex align-items-center position-relative mb-0">
+                    <input type="file" id="cw-img-input" accept="image/jpeg,image/png,image/webp" hidden />
+                    
+                    <div id="cw-img-preview-box" class="position-absolute bottom-100 start-0 mb-2 p-1 bg-white border rounded shadow-sm d-none" style="z-index: 10;">
+                        <div class="position-relative d-inline-block">
+                            <img id="cw-img-preview" src="" style="max-height: 80px; border-radius: 4px;" />
+                            <button type="button" id="cw-img-remove" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 start-100 translate-middle" style="width: 20px; height: 20px; padding: 0; line-height: 1;"><i class="bi bi-x"></i></button>
+                        </div>
+                    </div>
+
+                    <button type="button" id="cw-btn-upload" class="btn btn-sm btn-light text-primary rounded-circle me-1 flex-shrink-0" style="width: 32px; height: 32px; padding: 0;"><i class="bi bi-image"></i></button>
+                    
+                    <input type="text" id="cw-msg-input" class="form-control form-control-sm rounded-pill mx-1" placeholder="Nhập tin nhắn..." autocomplete="off">
+                    
+                    <button type="submit" class="btn btn-sm btn-primary rounded-circle ms-1 flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; padding: 0; background-color: #0084ff; border-color: #0084ff;">
+                        <i class="bi bi-send-fill" style="margin-left: -2px;"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const trigger = document.getElementById('cw-trigger');
+    const popup = document.getElementById('cw-popup');
+    const panelList = document.getElementById('cw-panel-list');
+    const panelChat = document.getElementById('cw-panel-chat');
+    const btnBack = document.getElementById('cw-btn-back');
+    const closes = document.querySelectorAll('.cw-close');
+    
+    const convList = document.getElementById('cw-conv-list');
+    const listLoading = document.getElementById('cw-list-loading');
+    
+    const chatHistory = document.getElementById('cw-chat-history');
+    const chatName = document.getElementById('cw-chat-name');
+    const chatAvatar = document.getElementById('cw-chat-avatar');
+    
+    const sendForm = document.getElementById('cw-send-form');
+    const msgInput = document.getElementById('cw-msg-input');
+    const imgInput = document.getElementById('cw-img-input');
+    const btnUpload = document.getElementById('cw-btn-upload');
+    const imgPreviewBox = document.getElementById('cw-img-preview-box');
+    const imgPreview = document.getElementById('cw-img-preview');
+    const imgRemove = document.getElementById('cw-img-remove');
+    const mainBadge = document.getElementById('cw-badge');
+
+    let currentChatUserId = null;
+    let pendingAttachmentUrl = null;
+    
+    // Sync main layout badge with widget badge
+    const syncBadge = () => {
+        const layoutBadge = document.getElementById('unread-badge');
+        if (layoutBadge && !layoutBadge.classList.contains('d-none')) {
+            mainBadge.textContent = layoutBadge.textContent;
+            mainBadge.classList.remove('d-none');
+        } else {
+            mainBadge.classList.add('d-none');
+        }
+    };
+    setInterval(syncBadge, 2000); // sync periodically just in case
+    
+    // Formatting helpers
+    const formatTime = (isoString) => {
+        const d = new Date(isoString);
+        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    };
+
+    // Open widget
+    trigger.addEventListener('click', () => {
+        if (popup.classList.contains('d-none')) {
+            popup.classList.remove('d-none');
+            panelList.classList.remove('d-none');
+            panelChat.classList.add('d-none');
+            loadConversations();
+        } else {
+            popup.classList.add('d-none');
+        }
+    });
+
+    // Close widget
+    closes.forEach(btn => btn.addEventListener('click', () => {
+        popup.classList.add('d-none');
+    }));
+
+    // Back to list
+    btnBack.addEventListener('click', () => {
+        currentChatUserId = null;
+        panelChat.classList.add('d-none');
+        panelList.classList.remove('d-none');
+        loadConversations();
+    });
+
+    // Load Conversations
+    async function loadConversations() {
+        listLoading.classList.remove('d-none');
+        convList.classList.add('d-none');
+        convList.innerHTML = '';
+        
+        try {
+            const res = await fetch('/Messages/Conversations');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.length === 0) {
+                    convList.innerHTML = '<div class="p-3 text-center text-muted small">Chưa có tin nhắn nào.</div>';
+                } else {
+                    data.forEach(conv => {
+                        const isUnread = conv.unreadCount > 0 || conv.UnreadCount > 0;
+                        const unreadCount = conv.unreadCount || conv.UnreadCount || 0;
+                        const name = conv.withUsername || conv.WithUsername;
+                        const lastMsg = conv.lastMessage || conv.LastMessage;
+                        const time = formatTime(conv.lastMessageAt || conv.LastMessageAt);
+                        const uId = conv.withUserId || conv.WithUserId;
+                        
+                        const item = document.createElement('div');
+                        item.className = `list-group-item cw-conv-item p-2 d-flex align-items-center ${isUnread ? 'bg-light' : ''}`;
+                        item.onclick = () => openChat(uId, name);
+                        
+                        item.innerHTML = `
+                            <img src="https://ui-avatars.com/api/?name=${name}&background=random" class="rounded-circle me-2" style="width: 40px; height: 40px;">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 text-truncate ${isUnread ? 'fw-bold' : ''}" style="font-size: 0.9rem;">${name}</h6>
+                                    <small class="text-muted" style="font-size: 0.7rem;">${time}</small>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <p class="mb-0 small text-truncate text-muted ${isUnread ? 'fw-bold text-dark' : ''}" style="font-size: 0.8rem;">${lastMsg || '[Hình ảnh]'}</p>
+                                    ${isUnread ? `<span class="badge bg-danger rounded-pill" style="font-size: 0.6rem;">${unreadCount}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                        convList.appendChild(item);
+                    });
+                }
+                listLoading.classList.add('d-none');
+                convList.classList.remove('d-none');
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    // Open Chat
+    async function openChat(userId, username) {
+        currentChatUserId = userId;
+        chatName.textContent = username;
+        chatAvatar.src = `https://ui-avatars.com/api/?name=${username}&background=random`;
+        chatHistory.innerHTML = '<div class="cw-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+        
+        panelList.classList.add('d-none');
+        panelChat.classList.remove('d-none');
+        
+        try {
+            const res = await fetch(`/Messages/ChatMessages/${userId}`);
+            if (res.ok) {
+                const data = await res.json();
+                chatHistory.innerHTML = '';
+                
+                // Hide layout unread badge if viewing here
+                const layoutBadge = document.getElementById('unread-badge');
+                if (layoutBadge) layoutBadge.classList.add('d-none');
+                mainBadge.classList.add('d-none');
+
+                const messages = data.messages || data.Messages || [];
+                // Reverse because usually the API returns newest first due to desc order
+                [...messages].reverse().forEach(msg => {
+                    renderMessage(msg.content || msg.Content, formatTime(msg.timestamp || msg.Timestamp), (msg.senderId || msg.SenderId) != userId, msg.attachmentUrl || msg.AttachmentUrl, false);
+                });
+                
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    function renderMessage(content, time, isSent, attachmentUrl, scroll = true) {
+        const row = document.createElement('div');
+        row.className = `cw-msg-row ${isSent ? 'sent' : 'received'}`;
+        
+        let attachmentHtml = '';
+        if (attachmentUrl) {
+            const apiUrl = window.__apiUrl || 'https://localhost:7001';
+            const fullUrl = attachmentUrl.startsWith('http') ? attachmentUrl : `${apiUrl.replace(/\/$/, '')}/${attachmentUrl.replace(/^\//, '')}`;
+            attachmentHtml = `<img src="${fullUrl}" class="img-fluid rounded mb-1" style="max-height: 150px; display: block;" />`;
+        }
+        
+        row.innerHTML = `
+            <div class="d-flex flex-column ${isSent ? 'align-items-end' : 'align-items-start'} w-100">
+                <div class="cw-bubble ${isSent ? 'cw-sent' : 'cw-received'}">${attachmentHtml}${content ? `<span>${content}</span>` : ''}</div>
+                <div class="cw-time">${time}</div>
+            </div>
+        `;
+        chatHistory.appendChild(row);
+        if (scroll) chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    // Handle SignalR real-time updates for widget
+    if (window.__chatConnection) {
+        window.__chatConnection.on("messageReceived", function (message) {
+            const sender = message.senderId || message.SenderId;
+            const content = message.content || message.Content;
+            const timestamp = message.timestamp || message.Timestamp;
+            const attachmentUrl = message.attachmentUrl || message.AttachmentUrl;
+            const time = formatTime(timestamp);
+
+            if (!popup.classList.contains('d-none') && !panelChat.classList.contains('d-none') && currentChatUserId == sender) {
+                // If viewing this person, render and mark read
+                renderMessage(content, time, false, attachmentUrl);
+                fetch(`/Messages/ChatMessages/${sender}`); // Silent mark read
+            } else if (!popup.classList.contains('d-none') && !panelList.classList.contains('d-none')) {
+                // Refresh list if open
+                loadConversations();
+            }
+            
+            // Sync badge
+            setTimeout(syncBadge, 500);
+        });
+    }
+
+    // --- File Upload ---
+    btnUpload.addEventListener('click', () => imgInput.click());
+
+    imgRemove.addEventListener('click', () => {
+        pendingAttachmentUrl = null;
+        imgPreview.src = '';
+        imgPreviewBox.classList.add('d-none');
+        imgInput.value = '';
+    });
+
+    imgInput.addEventListener('change', async function () {
+        const file = this.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const oldHtml = btnUpload.innerHTML;
+            btnUpload.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            btnUpload.disabled = true;
+
+            const res = await fetch('/Messages/UploadAttachment', { method: 'POST', body: formData });
+            if (res.ok) {
+                const data = await res.json();
+                pendingAttachmentUrl = data.url;
+                const apiUrl = window.__apiUrl || 'https://localhost:7001';
+                const fullUrl = data.url.startsWith('http') ? data.url : `${apiUrl.replace(/\/$/, '')}/${data.url.replace(/^\//, '')}`;
+                imgPreview.src = fullUrl;
+                imgPreviewBox.classList.remove('d-none');
+            }
+            
+            btnUpload.innerHTML = oldHtml;
+            btnUpload.disabled = false;
+        } catch(e) { console.error(e); }
+    });
+
+    // --- Send Message ---
+    sendForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (!currentChatUserId) return;
+        
+        const content = msgInput.value.trim();
+        if (!content && !pendingAttachmentUrl) return;
+
+        const attachmentUrlToSend = pendingAttachmentUrl;
+        msgInput.value = '';
+        imgRemove.click(); // clear UI
+
+        const d = new Date();
+        const time = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+        
+        renderMessage(content, time, true, attachmentUrlToSend);
+
+        try {
+            await fetch('/Messages/Send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    ReceiverId: parseInt(currentChatUserId), 
+                    Content: content,
+                    AttachmentUrl: attachmentUrlToSend
+                })
+            });
+        } catch(err) { console.error(err); }
+    });
+});
+</script>

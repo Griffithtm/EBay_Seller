@@ -82,4 +82,27 @@ public sealed class MessagesController(SellerApiClient apiClient) : Controller
         if (!result.Success) return BadRequest(result.Error);
         return Ok(new { url = result.Data?.GetValueOrDefault("Url") ?? result.Data?.GetValueOrDefault("url") });
     }
+
+    [HttpGet("Messages/Conversations")]
+    public async Task<IActionResult> ConversationsJson()
+    {
+        var result = await apiClient.GetConversationsAsync();
+        if (!result.Success) return BadRequest(result.Error);
+        return Ok(result.Data?.Items ?? Array.Empty<ConversationItem>());
+    }
+
+    [HttpGet("Messages/ChatMessages/{userId:int}")]
+    public async Task<IActionResult> ChatMessages(int userId, int page = 1)
+    {
+        var result = await apiClient.GetMessagesAsync(userId, page, 50);
+        if (!result.Success) return BadRequest(result.Error);
+        
+        await apiClient.MarkConversationAsReadAsync(userId);
+        
+        return Ok(new
+        {
+            Messages = result.Data?.Items ?? Array.Empty<MessageResponse>(),
+            Pagination = result.Data?.Pagination ?? new PaginationDto(1, 50, 0, 0)
+        });
+    }
 }
