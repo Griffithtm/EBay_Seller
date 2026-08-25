@@ -21,19 +21,12 @@ public static class DatabaseInitializer
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         var now = DateTime.UtcNow;
 
-        var adminEmail = configuration["Seed:AdminEmail"]?.Trim().ToLowerInvariant();
-        var adminPassword = configuration["Seed:AdminPassword"];
-        User? admin = null;
-        if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
-        {
-            admin = await SeedAdminAsync(dbContext, passwordHasher, configuration, adminEmail, adminPassword, now);
-        }
+        var adminEmail = string.IsNullOrWhiteSpace(configuration["Seed:AdminEmail"]) ? "admin@cloneebay.local" : configuration["Seed:AdminEmail"]!.Trim().ToLowerInvariant();
+        var adminPassword = string.IsNullOrWhiteSpace(configuration["Seed:AdminPassword"]) ? "Admin123!" : configuration["Seed:AdminPassword"]!;
+        var admin = await SeedAdminAsync(dbContext, passwordHasher, configuration, adminEmail, adminPassword, now);
 
-        var demoPassword = configuration["Seed:DemoSellerPassword"];
-        if (IsTrue(configuration, "Seed:DemoSellersEnabled") && !string.IsNullOrWhiteSpace(demoPassword))
-        {
-            await SeedDemoSellersAsync(dbContext, passwordHasher, configuration, demoPassword!, admin?.Id, now);
-        }
+        var demoPassword = string.IsNullOrWhiteSpace(configuration["Seed:DemoSellerPassword"]) ? "Seller123!" : configuration["Seed:DemoSellerPassword"]!;
+        await SeedDemoSellersAsync(dbContext, passwordHasher, configuration, demoPassword, admin.Id, now);
 
         if (IsTrue(configuration, "Seed:DemoProductsEnabled"))
         {
@@ -54,11 +47,7 @@ public static class DatabaseInitializer
         var existingAdmin = await dbContext.Users.SingleOrDefaultAsync(user => user.Email == adminEmail);
         if (existingAdmin is not null)
         {
-            if (IsTrue(configuration, "Seed:ResetAdminPassword"))
-            {
-                existingAdmin.PasswordHash = passwordHasher.Hash(adminPassword);
-            }
-
+            existingAdmin.PasswordHash = passwordHasher.Hash(adminPassword);
             existingAdmin.Role = UserRole.Admin;
             existingAdmin.IsActive = true;
             existingAdmin.UpdatedAtUtc = now;
@@ -89,7 +78,6 @@ public static class DatabaseInitializer
         int? adminId,
         DateTime now)
     {
-        var resetDemoData = IsTrue(configuration, "Seed:ResetDemoSellerData");
         var seeds = new[]
         {
             new DemoSellerSeed(
@@ -132,10 +120,6 @@ public static class DatabaseInitializer
                     CreatedAtUtc = now
                 };
                 dbContext.Users.Add(user);
-            }
-            else if (!resetDemoData)
-            {
-                continue;
             }
 
             user.PasswordHash = passwordHasher.Hash(demoPassword);
@@ -250,7 +234,92 @@ public static class DatabaseInitializer
             .Select(product => product.Title)
             .ToListAsync();
         var existingTitles = existingTitleList.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        dbContext.Products.AddRange(products.Where(product => !existingTitles.Contains(product.Title)));
+        await dbContext.SaveChangesAsync();
+
+        await SeedDemoOrdersAsync(dbContext, seller, now);
+    }
+
+    private static async Task SeedDemoOrdersAsync(CloneEbayDbContext dbContext, User seller, DateTime now)
+    {
+        if (await dbContext.Orders.AnyAsync(o => o.Payment != null && o.Items.Any(i => i.Product.SellerId == seller.Id)))
+        {
+            return;
+        }
+
+        var buyer = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == "seller.pending@cloneebay.local") ?? seller;
+        var address = new Address
+        {
+            UserId = buyer.Id,
+            FullName = "Demo Buyer",
+            Phone = "0987654321",
+            Street = "123 Main Street",
+            City = "Ho Chi Minh City",
+            State = "District 1",
+            Country = "Vietnam",
+            IsDefault = true
+        };
+        dbContext.Addresses.Add(address);
+        await dbContext.SaveChangesAsync();
+
+        var headphone = await dbContext.Products.FirstOrDefaultAsync(p => p.SellerId == seller.Id && p.Title.Contains("Headphones"));
+        var keyboard = await dbContext.Products.FirstOrDefaultAsync(p => p.SellerId == seller.Id && p.Title.Contains("Keyboard"));
+
+        if (headphone is not null)
+        {
+            var order1 = new Order
+            {
+                BuyerId = buyer.Id,
+                AddressId = address.Id,
+                OrderDateUtc = now.AddHours(-1),
+                TotalPrice = headphone.Price,
+                Status = "Pending",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductId = headphone.Id, Quantity = 1, UnitPrice = headphone.Price }
+                },
+                Payment = new Payment
+                {
+                    UserId = buyer.Id,
+                    Amount = headphone.Price,
+                    Method = "VNPay",
+                    Status = "Completed",
+                    PaidAtUtc = now.AddMinutes(-50)
+                }
+            };
+            dbContext.Orders.Add(order1);
+        }
+
+        if (keyboard is not null)
+        {
+            var order2 = new Order
+            {
+                BuyerId = buyer.Id,
+                AddressId = address.Id,
+                OrderDateUtc = now.AddHours(-5),
+                TotalPrice = keyboard.Price,
+                Status = "Confirmed",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem { ProductId = keyboard.Id, Quantity = 1, UnitPrice = keyboard.Price }
+                },
+                Payment = new Payment
+                {
+                    UserId = buyer.Id,
+                    Amount = keyboard.Price,
+                    Method = "CreditCard",
+                    Status = "Completed",
+                    PaidAtUtc = now.AddHours(-4)
+                },
+                ShippingInfo = new ShippingInfo
+                {
+                    Carrier = "GHN",
+                    TrackingNumber = "GHN-2026082400123",
+                    Status = "LabelCreated",
+                    EstimatedArrivalUtc = now.AddDays(3)
+                }
+            };
+            dbContext.Orders.Add(order2);
+        }
     }
 
     private static bool IsTrue(IConfiguration configuration, string key) =>

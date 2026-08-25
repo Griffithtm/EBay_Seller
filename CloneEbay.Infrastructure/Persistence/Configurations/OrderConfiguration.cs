@@ -28,5 +28,9 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .WithOne(product => product.AuctionOrder)
             .HasForeignKey<Order>(order => order.AuctionProductId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(order => order.Address)
+            .WithMany()
+            .HasForeignKey(order => order.AddressId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

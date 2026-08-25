@@ -28,7 +28,14 @@ public sealed class ProductsController(SellerApiClient apiClient) : Controller
         await Task.WhenAll(productsTask, categoriesTask);
         var productResult = await productsTask;
         var categoryResult = await categoriesTask;
-        if (!productResult.Success) TempData["Error"] = productResult.ErrorMessage;
+        if (!productResult.Success)
+        {
+            if (productResult.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+            TempData["Error"] = productResult.ErrorMessage;
+        }
 
         return View(new ProductIndexViewModel
         {
@@ -211,11 +218,12 @@ public sealed class ProductsController(SellerApiClient apiClient) : Controller
 
     private void ValidateProductForm(ProductFormViewModel model, bool requireImages)
     {
-        if (requireImages && model.Images.Count == 0)
+        var imageCount = model.Images?.Count ?? 0;
+        if (requireImages && imageCount == 0)
             ModelState.AddModelError(nameof(model.Images), "Vui lòng tải lên ít nhất một ảnh sản phẩm.");
-        if (model.Images.Count > 8)
+        if (imageCount > 8)
             ModelState.AddModelError(nameof(model.Images), "Mỗi sản phẩm có tối đa 8 ảnh.");
-        if (model.IsAuction && (!model.AuctionEndTime.HasValue || model.AuctionEndTime.Value <= DateTime.Now.AddMinutes(1)))
+        if (!model.Id.HasValue && model.IsAuction && (!model.AuctionEndTime.HasValue || model.AuctionEndTime.Value <= DateTime.Now.AddMinutes(1)))
             ModelState.AddModelError(nameof(model.AuctionEndTime), "Thời điểm kết thúc phải ở tương lai.");
     }
 

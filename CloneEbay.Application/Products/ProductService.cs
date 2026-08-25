@@ -109,14 +109,9 @@ public sealed class ProductService(
     {
         await using var transaction = await unitOfWork.BeginSerializableTransactionAsync(cancellationToken);
         var product = await LockedOwnedProductAsync(productId, sellerId, cancellationToken);
-        var hasBids = product.Bids.Count > 0;
-        if (hasBids && request.IsAuction.HasValue && request.IsAuction.Value != product.IsAuction)
+        if (product.Status == ProductStatus.AuctionEnded)
         {
-            throw Problem(409, "AUCTION_ALREADY_HAS_BID", "Auction type cannot change after the first bid.");
-        }
-        if (hasBids && request.Price.HasValue && request.Price.Value != product.Price)
-        {
-            throw Problem(409, "AUCTION_PRICE_LOCKED", "Starting price cannot change after the first bid.");
+            throw Problem(409, "AUCTION_ALREADY_CLOSED", "An ended auction cannot be modified.");
         }
 
         var title = request.Title is null ? product.Title : request.Title.Trim();
@@ -126,7 +121,7 @@ public sealed class ProductService(
         var isAuction = request.IsAuction ?? product.IsAuction;
         var auctionEnd = request.AuctionEndTime ?? product.AuctionEndTimeUtc;
         ValidateCore(title, description, price, categoryId);
-        ValidateAuction(isAuction, auctionEnd, clock.UtcNow, allowExistingPastEnd: hasBids);
+        ValidateAuction(isAuction, auctionEnd, clock.UtcNow, allowExistingPastEnd: true);
         if (!await products.CategoryExistsAsync(categoryId, cancellationToken))
         {
             throw Problem(422, "CATEGORY_NOT_FOUND", "Selected category does not exist.");

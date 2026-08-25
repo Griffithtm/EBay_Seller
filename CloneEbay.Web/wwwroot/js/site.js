@@ -60,13 +60,96 @@
         updateStrength();
     }
 
-    document.querySelectorAll("form[data-loading-form]").forEach((form) => {
-        form.addEventListener("submit", (event) => {
-            if (!form.checkValidity()) return;
+    document.querySelectorAll("form[data-loading-form], form[data-confirm]").forEach((form) => {
+        const resetSubmitButton = (form) => {
+            delete form.dataset.submitting;
+            const submit = form.querySelector("button[type='submit']");
+            if (submit) {
+                submit.classList.remove("is-loading");
+                submit.removeAttribute("aria-busy");
+                const label = submit.querySelector("span");
+                if (label && submit.dataset.originalText) {
+                    label.textContent = submit.dataset.originalText;
+                }
+            }
+        };
+
+        if (typeof window.jQuery !== "undefined") {
+            window.jQuery(form).on("invalid-form.validate", () => resetSubmitButton(form));
+        }
+
+        form.addEventListener("submit", function (event) {
+            if (!form.checkValidity()) {
+                resetSubmitButton(form);
+                return;
+            }
+
+            if (typeof window.jQuery !== "undefined" && typeof window.jQuery(form).valid === "function") {
+                if (!window.jQuery(form).valid()) {
+                    resetSubmitButton(form);
+                    return;
+                }
+            }
+
+            if (form.dataset.confirmed === "true") {
+                return;
+            }
 
             const confirmation = form.dataset.confirm;
-            if (confirmation && !window.confirm(confirmation)) {
+            if (confirmation) {
                 event.preventDefault();
+
+                let icon = 'warning';
+                let confirmBtnColor = '#dc3545';
+                let confirmBtnText = 'Xác nhận thực hiện';
+                const action = (form.getAttribute('action') || '').toLowerCase();
+                const btnText = (form.querySelector("button[type='submit']")?.textContent || '').toLowerCase();
+
+                if (action.includes('approve') || btnText.includes('phê duyệt')) {
+                    icon = 'question';
+                    confirmBtnColor = '#198754';
+                    confirmBtnText = '✔ Đồng ý phê duyệt';
+                } else if (action.includes('delete') || action.includes('cancel') || btnText.includes('xóa') || btnText.includes('hủy')) {
+                    icon = 'warning';
+                    confirmBtnColor = '#dc3545';
+                    confirmBtnText = '❌ Xác nhận Hủy / Xóa';
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Xác nhận thao tác',
+                        text: confirmation,
+                        icon: icon,
+                        showCancelButton: true,
+                        confirmButtonColor: confirmBtnColor,
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: confirmBtnText,
+                        cancelButtonText: 'Quay lại',
+                        reverseButtons: true,
+                        focusCancel: true,
+                        customClass: {
+                            popup: 'shadow-lg border-0 rounded-4',
+                            title: 'fw-bold fs-5',
+                            confirmButton: 'px-4 py-2 rounded-3 fw-bold shadow-sm',
+                            cancelButton: 'px-4 py-2 rounded-3'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.dataset.confirmed = "true";
+                            const submit = form.querySelector("button[type='submit']");
+                            if (submit) {
+                                submit.classList.add("is-loading");
+                                submit.setAttribute("aria-busy", "true");
+                            }
+                            form.submit();
+                        }
+                    });
+                } else {
+                    if (window.confirm(confirmation)) {
+                        form.dataset.confirmed = "true";
+                        form.submit();
+                    }
+                }
                 return;
             }
 
@@ -75,14 +158,24 @@
                 return;
             }
 
-            form.dataset.submitting = "true";
             const submit = form.querySelector("button[type='submit']");
             if (!submit) return;
 
+            form.dataset.submitting = "true";
             submit.classList.add("is-loading");
             submit.setAttribute("aria-busy", "true");
             const label = submit.querySelector("span");
-            if (label && submit.dataset.loadingText) label.textContent = submit.dataset.loadingText;
+            if (label) {
+                if (!submit.dataset.originalText) {
+                    submit.dataset.originalText = label.textContent;
+                }
+                if (submit.dataset.loadingText) {
+                    label.textContent = submit.dataset.loadingText;
+                }
+            }
+
+            // Fallback safety timeout: reset loading after 6s in case form doesn't navigate away
+            window.setTimeout(() => resetSubmitButton(form), 6000);
         });
     });
 

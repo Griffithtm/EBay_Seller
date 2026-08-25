@@ -27,4 +27,6 @@ public sealed class User : BaseEntity
     public Feedback? Feedback { get; set; }
     public ICollection<ReturnRequest> ReturnRequests { get; set; } = new List<ReturnRequest>();
     public ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
+    public ICollection<Message> SentMessages { get; set; } = new List<Message>();
+    public ICollection<Message> ReceivedMessages { get; set; } = new List<Message>();
 }

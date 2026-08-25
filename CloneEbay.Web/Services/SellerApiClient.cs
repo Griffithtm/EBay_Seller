@@ -47,7 +47,118 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<ProductDto>> UpdateProductAsync(
         ProductFormViewModel model,
         CancellationToken cancellationToken = default) =>
-        SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images.Count > 0), true, true, cancellationToken);
+        SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images is { Count: > 0 }), true, true, cancellationToken);
+
+    public Task<ApiCallResult<PagedResultDto<ProductDto>>> GetProductsAsync(
+        int page = 1,
+        int pageSize = 100,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<ProductDto>>($"api/products?page={page}&pageSize={pageSize}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<CouponDto>("api/coupons", new
+        {
+            productId = model.ProductId,
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage,
+            recaptchaToken = model.RecaptchaToken
+        }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<CouponDto>> UpdateCouponAsync(
+        int id,
+        CouponFormViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<CouponDto>($"api/coupons/{id}", new
+        {
+            code = model.Code,
+            discountPercent = model.DiscountPercent,
+            startDate = model.StartDate.ToUniversalTime(),
+            endDate = model.EndDate.ToUniversalTime(),
+            maxUsage = model.MaxUsage
+        }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<ConversationListResponse>> GetConversationsAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<ConversationListResponse>("api/messages/conversations", true, cancellationToken);
+
+    public Task<ApiCallResult<PagedResultDto<MessageResponse>>> GetMessagesAsync(int conversationWith, int page = 1, int pageSize = 30, CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<MessageResponse>>($"api/messages/{conversationWith}?page={page}&pageSize={pageSize}", true, cancellationToken);
+
+    public Task<ApiCallResult<MessageResponse>> SendMessageAsync(SendMessageRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<MessageResponse>("api/messages", request, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkAsReadAsync(int messageId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/{messageId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<object>> MarkConversationAsReadAsync(int otherUserId, CancellationToken cancellationToken = default) =>
+        PutAsync<object>($"api/messages/conversations/{otherUserId}/read", null, true, cancellationToken);
+
+    public Task<ApiCallResult<UnreadCountResponse>> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<UnreadCountResponse>("api/messages/unread-count", true, cancellationToken);
+
+
+    public Task<ApiCallResult<PagedResultDto<OrderSummaryDto>>> GetOrdersAsync(
+        string? status = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PagedResultDto<OrderSummaryDto>>($"api/orders?status={Uri.EscapeDataString(status ?? "")}&page={page}&pageSize={pageSize}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> GetOrderDetailAsync(
+        int id,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<OrderDetailDto>($"api/orders/{id}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderConfirmDto>> ConfirmOrderAsync(
+        int id,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<OrderConfirmDto>($"api/orders/{id}/confirm", null, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<UpdateShippingStatusResponseDto>> UpdateShippingStatusAsync(
+        int id,
+        string status,
+        CancellationToken cancellationToken = default) =>
+        PutAsync<UpdateShippingStatusResponseDto>($"api/orders/{id}/status", new { status }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<ShippingLabelResponseDto>> CreateShippingLabelAsync(
+        int id,
+        string carrier,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<ShippingLabelResponseDto>($"api/orders/{id}/shipping-label", new { carrier }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<ShippingInfoDto>> GetShippingInfoAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<ShippingInfoDto>($"api/shipping/{orderId}", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<PaymentDetailDto>> GetPaymentInfoAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        GetAsync<PaymentDetailDto>($"api/orders/{orderId}/payment", cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CreateMockOrderAsync(
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>("api/orders/mock", new { }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CreateManualOrderAsync(
+        CreateManualOrderViewModel model,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>("api/orders/manual", model, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> PayVnPayAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/pay-vnpay", new { }, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderConfirmDto>> CancelOrderAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderConfirmDto>($"api/orders/{orderId}/cancel", new { }, cancellationToken: cancellationToken);
+
 
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
     {
@@ -210,7 +321,7 @@ public sealed class SellerApiClient(
         {
             content.Add(new StringContent(model.AuctionEndTime.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)), "AuctionEndTime");
         }
-        if (includeImages)
+        if (includeImages && model.Images is not null)
         {
             foreach (var image in model.Images)
             {
@@ -286,6 +397,24 @@ public sealed class SellerApiClient(
 
     public Task<ApiCallResult<BuyerSummaryResponseDto>> GetBuyerSummaryAsync(int buyerId, CancellationToken ct = default) =>
         GetAsync<BuyerSummaryResponseDto>($"api/seller/buyer-summary/{buyerId}", true, ct);
+
+    public Task<ApiCallResult<Dictionary<string, string>>> UploadMessageAttachmentAsync(IFormFile file, CancellationToken ct = default)
+    {
+        return SendAsync<Dictionary<string, string>>(
+            HttpMethod.Post,
+            "api/messages/upload-attachment",
+            () =>
+            {
+                var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(file.OpenReadStream());
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType ?? "application/octet-stream");
+                content.Add(fileContent, "file", file.FileName);
+                return content;
+            },
+            true,
+            true,
+            ct);
+    }
 
     private HttpContext GetHttpContext() =>
         httpContextAccessor.HttpContext ?? throw new InvalidOperationException("HTTP context is unavailable.");
