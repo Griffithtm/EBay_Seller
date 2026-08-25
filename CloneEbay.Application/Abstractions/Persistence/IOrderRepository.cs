@@ -18,6 +18,8 @@ public interface IOrderRepository
         int sellerId,
         CancellationToken cancellationToken = default);
 
+    Task AddOrderAsync(Order order, CancellationToken cancellationToken = default);
+
     Task AddShippingInfoAsync(ShippingInfo shippingInfo, CancellationToken cancellationToken = default);
 
     Task<ShippingInfo?> GetShippingInfoByOrderIdAsync(
@@ -30,11 +32,5 @@ public interface IOrderRepository
         int sellerId,
         CancellationToken cancellationToken = default);
 
-    Task CreateMockOrderAsync(int sellerId, DateTime now, CancellationToken cancellationToken = default);
-
-    Task<Order> CreateManualOrderAsync(
-        int sellerId,
-        CreateManualOrderRequest request,
-        DateTime now,
-        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Order>> GetActiveInFlightOrdersAsync(CancellationToken cancellationToken = default);
 }

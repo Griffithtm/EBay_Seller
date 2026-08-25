@@ -202,6 +202,12 @@ public sealed record StoreProfileDto(
     string StoreName,
     string? Description,
     [property: JsonPropertyName("bannerImageURL")] string? BannerImageUrl,
+    string? ReturnPolicy,
+    string? ShippingPolicy,
+    string? PaymentPolicy,
+    int FeedbackScore,
+    string? TaxId,
+    string? PayoutBankAccount,
     string VerificationStatus,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
@@ -209,6 +215,8 @@ public sealed record StoreProfileDto(
 public sealed record CategoryDto(int Id, string Name);
 
 public sealed record InventoryDto(int ProductId, int Quantity, DateTime LastUpdated);
+
+public sealed record WarehouseDto(int Id, int ProductId, int Quantity, string? Location, DateTime LastUpdatedUtc);
 
 public sealed record BidDto(int Id, int BidderId, string BidderUsername, decimal Amount, DateTime BidTime);
 
@@ -225,6 +233,10 @@ public sealed record ProductDto(
     int SellerId,
     string SellerUsername,
     string Status,
+    string ItemCondition,
+    string ListingFormat,
+    int? DurationDays,
+    decimal? ReservePrice,
     bool IsAuction,
     DateTime? AuctionEndTime,
     DateTime? AuctionClosedAt,
@@ -237,18 +249,25 @@ public sealed record ProductDto(
 
 public sealed record CouponDto(
     int Id,
+    string Scope,
     string Code,
+    string DiscountType,
+    decimal DiscountValue,
     decimal DiscountPercent,
+    decimal MinSpend,
     DateTime StartDate,
     DateTime EndDate,
     int MaxUsage,
     int UsageCount,
-    int ProductId,
-    string ProductTitle,
+    int MaxUsagePerBuyer,
+    int? ProductId,
+    string? ProductTitle,
     int SellerId,
     string Status,
     DateTime CreatedAt,
     DateTime UpdatedAt);
+
+public sealed record PayPalCheckoutResponseDto(int OrderId, string PaypalOrderId, string Status, string ApprovalUrl);
 
 
 public sealed record AuctionCloseDto(
@@ -263,7 +282,12 @@ public sealed record OrderSummaryDto(
     int Id,
     DateTime OrderDate,
     decimal TotalPrice,
-    string Status);
+    decimal FinalValueFee,
+    decimal NetPayoutAmount,
+    string Status,
+    string PayoutStatus = "Pending",
+    string? ProductName = null,
+    int? TotalQuantity = null);
 
 public sealed record OrderItemDto(
     int ProductId,
@@ -280,7 +304,7 @@ public sealed record AddressDto(
     string? State,
     string Country);
 
-public sealed record PaymentSummaryDto(string Method, string Status);
+public sealed record PaymentSummaryDto(string Method, string Status, DateTime? PaidAt = null);
 
 public sealed record PaymentDetailDto(
     decimal Amount,
@@ -297,10 +321,22 @@ public sealed record ShippingInfoDto(
 public sealed record OrderDetailDto(
     int Id,
     string Status,
+    decimal TotalPrice,
+    decimal FinalValueFee,
+    decimal NetPayoutAmount,
+    string PayoutStatus,
     IReadOnlyList<OrderItemDto> OrderItems,
     AddressDto? Address,
     PaymentSummaryDto? Payment,
     ShippingInfoDto? Shipping);
+
+public sealed record SellerPayoutSummaryDto(
+    int OrderId,
+    DateTime OrderDate,
+    decimal TotalPrice,
+    decimal FinalValueFee,
+    decimal NetPayoutAmount,
+    string PayoutStatus);
 
 public sealed record OrderConfirmDto(int Id, string Status);
 public sealed record UpdateShippingStatusResponseDto(int Id, string Status);
@@ -308,38 +344,47 @@ public sealed record ShippingLabelResponseDto(int OrderId, string Carrier, strin
 
 public sealed class CreateManualOrderViewModel
 {
-    [Required(ErrorMessage = "Vui lòng nhập họ tên người nhận.")]
-    public string FullName { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
-    public string Phone { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Vui lòng nhập địa chỉ / số nhà.")]
-    public string Street { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Vui lòng nhập Thành phố / Tỉnh.")]
-    public string City { get; set; } = string.Empty;
-
-    public string? State { get; set; }
-
-    [Required(ErrorMessage = "Vui lòng nhập Quốc gia.")]
-    public string Country { get; set; } = "Vietnam";
-
-    [Required(ErrorMessage = "Vui lòng chọn sản phẩm.")]
+    [Required(ErrorMessage = "Vui lòng chọn sản phẩm")]
+    [Display(Name = "Sản phẩm")]
     public int ProductId { get; set; }
 
-    [Range(1, 1000, ErrorMessage = "Số lượng phải từ 1 trở lên.")]
+    [Required(ErrorMessage = "Vui lòng nhập số lượng")]
+    [Range(1, 100000, ErrorMessage = "Số lượng phải từ 1 trở lên")]
+    [Display(Name = "Số lượng")]
     public int Quantity { get; set; } = 1;
 
-    [Range(0.01, 100000000, ErrorMessage = "Đơn giá không hợp lệ.")]
-    public decimal UnitPrice { get; set; }
+    [Display(Name = "Tên khách hàng / Người nhận")]
+    [Required(ErrorMessage = "Vui lòng nhập họ tên người nhận")]
+    public string BuyerFullName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Vui lòng chọn hình thức thanh toán.")]
-    public string PaymentMethod { get; set; } = "COD";
+    [Display(Name = "Số điện thoại liên hệ")]
+    [Required(ErrorMessage = "Vui lòng nhập số điện thoại")]
+    public string BuyerPhone { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Vui lòng chọn trạng thái thanh toán.")]
-    public string PaymentStatus { get; set; } = "Completed";
+    [Display(Name = "Quốc gia")]
+    [Required(ErrorMessage = "Vui lòng chọn quốc gia")]
+    public string Country { get; set; } = "Vietnam";
 
-    public IReadOnlyList<ProductDto> AvailableProducts { get; set; } = new List<ProductDto>();
+    [Display(Name = "Tỉnh / Thành phố")]
+    [Required(ErrorMessage = "Vui lòng chọn tỉnh / thành phố")]
+    public string City { get; set; } = "Hà Nội";
+
+    [Display(Name = "Quận / Huyện")]
+    [Required(ErrorMessage = "Vui lòng chọn quận / huyện")]
+    public string District { get; set; } = "Quận Cầu Giấy";
+
+    [Display(Name = "Địa chỉ chi tiết (Số nhà, tên đường, tòa nhà)")]
+    [Required(ErrorMessage = "Vui lòng nhập địa chỉ chi tiết")]
+    public string Street { get; set; } = string.Empty;
+
+    [Display(Name = "Mã bưu chính (Postal / Zip Code)")]
+    public string? ZipCode { get; set; } = string.Empty;
+
+    [Display(Name = "Phương thức thanh toán")]
+    [Required(ErrorMessage = "Vui lòng chọn phương thức thanh toán")]
+    public string PaymentMethod { get; set; } = "Pay Cash on Delivery (COD)";
 }
+
+public sealed record VNPayCheckoutResponseDto(int OrderId, string PaymentUrl);
+
 

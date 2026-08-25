@@ -17,6 +17,8 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.TotalPrice).HasColumnName("totalPrice").HasPrecision(18, 2);
         builder.Property(order => order.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
         builder.Property(order => order.AuctionProductId).HasColumnName("auctionProductId");
+        builder.Property(order => order.FinalValueFee).HasColumnName("finalValueFee").HasPrecision(18, 2);
+        builder.Property(order => order.PayoutStatus).HasColumnName("payoutStatus").HasMaxLength(20).HasDefaultValue("Pending");
         builder.HasIndex(order => order.AuctionProductId)
             .IsUnique()
             .HasFilter("[auctionProductId] IS NOT NULL");

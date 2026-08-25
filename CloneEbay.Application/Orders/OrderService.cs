@@ -7,9 +7,148 @@ namespace CloneEbay.Application.Orders;
 
 public sealed class OrderService(
     IOrderRepository orderRepository,
+    IProductRepository productRepository,
+    IUserRepository userRepository,
     IUnitOfWork unitOfWork,
     IClock clock) : IOrderService
 {
+    public OrderService(IOrderRepository orderRepository, IUnitOfWork unitOfWork, IClock clock)
+        : this(orderRepository, null!, null!, unitOfWork, clock)
+    {
+    }
+    public async Task<OrderDetailResponse> CreateManualOrderAsync(
+        int sellerId,
+        CreateOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Items is null || request.Items.Count == 0)
+        {
+            throw new AppProblemException(422, "ITEMS_REQUIRED", "At least one product item is required to create a manual order.");
+        }
+
+        var now = clock.UtcNow;
+        var orderItems = new List<OrderItem>();
+        decimal totalPrice = 0m;
+
+        foreach (var itemReq in request.Items)
+        {
+            if (itemReq.Quantity <= 0)
+            {
+                throw new AppProblemException(422, "INVALID_QUANTITY", "Item quantity must be greater than zero.");
+            }
+
+            var product = await productRepository.GetByIdAsync(itemReq.ProductId, true, cancellationToken)
+                ?? throw new AppProblemException(404, "PRODUCT_NOT_FOUND", $"Product #{itemReq.ProductId} was not found.");
+
+            if (product.SellerId != sellerId)
+            {
+                throw new AppProblemException(403, "FORBIDDEN_NOT_OWNER", "You can only create orders for your own products.");
+            }
+
+            var availableQty = product.Inventory?.Quantity ?? 0;
+            if (availableQty < itemReq.Quantity)
+            {
+                throw new AppProblemException(409, "INSUFFICIENT_STOCK", $"Insufficient stock for '{product.Title}'. Required: {itemReq.Quantity}, Available: {availableQty}.");
+            }
+
+            var unitPrice = itemReq.UnitPrice.HasValue && itemReq.UnitPrice.Value > 0 ? itemReq.UnitPrice.Value : product.Price;
+            totalPrice += unitPrice * itemReq.Quantity;
+
+            orderItems.Add(new OrderItem
+            {
+                ProductId = product.Id,
+                Product = product,
+                Quantity = itemReq.Quantity,
+                UnitPrice = unitPrice
+            });
+        }
+
+        var fvf = Math.Round(totalPrice * 0.10m, 2);
+
+        var paymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? "Pay Cash on Delivery (COD)" : request.PaymentMethod.Trim();
+        var isCod = paymentMethod.Contains("COD", StringComparison.OrdinalIgnoreCase);
+        var status = isCod ? "AWAITING_SHIPMENT" : "AWAITING_PAYMENT";
+
+        var buyerId = request.BuyerId ?? 1;
+        if (!string.IsNullOrWhiteSpace(request.BuyerUsername))
+        {
+            var user = await userRepository.GetByEmailAsync(request.BuyerUsername.Trim().ToUpperInvariant(), cancellationToken);
+            if (user != null) buyerId = user.Id;
+        }
+
+        Address? address = null;
+        if (!string.IsNullOrWhiteSpace(request.BuyerFullName) || !string.IsNullOrWhiteSpace(request.Street) || !string.IsNullOrWhiteSpace(request.City))
+        {
+            var country = string.IsNullOrWhiteSpace(request.Country) ? "Vietnam" : request.Country.Trim();
+            var city = string.IsNullOrWhiteSpace(request.City) ? "Hà Nội" : request.City.Trim();
+            var state = string.IsNullOrWhiteSpace(request.District) ? "Quận Cầu Giấy" : request.District.Trim();
+            var street = string.IsNullOrWhiteSpace(request.Street) ? "Địa chỉ giao hàng" : request.Street.Trim();
+
+            address = new Address
+            {
+                UserId = buyerId,
+                FullName = string.IsNullOrWhiteSpace(request.BuyerFullName) ? "Khách hàng" : request.BuyerFullName.Trim(),
+                Phone = request.BuyerPhone?.Trim() ?? "0900000000",
+                Street = street,
+                City = city,
+                State = state,
+                Country = country,
+                IsDefault = false
+            };
+        }
+
+        var payment = new Payment
+        {
+            UserId = buyerId,
+            Amount = totalPrice,
+            Method = paymentMethod,
+            Status = "Pending",
+            PaymentGateway = paymentMethod,
+            PaidAtUtc = null
+        };
+
+        ShippingInfo? shipping = null;
+        if (isCod)
+        {
+            var (carrier, trackingNumber) = GenerateOfficialEbayTracking(address?.Country ?? "Vietnam", paymentMethod);
+            shipping = new ShippingInfo
+            {
+                Carrier = carrier,
+                TrackingNumber = trackingNumber,
+                Status = "AWAITING_SHIPMENT",
+                EstimatedArrivalUtc = now.AddDays(3)
+            };
+
+            foreach (var item in orderItems)
+            {
+                var prod = item.Product;
+                if (prod?.Inventory is not null)
+                {
+                    prod.Inventory.Quantity = Math.Max(0, prod.Inventory.Quantity - item.Quantity);
+                }
+            }
+        }
+
+        var order = new Order
+        {
+            BuyerId = buyerId,
+            OrderDateUtc = now,
+            TotalPrice = totalPrice,
+            Status = status,
+            FinalValueFee = fvf,
+            PayoutStatus = "Pending",
+            Items = orderItems,
+            Address = address,
+            Payment = payment,
+            ShippingInfo = shipping
+        };
+
+        await orderRepository.AddOrderAsync(order, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
+    }
+
     public async Task<PagedResult<OrderSummaryDto>> GetSellerOrdersAsync(
         int sellerId,
         string? status,
@@ -21,15 +160,31 @@ public sealed class OrderService(
 
         var items = pagedOrders.Items.Select(order =>
         {
-            var sellerSubtotal = order.Items
+            var sellerItems = order.Items
                 .Where(item => item.Product.SellerId == sellerId)
-                .Sum(item => item.UnitPrice * item.Quantity);
+                .ToList();
+            var sellerSubtotal = sellerItems.Sum(item => item.UnitPrice * item.Quantity);
+            var fvf = order.FinalValueFee > 0 ? order.FinalValueFee : Math.Round(sellerSubtotal * 0.10m, 2);
+            var net = sellerSubtotal - fvf;
+            var payoutStatus = string.Equals(order.Status, "DELIVERED", StringComparison.OrdinalIgnoreCase) ? "Released" : (order.PayoutStatus ?? "Pending");
+
+            var firstItem = sellerItems.FirstOrDefault();
+            var firstTitle = firstItem?.Product?.Title ?? $"Đơn hàng #{order.Id}";
+            var totalQty = sellerItems.Sum(i => i.Quantity);
+            var productTitleDisplay = sellerItems.Count > 1
+                ? $"{firstTitle} (+{sellerItems.Count - 1} SP khác)"
+                : firstTitle;
 
             return new OrderSummaryDto(
                 order.Id,
                 order.OrderDateUtc,
                 sellerSubtotal,
-                order.Status);
+                fvf,
+                net,
+                order.Status,
+                payoutStatus,
+                productTitleDisplay,
+                totalQty);
         }).ToList();
 
         return new PagedResult<OrderSummaryDto>(
@@ -76,204 +231,21 @@ public sealed class OrderService(
             order.ShippingInfo.Status,
             order.ShippingInfo.EstimatedArrivalUtc);
 
+        var fvf = order.FinalValueFee > 0 ? order.FinalValueFee : Math.Round(order.TotalPrice * 0.10m, 2);
+        var net = order.TotalPrice - fvf;
+        var payoutStatus = order.PayoutStatus ?? (string.Equals(order.Status, "DELIVERED", StringComparison.OrdinalIgnoreCase) ? "On Hold (eMBG Hold)" : "Pending");
+
         return new OrderDetailResponse(
             order.Id,
             order.Status,
+            order.TotalPrice,
+            fvf,
+            net,
+            payoutStatus,
             sellerItems,
             addressDto,
             paymentDto,
             shippingDto);
-    }
-
-    public async Task<OrderConfirmResponse> ConfirmOrderAsync(
-        int orderId,
-        int sellerId,
-        CancellationToken cancellationToken = default)
-    {
-        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
-        if (order is null)
-        {
-            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
-        }
-
-        if (order.Payment is null)
-        {
-            order.Payment = new Payment
-            {
-                OrderId = order.Id,
-                UserId = order.BuyerId,
-                Amount = order.TotalPrice,
-                Method = "VNPay",
-                Status = "Completed",
-                PaidAtUtc = clock.UtcNow
-            };
-        }
-        else if (string.Equals(order.Payment.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(order.Payment.Status, "Failed", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(409, "PAYMENT_NOT_COMPLETED", "Payment status is not completed.");
-        }
-
-        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(409, "INVALID_ORDER_STATUS", "Cancelled orders cannot be confirmed.");
-        }
-
-        var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
-
-        foreach (var item in sellerItems)
-        {
-            if (item.Product.Inventory is null || item.Product.Inventory.Quantity < item.Quantity)
-            {
-                throw new AppProblemException(409, "INSUFFICIENT_INVENTORY", $"Insufficient inventory for product '{item.Product.Title}'.");
-            }
-        }
-
-        var now = clock.UtcNow;
-        foreach (var item in sellerItems)
-        {
-            item.Product.Inventory!.Quantity -= item.Quantity;
-            item.Product.Inventory.LastUpdatedUtc = now;
-        }
-
-        order.Status = "Confirmed";
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new OrderConfirmResponse(order.Id, order.Status);
-    }
-
-    public async Task<UpdateShippingStatusResponse> UpdateShippingStatusAsync(
-        int orderId,
-        int sellerId,
-        UpdateShippingStatusRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
-        if (order is null)
-        {
-            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
-        }
-
-        var currentShippingStatus = order.ShippingInfo?.Status ?? "Preparing";
-        var targetShippingStatus = request.Status.Trim();
-
-        if (!IsValidShippingStatusTransition(currentShippingStatus, targetShippingStatus))
-        {
-            throw new AppProblemException(422, "INVALID_STATUS_TRANSITION", $"Cannot transition shipping status from '{currentShippingStatus}' to '{targetShippingStatus}'.");
-        }
-
-        if (order.ShippingInfo is null)
-        {
-            order.ShippingInfo = new ShippingInfo
-            {
-                OrderId = order.Id,
-                Carrier = "Standard",
-                TrackingNumber = $"TRACK-{order.Id}",
-                Status = targetShippingStatus,
-                EstimatedArrivalUtc = clock.UtcNow.AddDays(3)
-            };
-            await orderRepository.AddShippingInfoAsync(order.ShippingInfo, cancellationToken);
-        }
-        else
-        {
-            order.ShippingInfo.Status = targetShippingStatus;
-        }
-
-        if (string.Equals(targetShippingStatus, "HandedToCarrier", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(targetShippingStatus, "InTransit", StringComparison.OrdinalIgnoreCase))
-        {
-            order.Status = "Shipped";
-            // First time the order actually leaves the seller — feeds the LateShipmentRate /
-            // TrackingUploadedOnTimeRate seller-performance metrics; never overwritten afterwards.
-            order.ShippingInfo.ShippedAtUtc ??= clock.UtcNow;
-        }
-        else if (string.Equals(targetShippingStatus, "Delivered", StringComparison.OrdinalIgnoreCase))
-        {
-            order.Status = "Delivered";
-        }
-        else if (string.Equals(targetShippingStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
-        {
-            order.Status = "Cancelled";
-        }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new UpdateShippingStatusResponse(order.Id, order.Status);
-    }
-
-    public async Task<CreateShippingLabelResponse> CreateShippingLabelAsync(
-        int orderId,
-        int sellerId,
-        CreateShippingLabelRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
-        if (order is null)
-        {
-            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
-        }
-
-        if (!string.Equals(order.Status, "Confirmed", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(409, "ORDER_NOT_CONFIRMED", "Shipping label can only be created for confirmed orders.");
-        }
-
-        var carrier = request.Carrier.Trim();
-        var trackingNumber = $"{carrier.ToUpperInvariant()}-{clock.UtcNow:yyyyMMddHHmmss}{order.Id:D4}";
-        var labelUrl = $"https://localhost:7000/api/shipping/labels/{order.Id}.pdf";
-
-        if (order.ShippingInfo is null)
-        {
-            order.ShippingInfo = new ShippingInfo
-            {
-                OrderId = order.Id,
-                Carrier = carrier,
-                TrackingNumber = trackingNumber,
-                Status = "LabelCreated",
-                EstimatedArrivalUtc = clock.UtcNow.AddDays(3)
-            };
-            await orderRepository.AddShippingInfoAsync(order.ShippingInfo, cancellationToken);
-        }
-        else
-        {
-            order.ShippingInfo.Carrier = carrier;
-            order.ShippingInfo.TrackingNumber = trackingNumber;
-            order.ShippingInfo.Status = "LabelCreated";
-            order.ShippingInfo.EstimatedArrivalUtc ??= clock.UtcNow.AddDays(3);
-        }
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new CreateShippingLabelResponse(
-            order.Id,
-            carrier,
-            trackingNumber,
-            "LabelCreated",
-            labelUrl);
-    }
-
-    public async Task<ShippingInfoSummaryDto> GetShippingInfoAsync(
-        int orderId,
-        int sellerId,
-        CancellationToken cancellationToken = default)
-    {
-        var shippingInfo = await orderRepository.GetShippingInfoByOrderIdAsync(orderId, sellerId, cancellationToken);
-        if (shippingInfo is null)
-        {
-            var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
-            if (order is null)
-            {
-                throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
-            }
-
-            throw new AppProblemException(404, "SHIPPING_INFO_NOT_FOUND", "Shipping information not found for this order.");
-        }
-
-        return new ShippingInfoSummaryDto(
-            shippingInfo.Carrier,
-            shippingInfo.TrackingNumber,
-            shippingInfo.Status,
-            shippingInfo.EstimatedArrivalUtc);
     }
 
     public async Task<PaymentDetailResponse> GetPaymentInfoAsync(
@@ -300,33 +272,180 @@ public sealed class OrderService(
             payment.PaidAtUtc);
     }
 
-    public async Task<OrderDetailResponse> CreateMockOrderAsync(
-        int sellerId,
-        CancellationToken cancellationToken = default)
-    {
-        var now = clock.UtcNow;
-        await orderRepository.CreateMockOrderAsync(sellerId, now, cancellationToken);
-        var lastOrder = (await orderRepository.GetSellerOrdersAsync(sellerId, null, 1, 1, cancellationToken)).Items.FirstOrDefault();
-        if (lastOrder is null)
-        {
-            throw new AppProblemException(400, "CREATE_ORDER_FAILED", "Could not create mock order.");
-        }
-        return await GetSellerOrderDetailAsync(lastOrder.Id, sellerId, cancellationToken);
-    }
-
-    public async Task<OrderDetailResponse> CreateManualOrderAsync(
-        int sellerId,
-        CreateManualOrderRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var now = clock.UtcNow;
-        var order = await orderRepository.CreateManualOrderAsync(sellerId, request, now, cancellationToken);
-        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
-    }
-
-    public async Task<OrderDetailResponse> PayVnPayAsync(
+    public async Task<ShippingInfoSummaryDto> GetShippingInfoAsync(
         int orderId,
         int sellerId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken)
+            ?? throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+
+        if (order.ShippingInfo is null)
+        {
+            throw new AppProblemException(404, "SHIPPING_INFO_NOT_FOUND", "Shipping information not found for this order.");
+        }
+
+        return new ShippingInfoSummaryDto(
+            order.ShippingInfo.Carrier,
+            order.ShippingInfo.TrackingNumber,
+            order.ShippingInfo.Status,
+            order.ShippingInfo.EstimatedArrivalUtc);
+    }
+
+    public async Task<OrderStatusResponse> CancelOrderAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        if (string.Equals(order.Status, "CANCELLED", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppProblemException(400, "ORDER_ALREADY_CANCELLED", "Order is already cancelled.");
+        }
+
+        if (string.Equals(order.Status, "DELIVERED", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppProblemException(400, "CANNOT_CANCEL_DELIVERED", "Delivered orders cannot be cancelled.");
+        }
+
+        var now = clock.UtcNow;
+        var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
+
+        if (string.Equals(order.Status, "AWAITING_SHIPMENT", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.Status, "SHIPPED", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var item in sellerItems)
+            {
+                if (item.Product.Inventory is not null)
+                {
+                    item.Product.Inventory.Quantity += item.Quantity;
+                    item.Product.Inventory.LastUpdatedUtc = now;
+                }
+            }
+        }
+
+        order.Status = "CANCELLED";
+        if (order.ShippingInfo is not null)
+        {
+            order.ShippingInfo.Status = "CANCELLED";
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new OrderStatusResponse(order.Id, order.Status);
+    }
+
+    public async Task<ConfirmShipmentResponse> ConfirmShipmentAsync(
+        int orderId,
+        int sellerId,
+        ConfirmShipmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.TrackingNumber) || string.IsNullOrWhiteSpace(request.CarrierCode))
+        {
+            throw new AppProblemException(422, "TRACKING_INFO_REQUIRED", "Tracking number and carrier code are required to confirm shipment.");
+        }
+
+        var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
+        foreach (var item in sellerItems)
+        {
+            var availableQty = item.Product.Inventory?.Quantity ?? 0;
+            if (availableQty < item.Quantity)
+            {
+                throw new AppProblemException(409, "INSUFFICIENT_STOCK", $"Insufficient stock for product '{item.Product.Title}'. Required: {item.Quantity}, Available: {availableQty}.");
+            }
+        }
+
+        var now = clock.UtcNow;
+        foreach (var item in sellerItems)
+        {
+            if (item.Product.Inventory is not null)
+            {
+                item.Product.Inventory.Quantity -= item.Quantity;
+                item.Product.Inventory.LastUpdatedUtc = now;
+            }
+        }
+
+        if (order.ShippingInfo is null)
+        {
+            order.ShippingInfo = new ShippingInfo
+            {
+                OrderId = order.Id,
+                Carrier = request.CarrierCode.Trim(),
+                TrackingNumber = request.TrackingNumber.Trim(),
+                Status = "SHIPPED",
+                EstimatedArrivalUtc = now.AddDays(3)
+            };
+            await orderRepository.AddShippingInfoAsync(order.ShippingInfo, cancellationToken);
+        }
+        else
+        {
+            order.ShippingInfo.Carrier = request.CarrierCode.Trim();
+            order.ShippingInfo.TrackingNumber = request.TrackingNumber.Trim();
+            order.ShippingInfo.Status = "SHIPPED";
+        }
+
+        order.Status = "SHIPPED";
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new ConfirmShipmentResponse(order.Id, order.Status, request.TrackingNumber, request.CarrierCode);
+    }
+
+    public async Task<CreatePayPalOrderResponse> CreatePayPalOrderAsync(
+        int orderId,
+        int sellerId,
+        CreatePayPalOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        var paypalOrderId = $"PAYPAL-ORDER-{order.Id}-{Guid.NewGuid():N}";
+        var returnUrl = request.ReturnUrl ?? $"https://localhost:7248/orders/{orderId}/paypal-return";
+        var cancelUrl = request.CancelUrl ?? $"https://localhost:7248/orders/{orderId}";
+        var approvalUrl = $"https://www.sandbox.paypal.com/checkoutnow?token={paypalOrderId}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+
+        if (order.Payment is null)
+        {
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "PayPal Sandbox",
+                Status = "Pending",
+                PaypalOrderId = paypalOrderId,
+                PaymentGateway = "PayPal Sandbox"
+            };
+        }
+        else
+        {
+            order.Payment.Method = "PayPal Sandbox";
+            order.Payment.PaypalOrderId = paypalOrderId;
+            order.Payment.PaymentGateway = "PayPal Sandbox";
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new CreatePayPalOrderResponse(order.Id, paypalOrderId, approvalUrl);
+    }
+
+    public async Task<OrderDetailResponse> CapturePayPalOrderAsync(
+        int orderId,
+        int sellerId,
+        CapturePayPalOrderRequest request,
         CancellationToken cancellationToken = default)
     {
         var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
@@ -343,23 +462,197 @@ public sealed class OrderService(
                 OrderId = order.Id,
                 UserId = order.BuyerId,
                 Amount = order.TotalPrice,
-                Method = "VNPay",
+                Method = "PayPal Sandbox Gateway",
                 Status = "Completed",
+                PaypalOrderId = request.PaypalOrderId,
+                PaymentGateway = "PayPal Sandbox Gateway",
                 PaidAtUtc = now
             };
         }
         else
         {
-            order.Payment.Method = "VNPay";
+            order.Payment.Method = "PayPal Sandbox Gateway";
             order.Payment.Status = "Completed";
+            order.Payment.PaypalOrderId = request.PaypalOrderId;
+            order.Payment.PaymentGateway = "PayPal Sandbox Gateway";
             order.Payment.PaidAtUtc = now;
+        }
+
+        // Automatic warehouse preparation & inventory deduction
+        order.Status = "AWAITING_SHIPMENT";
+        var (carrier, trackingNumber) = GenerateOfficialEbayTracking(order.Address?.Country ?? "United States", "PayPal");
+        if (order.ShippingInfo is null)
+        {
+            order.ShippingInfo = new ShippingInfo
+            {
+                OrderId = order.Id,
+                Carrier = carrier,
+                TrackingNumber = trackingNumber,
+                Status = "AWAITING_SHIPMENT",
+                EstimatedArrivalUtc = now.AddDays(3)
+            };
+            await orderRepository.AddShippingInfoAsync(order.ShippingInfo, cancellationToken);
+        }
+        else
+        {
+            order.ShippingInfo.Carrier = carrier;
+            order.ShippingInfo.TrackingNumber = trackingNumber;
+            order.ShippingInfo.Status = "AWAITING_SHIPMENT";
+        }
+
+        foreach (var item in order.Items)
+        {
+            var prod = item.Product;
+            if (prod?.Inventory is not null)
+            {
+                prod.Inventory.Quantity = Math.Max(0, prod.Inventory.Quantity - item.Quantity);
+            }
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
     }
 
-    public async Task<OrderConfirmResponse> CancelOrderAsync(
+    public async Task<CreateVNPayOrderResponse> CreateVNPayOrderAsync(
+        int orderId,
+        int sellerId,
+        CreateVNPayOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        var returnUrl = request.ReturnUrl ?? $"https://localhost:7248/orders/{orderId}/vnpay-return";
+
+        var vnpParams = new SortedList<string, string>(new VnPayCompare())
+        {
+            { "vnp_Version", "2.1.0" },
+            { "vnp_Command", "pay" },
+            { "vnp_TmnCode", "CGXZLS0Z" },
+            { "vnp_Amount", ((long)(order.TotalPrice * 100)).ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "vnp_CreateDate", DateTime.UtcNow.AddHours(7).ToString("yyyyMMddHHmmss") },
+            { "vnp_CurrCode", "VND" },
+            { "vnp_IpAddr", "127.0.0.1" },
+            { "vnp_Locale", "vn" },
+            { "vnp_OrderInfo", $"Thanh toan don hang {order.Id}" },
+            { "vnp_OrderType", "other" },
+            { "vnp_ReturnUrl", returnUrl },
+            { "vnp_TxnRef", $"{order.Id}_{DateTime.UtcNow.Ticks}" }
+        };
+
+        var query = new System.Text.StringBuilder();
+        foreach (var (key, value) in vnpParams)
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                query.Append(System.Net.WebUtility.UrlEncode(key)).Append('=').Append(System.Net.WebUtility.UrlEncode(value)).Append('&');
+            }
+        }
+
+        var queryString = query.ToString();
+        var rawData = queryString.Remove(queryString.Length - 1, 1);
+        var hashSecret = "XNBCJFAKAZQSGTARRLGCHVZWCIOIGSHN";
+
+        using var hmac = new System.Security.Cryptography.HMACSHA512(System.Text.Encoding.UTF8.GetBytes(hashSecret));
+        var hashValue = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawData));
+        var secureHash = string.Concat(hashValue.Select(b => b.ToString("x2")));
+        var paymentUrl = $"https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?{queryString}vnp_SecureHash={secureHash}";
+
+        if (order.Payment is null)
+        {
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "VNPay Sandbox Gateway",
+                Status = "Pending",
+                PaymentGateway = "VNPay Sandbox Gateway"
+            };
+        }
+        else
+        {
+            order.Payment.Method = "VNPay Sandbox Gateway";
+            order.Payment.PaymentGateway = "VNPay Sandbox Gateway";
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new CreateVNPayOrderResponse(order.Id, paymentUrl);
+    }
+
+    public async Task<OrderDetailResponse> CaptureVNPayOrderAsync(
+        int orderId,
+        int sellerId,
+        CaptureVNPayOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        var now = clock.UtcNow;
+        if (order.Payment is null)
+        {
+            order.Payment = new Payment
+            {
+                OrderId = order.Id,
+                UserId = order.BuyerId,
+                Amount = order.TotalPrice,
+                Method = "VNPay Sandbox Gateway",
+                Status = "Completed",
+                PaymentGateway = "VNPay Sandbox Gateway",
+                PaidAtUtc = now
+            };
+        }
+        else
+        {
+            order.Payment.Method = "VNPay Sandbox Gateway";
+            order.Payment.Status = "Completed";
+            order.Payment.PaymentGateway = "VNPay Sandbox Gateway";
+            order.Payment.PaidAtUtc = now;
+        }
+
+        // Automatic warehouse preparation & inventory deduction
+        order.Status = "AWAITING_SHIPMENT";
+        var (carrier, trackingNumber) = GenerateOfficialEbayTracking(order.Address?.Country ?? "Vietnam", "VNPay");
+        if (order.ShippingInfo is null)
+        {
+            order.ShippingInfo = new ShippingInfo
+            {
+                OrderId = order.Id,
+                Carrier = carrier,
+                TrackingNumber = trackingNumber,
+                Status = "AWAITING_SHIPMENT",
+                EstimatedArrivalUtc = now.AddDays(3)
+            };
+            await orderRepository.AddShippingInfoAsync(order.ShippingInfo, cancellationToken);
+        }
+        else
+        {
+            order.ShippingInfo.Carrier = carrier;
+            order.ShippingInfo.TrackingNumber = trackingNumber;
+            order.ShippingInfo.Status = "AWAITING_SHIPMENT";
+        }
+
+        foreach (var item in order.Items)
+        {
+            var prod = item.Product;
+            if (prod?.Inventory is not null)
+            {
+                prod.Inventory.Quantity = Math.Max(0, prod.Inventory.Quantity - item.Quantity);
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
+    }
+
+    public async Task<OrderDetailResponse> SimulateDeliveryAsync(
         int orderId,
         int sellerId,
         CancellationToken cancellationToken = default)
@@ -370,64 +663,140 @@ public sealed class OrderService(
             throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
         }
 
-        if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(400, "ORDER_ALREADY_CANCELLED", "Order is already cancelled.");
-        }
-
-        if (string.Equals(order.Status, "Delivered", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(400, "CANNOT_CANCEL_DELIVERED", "Delivered orders cannot be cancelled.");
-        }
-
         var now = clock.UtcNow;
-        var sellerItems = order.Items.Where(item => item.Product.SellerId == sellerId).ToList();
-
-        if (string.Equals(order.Status, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(order.Status, "Shipped", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(order.Status, "AWAITING_SHIPMENT", StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var item in sellerItems)
+            order.Status = "SHIPPED";
+            if (order.ShippingInfo is not null)
             {
-                if (item.Product.Inventory is not null)
-                {
-                    item.Product.Inventory.Quantity += item.Quantity;
-                    item.Product.Inventory.LastUpdatedUtc = now;
-                }
+                order.ShippingInfo.Status = "SHIPPED";
             }
         }
-
-        order.Status = "Cancelled";
-        if (order.ShippingInfo is not null)
+        else
         {
-            order.ShippingInfo.Status = "Cancelled";
+            order.Status = "DELIVERED";
+            if (order.ShippingInfo is not null)
+            {
+                order.ShippingInfo.Status = "DELIVERED";
+            }
+
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Completed";
+                if (!order.Payment.PaidAtUtc.HasValue)
+                {
+                    order.Payment.PaidAtUtc = now;
+                }
+            }
+
+            order.PayoutStatus = "On Hold (eMBG Hold)";
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return new OrderConfirmResponse(order.Id, order.Status);
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
     }
 
-    private static bool IsValidShippingStatusTransition(string currentStatus, string targetStatus)
+    public async Task<IReadOnlyCollection<SellerPayoutSummaryDto>> GetSellerPayoutsAsync(
+        int sellerId,
+        CancellationToken cancellationToken = default)
     {
-        if (string.Equals(currentStatus, targetStatus, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return (currentStatus.ToUpperInvariant(), targetStatus.ToUpperInvariant()) switch
+        var pagedOrders = await orderRepository.GetSellerOrdersAsync(sellerId, null, 1, 100, cancellationToken);
+        return pagedOrders.Items.Select(order =>
         {
-            ("PREPARING", "LABELCREATED") => true,
-            ("PREPARING", "HANDEDTOCARRIER") => true,
-            ("PREPARING", "CANCELLED") => true,
+            var fee = order.FinalValueFee > 0 ? order.FinalValueFee : Math.Round(order.TotalPrice * 0.10m, 2);
+            var net = order.TotalPrice - fee;
+            var payoutStatus = order.PayoutStatus ?? (string.Equals(order.Status, "DELIVERED", StringComparison.OrdinalIgnoreCase) ? "On Hold (eMBG Hold)" : "Pending");
+            return new SellerPayoutSummaryDto(
+                order.Id,
+                order.OrderDateUtc,
+                order.TotalPrice,
+                fee,
+                net,
+                payoutStatus);
+        }).ToList();
+    }
 
-            ("LABELCREATED", "HANDEDTOCARRIER") => true,
-            ("LABELCREATED", "CANCELLED") => true,
+    public async Task<int> AutoProgressOrdersAsync(CancellationToken cancellationToken = default)
+    {
+        var orders = await orderRepository.GetActiveInFlightOrdersAsync(cancellationToken);
+        if (orders.Count == 0) return 0;
 
-            ("HANDEDTOCARRIER", "INTRANSIT") => true,
-            ("HANDEDTOCARRIER", "DELIVERED") => true,
-            ("HANDEDTOCARRIER", "CANCELLED") => true,
+        var now = clock.UtcNow;
+        int progressedCount = 0;
 
-            ("INTRANSIT", "DELIVERED") => true,
-            ("INTRANSIT", "CANCELLED") => true,
+        foreach (var order in orders)
+        {
+            if (string.Equals(order.Status, "AWAITING_SHIPMENT", StringComparison.OrdinalIgnoreCase))
+            {
+                order.Status = "SHIPPED";
+                if (order.ShippingInfo is not null)
+                {
+                    order.ShippingInfo.Status = "SHIPPED";
+                }
+                progressedCount++;
+            }
+            else if (string.Equals(order.Status, "SHIPPED", StringComparison.OrdinalIgnoreCase))
+            {
+                order.Status = "DELIVERED";
+                if (order.ShippingInfo is not null)
+                {
+                    order.ShippingInfo.Status = "DELIVERED";
+                }
 
-            _ => false
-        };
+                if (order.Payment is not null)
+                {
+                    order.Payment.Status = "Completed";
+                    if (!order.Payment.PaidAtUtc.HasValue)
+                    {
+                        order.Payment.PaidAtUtc = now;
+                    }
+                }
+
+                order.PayoutStatus = "On Hold (eMBG Hold)";
+                progressedCount++;
+            }
+        }
+
+        if (progressedCount > 0)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        return progressedCount;
+    }
+
+    private static (string Carrier, string TrackingNumber) GenerateOfficialEbayTracking(string country, string paymentMethod)
+    {
+        var random = Random.Shared;
+        if (paymentMethod.Contains("PayPal", StringComparison.OrdinalIgnoreCase))
+        {
+            // Official eBay International Shipping (eIS) or USPS (eBay US Standard)
+            if (random.Next(2) == 0)
+            {
+                return ("USPS", $"9400111899562{random.NextInt64(100000000, 999999999)}");
+            }
+            return ("eBay International Shipping (eIS)", $"ESUS{random.Next(10000000, 99999999)}");
+        }
+
+        if (string.Equals(country, "Vietnam", StringComparison.OrdinalIgnoreCase) || paymentMethod.Contains("VNPay", StringComparison.OrdinalIgnoreCase) || paymentMethod.Contains("COD", StringComparison.OrdinalIgnoreCase))
+        {
+            // Official VNPost EMS UPU Standard (eBay Cross-Border CBT Partner)
+            return ("VNPost EMS", $"EA{random.Next(100000000, 999999999)}VN");
+        }
+
+        // Global FedEx Express (Official eBay Carrier)
+        return ("FedEx", $"{random.NextInt64(700000000000, 799999999999)}");
+    }
+}
+
+public sealed class VnPayCompare : IComparer<string>
+{
+    public int Compare(string? x, string? y)
+    {
+        if (x == y) return 0;
+        if (x == null) return -1;
+        if (y == null) return 1;
+        var vnpCompare = System.Globalization.CompareInfo.GetCompareInfo("en-US");
+        return vnpCompare.Compare(x, y, System.Globalization.CompareOptions.Ordinal);
     }
 }

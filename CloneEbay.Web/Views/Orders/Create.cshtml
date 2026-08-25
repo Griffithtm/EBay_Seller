@@ -1,201 +1,439 @@
 @model CreateManualOrderViewModel
 @{
-    ViewData["Title"] = "Tạo Đơn Hàng Mới";
+    ViewData["Title"] = "Ghi nhận Đơn hàng Ngoài sàn · eBay Seller Hub";
+    var products = ViewBag.Products as IReadOnlyList<ProductDto> ?? [];
 }
 
-<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><a asp-action="Index">Đơn hàng</a><span>›</span><strong>Tạo đơn mới</strong></div>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2>Tạo Đơn Hàng Mới (Nhập Thủ Công)</h2>
-        <p class="text-muted mb-0">Điền thông tin người mua, chọn sản phẩm và hình thức thanh toán để lên đơn.</p>
-    </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">← Quay lại danh sách</a>
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Home" asp-action="Index">eBay Seller Hub</a>
+    <span>›</span>
+    <a asp-controller="Orders" asp-action="Index">Orders &amp; Shipping</a>
+    <span>›</span>
+    <strong>Create Invoice &amp; Manual Order</strong>
 </div>
+
+<section class="catalog-hero reveal mb-4">
+    <div>
+        <span class="section-kicker" style="background:#0064d2;color:#fff;font-weight:bold;padding:4px 10px;border-radius:4px;font-size:0.75rem;">EBAY SELLER HUB</span>
+        <h1 class="mt-2">Ghi nhận Đơn hàng Ngoài sàn</h1>
+    </div>
+</section>
 
 @if (TempData["ErrorMessage"] is string error)
 {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @error
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
-<form asp-action="Create" method="post">
-    @Html.AntiForgeryToken()
-    <div class="row g-4">
-        <!-- Cột trái: Thông tin người mua & Giao hàng -->
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-light">
-                    <h5 class="card-title mb-0">📍 Thông tin Người nhận &amp; Địa chỉ</h5>
+<div class="row g-4 reveal">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-4 p-4">
+            <form asp-action="Create" method="post" id="manualOrderForm">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <!-- SECTION 1: SẢN PHẨM & GIÁ -->
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge rounded-circle bg-primary me-2 p-2" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">1</span>
+                    <h5 class="fw-bold mb-0 text-primary">Thông tin Sản phẩm &amp; Giá bán</h5>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label asp-for="FullName" class="form-label">Họ tên người nhận <span class="text-danger">*</span></label>
-                        <input asp-for="FullName" class="form-control" placeholder="Vd: Nguyễn Văn A" />
-                        <span asp-validation-for="FullName" class="text-danger small"></span>
-                    </div>
+                
+                <div class="mb-3">
+                    <label asp-for="ProductId" class="form-label fw-bold">Chọn sản phẩm trong kho của bạn <span class="text-danger">*</span></label>
+                    <select asp-for="ProductId" class="form-select form-select-lg" id="productSelect" required>
+                        <option value="">-- Chọn sản phẩm đăng bán --</option>
+                        @foreach (var p in products)
+                        {
+                            var stock = p.Inventory?.Quantity ?? 0;
+                            var isOut = stock <= 0;
+                            <option value="@p.Id" data-price="@p.Price" data-stock="@stock" disabled="@(isOut ? "disabled" : null)">
+                                @p.Title - @p.Price.ToString("N0") VNĐ @(isOut ? "(⚠️ HẾT HÀNG)" : $"(Tồn kho: {stock})")
+                            </option>
+                        }
+                    </select>
+                    <span asp-validation-for="ProductId" class="text-danger small"></span>
+                </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Phone" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
-                        <input asp-for="Phone" class="form-control" placeholder="Vd: 0912345678" />
-                        <span asp-validation-for="Phone" class="text-danger small"></span>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label asp-for="Quantity" class="form-label fw-bold">Số lượng mua <span class="text-danger">*</span></label>
+                        <input asp-for="Quantity" type="number" min="1" class="form-control form-control-lg" id="quantityInput" value="1" required />
+                        <span asp-validation-for="Quantity" class="text-danger small"></span>
                     </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Street" class="form-label">Số nhà, Tên đường <span class="text-danger">*</span></label>
-                        <input asp-for="Street" class="form-control" placeholder="Vd: 123 Đường Nguyễn Huệ, Phường Bến Nghé" />
-                        <span asp-validation-for="Street" class="text-danger small"></span>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Đơn giá niêm yết sản phẩm</label>
+                        <input type="text" class="form-control form-control-lg bg-light" id="unitPriceDisplay" value="0 VNĐ" readonly />
                     </div>
+                </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="City" class="form-label">Thành phố / Tỉnh <span class="text-danger">*</span></label>
-                            <input asp-for="City" class="form-control" placeholder="Vd: Hồ Chí Minh" />
-                            <span asp-validation-for="City" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="State" class="form-label">Quận / Huyện</label>
-                            <input asp-for="State" class="form-control" placeholder="Vd: Quận 1" />
-                            <span asp-validation-for="State" class="text-danger small"></span>
-                        </div>
+                <hr class="my-4" />
+
+                <!-- SECTION 2: ĐỊA CHỈ & NGƯỜI MUA (CASCADING LOCATION LIBRARY) -->
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge rounded-circle bg-primary me-2 p-2" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">2</span>
+                    <h5 class="fw-bold mb-0 text-primary">Địa chỉ Giao hàng Quốc tế &amp; Trong nước (Đồng bộ thư viện)</h5>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="BuyerFullName" class="form-label fw-bold">Họ &amp; Tên người nhận <span class="text-danger">*</span></label>
+                        <input asp-for="BuyerFullName" class="form-control" placeholder="Nhập họ và tên người nhận" required />
+                        <span asp-validation-for="BuyerFullName" class="text-danger small"></span>
                     </div>
+                    <div class="col-md-6">
+                        <label asp-for="BuyerPhone" class="form-label fw-bold">Số điện thoại liên hệ <span class="text-danger">*</span></label>
+                        <input asp-for="BuyerPhone" class="form-control" placeholder="Nhập số điện thoại" required />
+                        <span asp-validation-for="BuyerPhone" class="text-danger small"></span>
+                    </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Country" class="form-label">Quốc gia <span class="text-danger">*</span></label>
-                        <input asp-for="Country" class="form-control" placeholder="Vd: Vietnam" />
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label asp-for="Country" class="form-label fw-bold">Quốc gia <span class="text-danger">*</span></label>
+                        <select asp-for="Country" class="form-select" id="countrySelect" required>
+                            <option value="Vietnam">Vietnam (Việt Nam)</option>
+                            <option value="United States">United States (Hoa Kỳ)</option>
+                            <option value="Japan">Japan (Nhật Bản)</option>
+                            <option value="United Kingdom">United Kingdom (Vương quốc Anh)</option>
+                            <option value="Australia">Australia (Úc)</option>
+                            <option value="Germany">Germany (Đức)</option>
+                            <option value="France">France (Pháp)</option>
+                            <option value="Canada">Canada</option>
+                            <option value="South Korea">South Korea (Hàn Quốc)</option>
+                            <option value="Singapore">Singapore</option>
+                        </select>
                         <span asp-validation-for="Country" class="text-danger small"></span>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Cột phải: Chọn sản phẩm & Thanh toán -->
-        <div class="col-md-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-light">
-                    <h5 class="card-title mb-0">📦 Sản phẩm &amp; Thanh toán</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label asp-for="ProductId" class="form-label">Chọn sản phẩm thuộc cửa hàng <span class="text-danger">*</span></label>
-                        <select asp-for="ProductId" class="form-select" id="productSelect">
-                            <option value="">-- Chọn sản phẩm --</option>
-                            @foreach (var p in Model.AvailableProducts)
-                            {
-                                var stock = p.Inventory?.Quantity ?? 0;
-                                if (stock <= 0)
-                                {
-                                    <option value="@p.Id" data-price="@p.Price" disabled class="text-danger">@p.Title (@p.Price.ToString("N0") VNĐ) - ⚠️ HẾT HÀNG (Kho: 0)</option>
-                                }
-                                else
-                                {
-                                    <option value="@p.Id" data-price="@p.Price">@p.Title (@p.Price.ToString("N0") VNĐ) - (Kho còn: @stock)</option>
-                                }
-                            }
+                    <div class="col-md-4">
+                        <label asp-for="City" class="form-label fw-bold">Tỉnh / Thành phố <span class="text-danger">*</span></label>
+                        <select asp-for="City" class="form-select" id="provinceSelect" required>
+                            <!-- Populated dynamically via JS Location Library -->
                         </select>
-                        <span asp-validation-for="ProductId" class="text-danger small"></span>
+                        <span asp-validation-for="City" class="text-danger small"></span>
                     </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Quantity" class="form-label">Số lượng <span class="text-danger">*</span></label>
-                            <input asp-for="Quantity" type="number" class="form-control" min="1" max="1000" id="quantityInput" />
-                            <span asp-validation-for="Quantity" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="UnitPrice" class="form-label">Đơn giá (VNĐ) <span class="text-danger">*</span></label>
-                            <input asp-for="UnitPrice" type="number" step="1000" class="form-control" id="unitPriceInput" />
-                            <span asp-validation-for="UnitPrice" class="text-danger small"></span>
-                        </div>
-                    </div>
-
-                    <div class="p-3 bg-light rounded border mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong class="text-muted">Tổng cộng giá trị đơn hàng:</strong>
-                            <strong class="text-success fs-4" id="totalAmountText">0 VNĐ</strong>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="PaymentMethod" class="form-label">Hình thức thanh toán <span class="text-danger">*</span></label>
-                            <select asp-for="PaymentMethod" class="form-select" id="paymentMethodSelect">
-                                <option value="VNPay">VNPay</option>
-                                <option value="COD">Thanh toán khi nhận hàng (COD)</option>
-                            </select>
-                            <span asp-validation-for="PaymentMethod" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="PaymentStatus" class="form-label">Trạng thái thanh toán <span class="text-danger">*</span></label>
-                            <select asp-for="PaymentStatus" class="form-select">
-                                <option value="Completed">Đã thanh toán (Completed)</option>
-                                <option value="Pending">Chưa thanh toán (Pending)</option>
-                            </select>
-                            <span asp-validation-for="PaymentStatus" class="text-danger small"></span>
-                        </div>
-                    </div>
-
-                    <div id="vnpayBox" class="alert alert-primary border-primary mb-3 small">
-                        💳 <strong>Thanh toán qua VNPay:</strong> Đơn hàng sẽ liên kết với cổng thanh toán trực tuyến VNPay.
-                    </div>
-                    <div id="codBox" class="alert alert-secondary mb-3 small d-none">
-                        💵 <strong>Thanh toán COD:</strong> Người mua sẽ thanh toán tiền mặt trực tiếp khi nhận hàng.
-                    </div>
-
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-success btn-lg w-100">🛒 Tạo Đơn Hàng Mới</button>
+                    <div class="col-md-4">
+                        <label asp-for="District" class="form-label fw-bold">Quận / Huyện <span class="text-danger">*</span></label>
+                        <select asp-for="District" class="form-select" id="districtSelect" required>
+                            <!-- Populated dynamically via JS Location Library -->
+                        </select>
+                        <span asp-validation-for="District" class="text-danger small"></span>
                     </div>
                 </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-8">
+                        <label asp-for="Street" class="form-label fw-bold">Số nhà, Tên đường, Tòa nhà / Phường Xã <span class="text-danger">*</span></label>
+                        <input asp-for="Street" class="form-control" placeholder="Số nhà, tên đường, tòa nhà / Phường Xã" required />
+                        <span asp-validation-for="Street" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="ZipCode" class="form-label fw-bold">Mã bưu chính (Postal / Zip)</label>
+                        <input asp-for="ZipCode" class="form-control" id="zipCodeInput" placeholder="Mã bưu chính" />
+                        <span asp-validation-for="ZipCode" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <!-- SECTION 3: PHƯƠNG THỨC THANH TOÁN (3 OPTIONS ONLY) -->
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge rounded-circle bg-primary me-2 p-2" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">3</span>
+                    <h5 class="fw-bold mb-0 text-primary">Phương thức Thanh toán</h5>
+                </div>
+
+                <div class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="card p-3 border rounded-3 h-100 cursor-pointer payment-card text-center d-flex flex-column align-items-center justify-content-center" for="payCod">
+                                <input type="radio" asp-for="PaymentMethod" value="Pay Cash on Delivery (COD)" id="payCod" name="PaymentMethod" class="form-check-input mb-2" checked />
+                                <div class="fw-bold text-dark fs-6"><i class="bi bi-cash-stack text-success me-1"></i>Pay Cash on Delivery (COD)</div>
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="card p-3 border rounded-3 h-100 cursor-pointer payment-card text-center d-flex flex-column align-items-center justify-content-center" for="payVnPay">
+                                <input type="radio" asp-for="PaymentMethod" value="VNPay Sandbox Gateway" id="payVnPay" name="PaymentMethod" class="form-check-input mb-2" />
+                                <div class="fw-bold text-dark fs-6"><i class="bi bi-wallet2 text-primary me-1"></i>VNPay Sandbox</div>
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="card p-3 border rounded-3 h-100 cursor-pointer payment-card text-center d-flex flex-column align-items-center justify-content-center" for="payPayPal">
+                                <input type="radio" asp-for="PaymentMethod" value="PayPal Sandbox Gateway" id="payPayPal" name="PaymentMethod" class="form-check-input mb-2" />
+                                <div class="fw-bold text-dark fs-6"><i class="bi bi-paypal text-info me-1"></i>PayPal Sandbox</div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <a asp-action="Index" class="btn btn-outline-secondary px-4">Quay lại danh sách</a>
+                    <button type="submit" id="btnSubmitOrder" class="btn btn-primary btn-lg px-5 fw-bold" style="background:#0064d2;border-color:#0064d2;">
+                        <i class="bi bi-check-circle me-2" id="btnSubmitIcon"></i><span id="btnSubmitText">Tạo Đơn Hàng &amp; Đồng Bộ Kho</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TÓM TẮT ĐƠN HÀNG -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 p-4 sticky-top" style="top: 90px; background: #f8fafc;">
+            <h5 class="fw-bold text-dark mb-3"><i class="bi bi-receipt me-2 text-primary"></i>eBay Order Summary</h5>
+            
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Số lượng đặt:</span>
+                <span class="fw-bold text-dark" id="summaryQty">1</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Đơn giá:</span>
+                <span class="fw-bold text-dark" id="summaryUnitPrice">0 VNĐ</span>
+            </div>
+            <hr class="my-2" />
+            <div class="d-flex justify-content-between mb-2">
+                <span class="fw-bold text-dark">Tổng giá trị đơn:</span>
+                <span class="fw-bold text-primary fs-5" id="summaryTotal">0 VNĐ</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted small">Phí sàn eBay Final Value Fee (10%):</span>
+                <span class="text-danger small fw-bold" id="summaryFvf">-0 VNĐ</span>
+            </div>
+            <hr class="my-2" />
+            <div class="d-flex justify-content-between align-items-center mb-0">
+                <span class="fw-bold text-success">Thực nhận (Net Payout):</span>
+                <span class="fw-bold text-success fs-5" id="summaryNet">0 VNĐ</span>
             </div>
         </div>
     </div>
-</form>
+</div>
 
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const productSelect = document.getElementById('productSelect');
-            const unitPriceInput = document.getElementById('unitPriceInput');
-            const quantityInput = document.getElementById('quantityInput');
-            const totalAmountText = document.getElementById('totalAmountText');
+        // COMPREHENSIVE WORLD & VIETNAM LOCATION DATABASE
+        const LOCATION_DATA = {
+            "Vietnam": {
+                defaultZip: "100000",
+                provinces: {
+                    "Hà Nội": ["Quận Cầu Giấy", "Quận Ba Đình", "Quận Hoàn Kiếm", "Quận Đống Đa", "Quận Hai Bà Trưng", "Quận Tây Hồ", "Quận Thanh Xuân", "Quận Nam Từ Liêm", "Quận Bắc Từ Liêm", "Quận Hà Đông", "Quận Long Biên", "Quận Hoàng Mai", "Huyện Gia Lâm", "Huyện Đông Anh", "Huyện Sóc Sơn", "Huyện Thanh Trì"],
+                    "TP. Hồ Chí Minh": ["Quận 1", "Quận 3", "Quận 4", "Quận 5", "Quận 7", "Quận 10", "Quận 11", "TP. Thủ Đức", "Quận Bình Thạnh", "Quận Gò Vấp", "Quận Tân Bình", "Quận Tân Phú", "Quận Phú Nhuận", "Quận Bình Tân", "Huyện Hóc Môn", "Huyện Bình Chánh", "Huyện Nhà Bè"],
+                    "Đà Nẵng": ["Quận Hải Châu", "Quận Thanh Khê", "Quận Sơn Trà", "Quận Ngũ Hành Sơn", "Quận Liên Chiểu", "Quận Cẩm Lệ", "Huyện Hòa Vang"],
+                    "Hải Phòng": ["Quận Hồng Bàng", "Quận Ngô Quyền", "Quận Lê Chân", "Quận Hải An", "Quận Kiến An", "Huyện Thủy Nguyên", "Huyện An Dương"],
+                    "Cần Thơ": ["Quận Ninh Kiều", "Quận Bình Thủy", "Quận Cái Răng", "Quận Ô Môn", "Quận Thốt Nốt", "Huyện Phong Điền"],
+                    "Bình Dương": ["TP. Thủ Dầu Một", "TP. Thuận An", "TP. Dĩ An", "TP. Tân Uyên", "TP. Bến Cát", "Huyện Bàu Bàng"],
+                    "Đồng Nai": ["TP. Biên Hòa", "TP. Long Khánh", "Huyện Nhơn Trạch", "Huyện Long Thành", "Huyện Trảng Bom"],
+                    "Quảng Ninh": ["TP. Hạ Long", "TP. Cẩm Phả", "TP. Uông Bí", "TP. Móng Cái", "Thị xã Đông Triều", "Thị xã Quảng Yên"],
+                    "Thừa Thiên Huế": ["TP. Huế", "Thị xã Hương Thủy", "Thị xã Hương Trà", "Huyện Phú Vang", "Huyện Phong Điền"],
+                    "Khánh Hòa": ["TP. Nha Trang", "TP. Cam Ranh", "Thị xã Ninh Hòa", "Huyện Diên Khánh", "Huyện Vạn Ninh"],
+                    "Bắc Ninh": ["TP. Bắc Ninh", "TP. Từ Sơn", "Thị xã Quế Võ", "Thị xã Thuận Thành", "Huyện Yên Phong", "Huyện Tiên Du"],
+                    "Bà Rịa - Vũng Tàu": ["TP. Vũng Tàu", "TP. Bà Rịa", "Thị xã Phú Mỹ", "Huyện Long Điền", "Huyện Đất Đỏ"],
+                    "Lâm Đồng": ["TP. Đà Lạt", "TP. Bảo Lộc", "Huyện Đức Trọng", "Huyện Di Linh", "Huyện Lâm Hà"],
+                    "Kiên Giang": ["TP. Rạch Giá", "TP. Phú Quốc", "TP. Hà Tiên", "Huyện Kiên Lương", "Huyện Châu Thành"],
+                    "An Giang": ["TP. Long Xuyên", "TP. Châu Đốc", "Thị xã Tân Châu", "Thị xã Tịnh Biên", "Huyện Chợ Mới"]
+                }
+            },
+            "United States": {
+                defaultZip: "90001",
+                provinces: {
+                    "California": ["Los Angeles County", "Orange County", "San Diego County", "Santa Clara County", "San Francisco County", "Alameda County"],
+                    "New York": ["New York County (Manhattan)", "Kings County (Brooklyn)", "Queens County", "Bronx County", "Richmond County (Staten Island)"],
+                    "Texas": ["Harris County (Houston)", "Dallas County", "Travis County (Austin)", "Bexar County (San Antonio)", "Tarrant County"],
+                    "Washington": ["King County (Seattle)", "Pierce County (Tacoma)", "Snohomish County", "Spokane County"],
+                    "Florida": ["Miami-Dade County", "Broward County (Fort Lauderdale)", "Orange County (Orlando)", "Hillsborough County (Tampa)"],
+                    "Illinois": ["Cook County (Chicago)", "DuPage County", "Lake County", "Will County"]
+                }
+            },
+            "Japan": {
+                defaultZip: "100-0001",
+                provinces: {
+                    "Tokyo": ["Chiyoda-ku", "Shinjuku-ku", "Shibuya-ku", "Minato-ku", "Chuo-ku", "Toshima-ku", "Setagaya-ku"],
+                    "Osaka": ["Kita-ku", "Chuo-ku", "Naniwa-ku", "Tennoji-ku", "Yodogawa-ku"],
+                    "Kanagawa": ["Yokohama City", "Kawasaki City", "Kamakura City", "Sagamihara City"],
+                    "Aichi": ["Nagoya City", "Toyota City", "Okazaki City", "Ichinomiya City"],
+                    "Kyoto": ["Kyoto City", "Uji City", "Kameoka City", "Maizuru City"]
+                }
+            },
+            "United Kingdom": {
+                defaultZip: "SW1A 1AA",
+                provinces: {
+                    "Greater London": ["City of Westminster", "Camden", "Kensington and Chelsea", "Islington", "Southwark", "Greenwich"],
+                    "Greater Manchester": ["Manchester", "Salford", "Trafford", "Bolton", "Stockport"],
+                    "West Midlands": ["Birmingham", "Coventry", "Wolverhampton", "Solihull", "Walsall"]
+                }
+            },
+            "Australia": {
+                defaultZip: "2000",
+                provinces: {
+                    "New South Wales": ["City of Sydney", "Parramatta", "North Sydney", "Canterbury-Bankstown", "Blacktown"],
+                    "Victoria": ["City of Melbourne", "Yarra", "Port Phillip", "Monash", "Boroondara"],
+                    "Queensland": ["City of Brisbane", "Gold Coast", "Sunshine Coast", "Cairns", "Townsville"]
+                }
+            },
+            "Germany": {
+                defaultZip: "10115",
+                provinces: {
+                    "Berlin": ["Mitte", "Charlottenburg-Wilmersdorf", "Friedrichshain-Kreuzberg", "Pankow"],
+                    "Bavaria": ["Munich", "Nuremberg", "Augsburg", "Regensburg", "Ingolstadt"],
+                    "North Rhine-Westphalia": ["Cologne", "Düsseldorf", "Dortmund", "Essen", "Bonn"]
+                }
+            },
+            "France": {
+                defaultZip: "75001",
+                provinces: {
+                    "Île-de-France": ["Paris 1er", "Paris 8e", "Paris 16e", "Boulogne-Billancourt", "Saint-Denis"],
+                    "Auvergne-Rhône-Alpes": ["Lyon", "Grenoble", "Saint-Étienne", "Annecy"],
+                    "Provence-Alpes-Côte d'Azur": ["Marseille", "Nice", "Toulon", "Aix-en-Provence", "Cannes"]
+                }
+            },
+            "Canada": {
+                defaultZip: "M5H 2N2",
+                provinces: {
+                    "Ontario": ["City of Toronto", "Ottawa", "Mississauga", "Brampton", "Hamilton"],
+                    "British Columbia": ["Vancouver", "Surrey", "Burnaby", "Richmond", "Victoria"],
+                    "Quebec": ["Montreal", "Quebec City", "Laval", "Gatineau", "Longueuil"]
+                }
+            },
+            "South Korea": {
+                defaultZip: "04524",
+                provinces: {
+                    "Seoul": ["Gangnam-gu", "Jung-gu", "Mapo-gu", "Seocho-gu", "Songpa-gu", "Yongsan-gu"],
+                    "Busan": ["Haeundae-gu", "Busanjin-gu", "Jung-gu", "Suyeong-gu"],
+                    "Gyeonggi-do": ["Suwon-si", "Seongnam-si (Bundang)", "Yongin-si", "Goyang-si"]
+                }
+            },
+            "Singapore": {
+                defaultZip: "018989",
+                provinces: {
+                    "Central Region": ["Downtown Core", "Orchard", "Marina South", "Newton", "Novena", "Queenstown"],
+                    "East Region": ["Bedok", "Changi", "Pasir Ris", "Tampines"],
+                    "West Region": ["Jurong East", "Jurong West", "Clementi", "Bukit Batok"]
+                }
+            }
+        };
 
-            function updateTotal() {
-                const qty = parseInt(quantityInput.value) || 0;
-                const price = parseFloat(unitPriceInput.value) || 0;
-                const total = qty * price;
-                totalAmountText.textContent = total.toLocaleString('vi-VN') + ' VNĐ';
+        document.addEventListener('DOMContentLoaded', function () {
+            // Price calculation references
+            const productSelect = document.getElementById('productSelect');
+            const quantityInput = document.getElementById('quantityInput');
+            const unitPriceInput = document.getElementById('unitPriceInput');
+
+            const summaryQty = document.getElementById('summaryQty');
+            const summaryUnitPrice = document.getElementById('summaryUnitPrice');
+            const summaryTotal = document.getElementById('summaryTotal');
+            const summaryFvf = document.getElementById('summaryFvf');
+            const summaryNet = document.getElementById('summaryNet');
+
+            // Location selectors
+            const countrySelect = document.getElementById('countrySelect');
+            const provinceSelect = document.getElementById('provinceSelect');
+            const districtSelect = document.getElementById('districtSelect');
+            const zipCodeInput = document.getElementById('zipCodeInput');
+
+            function populateProvinces() {
+                const country = countrySelect.value;
+                const countryData = LOCATION_DATA[country] || LOCATION_DATA["Vietnam"];
+                
+                provinceSelect.innerHTML = "";
+                for (const prov in countryData.provinces) {
+                    const opt = document.createElement("option");
+                    opt.value = prov;
+                    opt.textContent = prov;
+                    provinceSelect.appendChild(opt);
+                }
+
+                if (countryData.defaultZip) {
+                    zipCodeInput.value = countryData.defaultZip;
+                }
+
+                populateDistricts();
             }
 
-            productSelect.addEventListener('change', function () {
-                const selectedOption = productSelect.options[productSelect.selectedIndex];
-                const price = selectedOption.getAttribute('data-price');
-                if (price) {
-                    unitPriceInput.value = price;
+            function populateDistricts() {
+                const country = countrySelect.value;
+                const prov = provinceSelect.value;
+                const countryData = LOCATION_DATA[country] || LOCATION_DATA["Vietnam"];
+                const districts = (countryData.provinces && countryData.provinces[prov]) ? countryData.provinces[prov] : ["Khu vực Trung tâm", "Quận 1", "Quận 2"];
+
+                districtSelect.innerHTML = "";
+                districts.forEach(function (dist) {
+                    const opt = document.createElement("option");
+                    opt.value = dist;
+                    opt.textContent = dist;
+                    districtSelect.appendChild(opt);
+                });
+            }
+
+            countrySelect.addEventListener('change', populateProvinces);
+            provinceSelect.addEventListener('change', populateDistricts);
+
+            // Initialize location dropdowns
+            populateProvinces();
+            const unitPriceDisplay = document.getElementById('unitPriceDisplay');
+
+            function updateCalculation() {
+                const selectedOpt = productSelect.options[productSelect.selectedIndex];
+                let price = 0;
+
+                if (selectedOpt && selectedOpt.value) {
+                    price = parseFloat(selectedOpt.getAttribute('data-price')) || 0;
                 }
-                updateTotal();
+
+                const qty = parseInt(quantityInput.value) || 1;
+                const total = price * qty;
+                const fvf = Math.round(total * 0.10);
+                const net = total - fvf;
+
+                unitPriceDisplay.value = price.toLocaleString('vi-VN') + ' VNĐ';
+                summaryQty.textContent = qty;
+                summaryUnitPrice.textContent = price.toLocaleString('vi-VN') + ' VNĐ';
+                summaryTotal.textContent = total.toLocaleString('vi-VN') + ' VNĐ';
+                summaryFvf.textContent = '-' + fvf.toLocaleString('vi-VN') + ' VNĐ';
+                summaryNet.textContent = net.toLocaleString('vi-VN') + ' VNĐ';
+            }
+
+            productSelect.addEventListener('change', updateCalculation);
+            quantityInput.addEventListener('input', updateCalculation);
+
+            updateCalculation();
+
+            // Dynamic submit button based on selected payment gateway
+            const btnSubmitOrder = document.getElementById('btnSubmitOrder');
+            const btnSubmitText = document.getElementById('btnSubmitText');
+            const btnSubmitIcon = document.getElementById('btnSubmitIcon');
+            const paymentRadios = document.querySelectorAll('input[name="PaymentMethod"]');
+
+            function updatePaymentButton() {
+                let selectedPayment = "Pay Cash on Delivery (COD)";
+                paymentRadios.forEach(function(r) {
+                    if (r.checked) selectedPayment = r.value;
+                });
+
+                if (selectedPayment.includes("VNPay")) {
+                    btnSubmitText.textContent = "Chuyển đến Trang VNPay Sandbox Test";
+                    btnSubmitIcon.className = "bi bi-wallet2 me-2";
+                    btnSubmitOrder.style.background = "#005baa";
+                    btnSubmitOrder.style.borderColor = "#005baa";
+                    btnSubmitOrder.style.color = "#ffffff";
+                } else if (selectedPayment.includes("PayPal")) {
+                    btnSubmitText.textContent = "Chuyển đến Trang PayPal Sandbox Test";
+                    btnSubmitIcon.className = "bi bi-paypal me-2";
+                    btnSubmitOrder.style.background = "#ffc439";
+                    btnSubmitOrder.style.borderColor = "#ffc439";
+                    btnSubmitOrder.style.color = "#000000";
+                } else {
+                    btnSubmitText.textContent = "Tạo Đơn Hàng & Đồng Bộ Kho (COD)";
+                    btnSubmitIcon.className = "bi bi-check-circle me-2";
+                    btnSubmitOrder.style.background = "#0064d2";
+                    btnSubmitOrder.style.borderColor = "#0064d2";
+                    btnSubmitOrder.style.color = "#ffffff";
+                }
+            }
+
+            paymentRadios.forEach(function(r) {
+                r.addEventListener('change', updatePaymentButton);
             });
 
-            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
-            const vnpayBox = document.getElementById('vnpayBox');
-            const codBox = document.getElementById('codBox');
-
-            function togglePaymentNotice() {
-                if (paymentMethodSelect.value === 'VNPay') {
-                    vnpayBox.classList.remove('d-none');
-                    codBox.classList.add('d-none');
-                } else {
-                    vnpayBox.classList.add('d-none');
-                    codBox.classList.remove('d-none');
-                }
-            }
-
-            paymentMethodSelect.addEventListener('change', togglePaymentNotice);
-            unitPriceInput.addEventListener('input', updateTotal);
-            quantityInput.addEventListener('input', updateTotal);
-            updateTotal();
-            togglePaymentNotice();
+            updatePaymentButton();
         });
     </script>
 }

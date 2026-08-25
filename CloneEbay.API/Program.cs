@@ -166,6 +166,7 @@ builder.Services.AddSingleton<IProductImageStorage, LocalProductImageStorage>();
 builder.Services.AddHostedService<AuctionClosingService>();
 builder.Services.AddHostedService<SellerPerformanceEvaluationService>();
 builder.Services.AddHostedService<ReportScheduleExecutionService>();
+builder.Services.AddHostedService<OrderAutoProgressService>();
 
 builder.Services.AddCors(options =>
 {
