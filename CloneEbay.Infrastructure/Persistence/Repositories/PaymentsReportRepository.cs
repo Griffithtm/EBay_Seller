@@ -30,6 +30,10 @@ public sealed class PaymentsReportRepository(CloneEbayDbContext dbContext) : IPa
             .Join(dbContext.Orders, r => r.OrderId, o => o.Id, (r, o) => (decimal?)o.TotalPrice)
             .SumAsync(cancellationToken) ?? 0m;
 
+        var expenses = await ordersInRange
+            .Where(o => o.Status != "Cancelled")
+            .SumAsync(o => (decimal?)(o.FinalValueFee > 0 ? o.FinalValueFee : Math.Round(o.TotalPrice * 0.10m, 2)), cancellationToken) ?? 0m;
+
         var payouts = await dbContext.Payments
             .AsNoTracking()
             .Where(p => orderIdsInRange.Contains(p.OrderId) &&
@@ -37,6 +41,6 @@ public sealed class PaymentsReportRepository(CloneEbayDbContext dbContext) : IPa
                         p.PaidAtUtc != null && p.PaidAtUtc >= fromUtc && p.PaidAtUtc <= toUtc)
             .SumAsync(p => (decimal?)p.Amount, cancellationToken) ?? 0m;
 
-        return new PaymentReportRawFigures(grossSales, refunds, payouts);
+        return new PaymentReportRawFigures(grossSales, refunds, expenses, payouts);
     }
 }

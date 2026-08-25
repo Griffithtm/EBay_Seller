@@ -16,6 +16,7 @@ namespace CloneEbay.Application.Performance;
 /// </summary>
 public sealed class PerformanceReportService(
     IDashboardRepository dashboardRepository,
+    IPaymentsReportRepository paymentsReportRepository,
     ISellerPerformanceService sellerPerformance,
     IClock clock) : IPerformanceReportService
 {
@@ -27,6 +28,7 @@ public sealed class PerformanceReportService(
         var normalizedPeriod = NormalizePeriod(period);
         var (fromUtc, toUtc) = DashboardService.GetDateRange(normalizedPeriod, clock.UtcNow);
         var (totalRevenue, totalOrders, _) = await dashboardRepository.GetSummaryAsync(sellerId, fromUtc, toUtc, cancellationToken);
+        var paymentFigures = await paymentsReportRepository.GetFiguresAsync(sellerId, fromUtc, toUtc, cancellationToken);
         var level = await sellerPerformance.GetAsync(sellerId, cancellationToken);
 
         var (title, message) = level.Level switch
@@ -38,7 +40,7 @@ public sealed class PerformanceReportService(
 
         return new PerformanceSummaryDto(
             normalizedPeriod, totalRevenue, totalOrders,
-            SellingCosts: 0m, SellingCostsNote: "Project chưa có mô hình phí sàn (platform fee).",
+            SellingCosts: paymentFigures.Expenses, SellingCostsNote: "Phí dịch vụ sàn (Final Value Fee 10%) tính trên các đơn hoàn tất.",
             TrafficAvailable: false,
             level.Level, title, message);
     }

@@ -17,8 +17,8 @@ namespace CloneEbay.Application.Payments;
 public sealed class PaymentsReportService(IPaymentsReportRepository repository, IClock clock) : IPaymentsReportService
 {
     private const string DataGapNote =
-        "Expenses (platform fee) và Charges hiển thị 0: project chưa có mô hình phí sàn/phí vận chuyển tách " +
-        "riêng khỏi Order.TotalPrice. Gross sales, Refunds, và Payouts là số liệu thật từ Order/ReturnRequest/Payment.";
+        "Expenses là phí dịch vụ sàn (Final Value Fee 10%) tính trên các đơn hàng thành công. " +
+        "Gross sales, Refunds, và Payouts là số liệu thật từ Order/ReturnRequest/Payment.";
 
     public async Task<PaymentReportResponse> GetReportAsync(int sellerId, PaymentReportFilter filter, CancellationToken cancellationToken = default)
     {
@@ -48,7 +48,7 @@ public sealed class PaymentsReportService(IPaymentsReportRepository repository, 
     private async Task<PaymentReportPeriodDto> BuildPeriodAsync(int sellerId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken)
     {
         var raw = await repository.GetFiguresAsync(sellerId, fromUtc, toUtc, cancellationToken);
-        const decimal expenses = 0m;
+        var expenses = PaymentReportPeriodResolver.RoundMoney(raw.Expenses);
         const decimal charges = 0m;
         var figures = new PaymentReportSectionDto(
             GrossSales: PaymentReportPeriodResolver.RoundMoney(raw.GrossSales),
@@ -56,7 +56,7 @@ public sealed class PaymentsReportService(IPaymentsReportRepository repository, 
             Expenses: expenses,
             Charges: charges,
             Payouts: PaymentReportPeriodResolver.RoundMoney(raw.Payouts),
-            NetTransfersTotal: PaymentReportPeriodResolver.RoundMoney(raw.Payouts - charges));
+            NetTransfersTotal: PaymentReportPeriodResolver.RoundMoney(raw.GrossSales - raw.Refunds - expenses));
         return new PaymentReportPeriodDto(fromUtc, toUtc, figures, DataGapNote);
     }
 }
