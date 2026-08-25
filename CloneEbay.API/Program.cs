@@ -110,6 +110,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = context =>
             {
                 var token = context.Request.Query["access_token"];
+                if (string.IsNullOrEmpty(token))
+                {
+                    token = context.Request.Cookies["cloneebay.api.access"];
+                }
                 if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/messages"))
                     context.Token = token;
                 return Task.CompletedTask;

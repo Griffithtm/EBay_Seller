@@ -1,3 +1,5 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
     var currentPath = Context.Request.Path.Value ?? "/";
     var signedIn = User.Identity?.IsAuthenticated == true;
@@ -156,11 +158,12 @@
     @await RenderSectionAsync("Scripts", required: false)
     @if (signedIn)
     {
+        var apiUrl = Configuration["Api:PublicBaseUrl"];
+        var accessToken = HttpContextAccessor.HttpContext?.Request.Cookies["cloneebay.api.access"];
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
         <script>
             document.addEventListener('DOMContentLoaded', async function () {
                 try {
-                    // Cần 1 endpoint trên MVC (hoặc gọi thẳng API nếu có token)
-                    // Tạm thời gọi qua MVC endpoint để lấy unread count
                     const res = await fetch('/Messages/UnreadCount');
                     if (res.ok) {
                         const data = await res.json();
@@ -171,8 +174,40 @@
                         }
                     }
                 } catch(e) {}
+                
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`@apiUrl/hubs/messages?access_token=@accessToken`)
+                    .withAutomaticReconnect()
+                    .build();
+                
+                window.__apiUrl = '@apiUrl';
+                window.__chatConnection = connection;
+                
+                connection.on("messageReceived", function (message) {
+                    // If we are not currently viewing this conversation, increase badge count
+                    // (The conversation page itself will mark as read when opened)
+                    const isViewingConversation = window.location.pathname.toLowerCase().includes(`/messages/conversation/${message.senderId}`) || 
+                                                  window.location.pathname.toLowerCase().includes(`/messages/conversation/${message.SenderId}`);
+                    
+                    if (!isViewingConversation) {
+                        const badge = document.getElementById('unread-badge');
+                        let currentCount = parseInt(badge.textContent) || 0;
+                        badge.textContent = currentCount + 1;
+                        badge.classList.remove('d-none');
+                    }
+                });
+                
+                try {
+                    await connection.start();
+                } catch (e) {}
             });
         </script>
+        
+        var isChatPage = currentPath.StartsWith("/Messages/Conversation", StringComparison.OrdinalIgnoreCase);
+        if (!isChatPage)
+        {
+            <partial name="_ChatWidget" />
+        }
     }
 </body>
 </html>

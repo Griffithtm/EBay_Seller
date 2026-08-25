@@ -365,6 +365,24 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<BuyerSummaryResponseDto>> GetBuyerSummaryAsync(int buyerId, CancellationToken ct = default) =>
         GetAsync<BuyerSummaryResponseDto>($"api/seller/buyer-summary/{buyerId}", true, ct);
 
+    public Task<ApiCallResult<Dictionary<string, string>>> UploadMessageAttachmentAsync(IFormFile file, CancellationToken ct = default)
+    {
+        return SendAsync<Dictionary<string, string>>(
+            HttpMethod.Post,
+            "api/messages/upload-attachment",
+            () =>
+            {
+                var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(file.OpenReadStream());
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType ?? "application/octet-stream");
+                content.Add(fileContent, "file", file.FileName);
+                return content;
+            },
+            true,
+            true,
+            ct);
+    }
+
     private HttpContext GetHttpContext() =>
         httpContextAccessor.HttpContext ?? throw new InvalidOperationException("HTTP context is unavailable.");
 }
