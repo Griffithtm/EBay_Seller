@@ -9,7 +9,9 @@ public sealed record OrderSummaryDto(
     decimal FinalValueFee,
     decimal NetPayoutAmount,
     string Status,
-    string PayoutStatus = "Pending");
+    string PayoutStatus = "Pending",
+    string? ProductName = null,
+    int? TotalQuantity = null);
 
 public sealed record OrderItemDto(
     int ProductId,

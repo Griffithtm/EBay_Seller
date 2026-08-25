@@ -10,14 +10,27 @@ namespace CloneEbay.Web.Controllers;
 public sealed class OrdersController(SellerApiClient apiClient) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(string? status = null, int page = 1, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(
+        string? status = null,
+        string? period = null,
+        string? searchBy = null,
+        string? search = null,
+        string? sortBy = null,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
-        var result = await apiClient.GetOrdersAsync(status, page, pageSize: 20, cancellationToken);
+        var result = await apiClient.GetOrdersAsync(status, page, pageSize, cancellationToken);
         if (!result.Success && result.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             return RedirectToAction("Login", "Auth");
         }
         ViewBag.CurrentStatus = status;
+        ViewBag.CurrentPeriod = period ?? "90";
+        ViewBag.CurrentSearchBy = searchBy ?? "order_number";
+        ViewBag.CurrentSearch = search;
+        ViewBag.CurrentSortBy = sortBy ?? "date_paid_desc";
+        ViewBag.CurrentPageSize = pageSize;
         return View(result);
     }
 

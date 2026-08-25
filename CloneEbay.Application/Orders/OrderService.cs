@@ -160,12 +160,20 @@ public sealed class OrderService(
 
         var items = pagedOrders.Items.Select(order =>
         {
-            var sellerSubtotal = order.Items
+            var sellerItems = order.Items
                 .Where(item => item.Product.SellerId == sellerId)
-                .Sum(item => item.UnitPrice * item.Quantity);
+                .ToList();
+            var sellerSubtotal = sellerItems.Sum(item => item.UnitPrice * item.Quantity);
             var fvf = order.FinalValueFee > 0 ? order.FinalValueFee : Math.Round(sellerSubtotal * 0.10m, 2);
             var net = sellerSubtotal - fvf;
             var payoutStatus = string.Equals(order.Status, "DELIVERED", StringComparison.OrdinalIgnoreCase) ? "Released" : (order.PayoutStatus ?? "Pending");
+
+            var firstItem = sellerItems.FirstOrDefault();
+            var firstTitle = firstItem?.Product?.Title ?? $"Đơn hàng #{order.Id}";
+            var totalQty = sellerItems.Sum(i => i.Quantity);
+            var productTitleDisplay = sellerItems.Count > 1
+                ? $"{firstTitle} (+{sellerItems.Count - 1} SP khác)"
+                : firstTitle;
 
             return new OrderSummaryDto(
                 order.Id,
@@ -174,7 +182,9 @@ public sealed class OrderService(
                 fvf,
                 net,
                 order.Status,
-                payoutStatus);
+                payoutStatus,
+                productTitleDisplay,
+                totalQty);
         }).ToList();
 
         return new PagedResult<OrderSummaryDto>(
