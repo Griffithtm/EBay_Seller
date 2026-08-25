@@ -118,30 +118,13 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="PaymentMethod" class="form-label">Hình thức thanh toán <span class="text-danger">*</span></label>
-                            <select asp-for="PaymentMethod" class="form-select" id="paymentMethodSelect">
-                                <option value="VNPay">VNPay</option>
-                                <option value="COD">Thanh toán khi nhận hàng (COD)</option>
-                            </select>
-                            <span asp-validation-for="PaymentMethod" class="text-danger small"></span>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="PaymentStatus" class="form-label">Trạng thái thanh toán <span class="text-danger">*</span></label>
-                            <select asp-for="PaymentStatus" class="form-select">
-                                <option value="Completed">Đã thanh toán (Completed)</option>
-                                <option value="Pending">Chưa thanh toán (Pending)</option>
-                            </select>
-                            <span asp-validation-for="PaymentStatus" class="text-danger small"></span>
-                        </div>
-                    </div>
-
-                    <div id="vnpayBox" class="alert alert-primary border-primary mb-3 small">
-                        💳 <strong>Thanh toán qua VNPay:</strong> Đơn hàng sẽ liên kết với cổng thanh toán trực tuyến VNPay.
-                    </div>
-                    <div id="codBox" class="alert alert-secondary mb-3 small d-none">
-                        💵 <strong>Thanh toán COD:</strong> Người mua sẽ thanh toán tiền mặt trực tiếp khi nhận hàng.
+                    <div class="mb-3">
+                        <label asp-for="PaymentMethod" class="form-label">Hình thức thanh toán <span class="text-danger">*</span></label>
+                        <select asp-for="PaymentMethod" class="form-select" id="paymentMethodSelect">
+                            <option value="VNPay">VNPay</option>
+                            <option value="COD">Thanh toán khi nhận hàng (COD)</option>
+                        </select>
+                        <span asp-validation-for="PaymentMethod" class="text-danger small"></span>
                     </div>
 
                     <div class="mt-4">
@@ -177,25 +160,9 @@
                 updateTotal();
             });
 
-            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
-            const vnpayBox = document.getElementById('vnpayBox');
-            const codBox = document.getElementById('codBox');
-
-            function togglePaymentNotice() {
-                if (paymentMethodSelect.value === 'VNPay') {
-                    vnpayBox.classList.remove('d-none');
-                    codBox.classList.add('d-none');
-                } else {
-                    vnpayBox.classList.add('d-none');
-                    codBox.classList.remove('d-none');
-                }
-            }
-
-            paymentMethodSelect.addEventListener('change', togglePaymentNotice);
             unitPriceInput.addEventListener('input', updateTotal);
             quantityInput.addEventListener('input', updateTotal);
             updateTotal();
-            togglePaymentNotice();
         });
     </script>
 }

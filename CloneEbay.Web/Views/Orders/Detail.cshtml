@@ -210,21 +210,37 @@
             <div class="card-body">
                 @if (Model.Payment is not null)
                 {
-                    <p class="mb-1">
+                    <p class="mb-2">
                         Trạng thái: 
                         <span class="badge @(Model.Payment.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">@Model.Payment.Status</span>
                     </p>
                     @if (Model.Payment.Method == "VNPay")
                     {
-                        <p class="mb-0 text-primary font-weight-bold">
+                        <p class="mb-2 text-primary font-weight-bold">
                             Phương thức: VNPay 💳
                         </p>
+
+                        @if (Model.Payment.Status == "Pending")
+                        {
+                            <form asp-action="PayVnPay" asp-route-id="@Model.Id" method="post" class="mt-3">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2 shadow-sm">
+                                    💳 Thanh toán ngay (VNPay Sandbox Test)
+                                </button>
+                            </form>
+                        }
                     }
                     else
                     {
-                        <p class="mb-0 text-muted">
+                        <p class="mb-2 text-muted">
                             <strong>Phương thức:</strong> COD (Thanh toán khi nhận hàng) 💵
                         </p>
+                        @if (Model.Payment.Status == "Pending")
+                        {
+                            <div class="alert alert-light border small text-muted mt-2 mb-0">
+                                ℹ️ <strong>Đơn COD:</strong> Trạng thái sẽ tự động chuyển thành <strong>Completed</strong> khi giao hàng thành công (Delivered).
+                            </div>
+                        }
                     }
                 }
                 else

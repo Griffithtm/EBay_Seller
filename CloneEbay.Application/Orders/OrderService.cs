@@ -50,6 +50,17 @@ public sealed class OrderService(
             throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
         }
 
+        if (order.Payment is not null &&
+            string.Equals(order.Payment.Method, "COD", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(order.Payment.Status, "Pending", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(order.Status, "Delivered", StringComparison.OrdinalIgnoreCase) ||
+             (order.ShippingInfo is not null && string.Equals(order.ShippingInfo.Status, "Delivered", StringComparison.OrdinalIgnoreCase))))
+        {
+            order.Payment.Status = "Completed";
+            order.Payment.PaidAtUtc = clock.UtcNow;
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         var sellerItems = order.Items
             .Where(item => item.Product.SellerId == sellerId)
             .Select(item => new OrderItemDto(
@@ -96,22 +107,26 @@ public sealed class OrderService(
             throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
         }
 
-        if (order.Payment is null)
+        var isCod = order.Payment is not null && string.Equals(order.Payment.Method, "COD", StringComparison.OrdinalIgnoreCase);
+        if (!isCod)
         {
-            order.Payment = new Payment
+            if (order.Payment is null)
             {
-                OrderId = order.Id,
-                UserId = order.BuyerId,
-                Amount = order.TotalPrice,
-                Method = "VNPay",
-                Status = "Completed",
-                PaidAtUtc = clock.UtcNow
-            };
-        }
-        else if (string.Equals(order.Payment.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(order.Payment.Status, "Failed", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new AppProblemException(409, "PAYMENT_NOT_COMPLETED", "Payment status is not completed.");
+                order.Payment = new Payment
+                {
+                    OrderId = order.Id,
+                    UserId = order.BuyerId,
+                    Amount = order.TotalPrice,
+                    Method = "VNPay",
+                    Status = "Completed",
+                    PaidAtUtc = clock.UtcNow
+                };
+            }
+            else if (string.Equals(order.Payment.Status, "Pending", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(order.Payment.Status, "Failed", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AppProblemException(409, "PAYMENT_NOT_COMPLETED", "Payment status is not completed.");
+            }
         }
 
         if (string.Equals(order.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
@@ -187,6 +202,23 @@ public sealed class OrderService(
         else if (string.Equals(targetShippingStatus, "Delivered", StringComparison.OrdinalIgnoreCase))
         {
             order.Status = "Delivered";
+            if (order.Payment is null)
+            {
+                order.Payment = new Payment
+                {
+                    OrderId = order.Id,
+                    UserId = order.BuyerId,
+                    Amount = order.TotalPrice,
+                    Method = "COD",
+                    Status = "Completed",
+                    PaidAtUtc = clock.UtcNow
+                };
+            }
+            else if (string.Equals(order.Payment.Method, "COD", StringComparison.OrdinalIgnoreCase))
+            {
+                order.Payment.Status = "Completed";
+                order.Payment.PaidAtUtc = clock.UtcNow;
+            }
         }
         else if (string.Equals(targetShippingStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
         {

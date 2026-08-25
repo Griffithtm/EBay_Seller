@@ -138,6 +138,7 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
             return View(model);
         }
 
+        model.PaymentStatus = "Pending";
         var result = await apiClient.CreateManualOrderAsync(model, cancellationToken);
         if (!result.Success || result.Data is null)
         {
@@ -149,6 +150,23 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
 
         TempData["SuccessMessage"] = $"Đã tạo đơn hàng thủ công #{result.Data.Id} thành công!";
         return RedirectToAction(nameof(Detail), new { id = result.Data.Id });
+    }
+
+    [HttpPost("{id:int}/pay-vnpay")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PayVnPay(int id, CancellationToken cancellationToken = default)
+    {
+        var result = await apiClient.PayVnPayAsync(id, cancellationToken);
+        if (!result.Success)
+        {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"Thanh toán giao dịch VNPay Sandbox Test cho Đơn hàng #{id} thành công (chuyển sang Completed)!";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
     }
 
     [HttpPost("{id:int}/cancel")]
