@@ -73,4 +73,13 @@ public sealed class MessagesController(SellerApiClient apiClient) : Controller
         if (!result.Success) return Ok(new { count = 0 });
         return Ok(new { count = result.Data?.Count ?? 0 });
     }
+
+    [HttpPost("Messages/UploadAttachment")]
+    public async Task<IActionResult> UploadAttachment(IFormFile file)
+    {
+        if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+        var result = await apiClient.UploadMessageAttachmentAsync(file);
+        if (!result.Success) return BadRequest(result.Error);
+        return Ok(new { url = result.Data?.GetValueOrDefault("Url") ?? result.Data?.GetValueOrDefault("url") });
+    }
 }

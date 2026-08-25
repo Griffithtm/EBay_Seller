@@ -41,6 +41,7 @@ public sealed class MessagesController(
     {
         var result = await messageService.SendMessageAsync(User.GetRequiredUserId(), request, cancellationToken);
         
+        Console.WriteLine($"[SignalR] Sending 'messageReceived' to group 'user-{request.ReceiverId}'. Message ID: {result.Id}");
         // Push notification via SignalR
         await hubContext.Clients.Group($"user-{request.ReceiverId}").SendAsync("messageReceived", result, cancellationToken);
         
@@ -66,5 +67,26 @@ public sealed class MessagesController(
     {
         var count = await messageService.GetUnreadCountAsync(User.GetRequiredUserId(), cancellationToken);
         return Ok(ApiEnvelope<object>.Ok(new { Count = count }, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("upload-attachment")]
+    public async Task<ActionResult<ApiEnvelope<object>>> UploadAttachment([FromServices] IWebHostEnvironment environment, IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file.Length is <= 0 or > 5 * 1024 * 1024)
+            return BadRequest(ApiEnvelope<object>.Failure("INVALID_SIZE", "File size must be up to 5MB.", HttpContext.TraceIdentifier));
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+            return BadRequest(ApiEnvelope<object>.Failure("INVALID_TYPE", "File must be JPG, PNG, or WEBP.", HttpContext.TraceIdentifier));
+
+        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+        var directory = Path.Combine(webRoot, "uploads", "messages");
+        Directory.CreateDirectory(directory);
+        
+        var fileName = $"{Guid.NewGuid():N}{extension}";
+        await using var stream = System.IO.File.Create(Path.Combine(directory, fileName));
+        await file.CopyToAsync(stream, cancellationToken);
+        
+        return Ok(ApiEnvelope<object>.Ok(new { Url = $"/uploads/messages/{fileName}" }, HttpContext.TraceIdentifier));
     }
 }
