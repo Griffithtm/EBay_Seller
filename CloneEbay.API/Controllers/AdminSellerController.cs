@@ -11,8 +11,28 @@ namespace CloneEbay.API.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin")]
 [Route("api/admin/seller")]
-public sealed class AdminSellerController(ISellerService sellerService) : ControllerBase
+public sealed class AdminSellerController(ISellerService sellerService, ISellerPerformanceService performanceService) : ControllerBase
 {
+    [HttpGet("{sellerId:int}/performance")]
+    public async Task<ActionResult<ApiEnvelope<SellerPerformanceResponse>>> GetPerformance(int sellerId, CancellationToken cancellationToken)
+    {
+        var result = await performanceService.GetAsync(sellerId, cancellationToken);
+        return Ok(ApiEnvelope<SellerPerformanceResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// Manual exception-handling override — NOT part of the automatic scoring algorithm.
+    /// The next monthly evaluation recomputes the level from real metrics and clears it.
+    /// </summary>
+    [HttpPut("{sellerId:int}/performance-level")]
+    public async Task<ActionResult<ApiEnvelope<SellerPerformanceResponse>>> SetPerformanceLevel(
+        int sellerId,
+        SetSellerPerformanceLevelRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await performanceService.OverrideLevelAsync(sellerId, request.Level, User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<SellerPerformanceResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
     [HttpGet]
     public async Task<ActionResult<ApiEnvelope<PagedResult<SellerApplicationResponse>>>> GetApplications(
         [FromQuery] VerificationStatus? status = VerificationStatus.Pending,

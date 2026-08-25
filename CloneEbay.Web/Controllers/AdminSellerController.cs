@@ -32,6 +32,17 @@ public sealed class AdminSellerController(SellerApiClient apiClient) : Controlle
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost("{sellerId:int}/performance-level")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetPerformanceLevel(int sellerId, string level, CancellationToken cancellationToken)
+    {
+        var result = await apiClient.SetSellerPerformanceLevelAsync(sellerId, level, cancellationToken);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Đã đặt thủ công cấp độ tài khoản seller #{sellerId} thành {level}. Lần đánh giá tự động tiếp theo sẽ tính lại từ dữ liệu thật."
+            : result.ErrorMessage;
+        return RedirectToAction(nameof(Index), new { status = Request.Query["status"].ToString() is { Length: > 0 } s ? s : "Approved" });
+    }
+
     [HttpPost("{id:int}/reject")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reject(int id, string reason, CancellationToken cancellationToken)

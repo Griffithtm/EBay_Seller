@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IDisputeRepository, DisputeRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<ISellerPerformanceRepository, SellerPerformanceRepository>();
         services.AddScoped<ICouponRepository, CouponRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CloneEbayDbContext>());

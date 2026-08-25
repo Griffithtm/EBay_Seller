@@ -1,13 +1,15 @@
 ﻿using System.Globalization;
 using CloneEbay.Application.Abstractions.Persistence;
 using CloneEbay.Application.Abstractions.Time;
+using CloneEbay.Application.Sellers;
 
 namespace CloneEbay.Application.Dashboard;
 
 public sealed class DashboardService(
     IDashboardRepository repository,
     IDashboardCacheService cache,
-    IClock clock) : IDashboardService
+    IClock clock,
+    ISellerPerformanceService sellerPerformance) : IDashboardService
 {
     private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(5);
 
@@ -69,7 +71,15 @@ public sealed class DashboardService(
         if (cached is not null) return cached;
 
         var (fromUtc, toUtc) = GetDateRange(normalizedPeriod, clock.UtcNow);
-        var result = await repository.GetPerformanceAsync(sellerId, fromUtc, toUtc, cancellationToken);
+        var (totalOrders, lateShipmentRate, disputeRate, positiveFeedbackRate) =
+            await repository.GetPerformanceAsync(sellerId, fromUtc, toUtc, cancellationToken);
+
+        // SellerLevel is NOT scoped to this week/month window — it is the persisted,
+        // rolling-12-month level from the real Seller Performance evaluation (spec Part A),
+        // shown here alongside this period's own fulfilment figures for context.
+        var level = (await sellerPerformance.GetAsync(sellerId, cancellationToken)).Level;
+
+        var result = new SellerPerformanceDto(normalizedPeriod, totalOrders, lateShipmentRate, disputeRate, level, positiveFeedbackRate);
 
         await cache.SetAsync(cacheKey, result, DefaultTtl, cancellationToken);
         return result;

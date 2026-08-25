@@ -34,6 +34,7 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "AUCTION_END_TIME_REQUIRED" => "Thời điểm kết thúc đấu giá phải ở tương lai.",
         "QUANTITY_NEGATIVE" => "Tồn kho không được là số âm.",
         "PRODUCT_CREATE_RATE_LIMIT" => "Bạn đã đạt giới hạn đăng sản phẩm. Vui lòng thử lại sau.",
+        "SELLING_LIMIT_EXCEEDED" => Error?.Message ?? "Bạn đã đạt giới hạn đăng bán theo cấp độ tài khoản hiện tại.",
         "NOT_AN_AUCTION_PRODUCT" => "Sản phẩm này không phải listing đấu giá.",
         "SELLER_CANNOT_BID_OWN_PRODUCT" => "Bạn không thể đặt giá cho sản phẩm của chính mình.",
         "BID_TOO_LOW" => "Giá đặt phải cao hơn giá hiện tại.",
@@ -98,6 +99,35 @@ public sealed record SellerApplicationDto(
     string? RejectionReason,
     DateTime SubmittedAtUtc,
     DateTime? ReviewedAtUtc);
+
+public sealed record SellerPerformanceLevelDto(
+    int SellerId,
+    string Level,
+    decimal TransactionDefectRate,
+    decimal LateShipmentRate,
+    decimal TrackingUploadedOnTimeRate,
+    decimal CasesClosedWithoutSellerResolutionRate,
+    int TransactionsLast12Months,
+    decimal SalesLast12Months,
+    int MaxActiveListings,
+    decimal MaxTotalActiveValue,
+    int CurrentActiveListingCount,
+    decimal CurrentActiveListingValue,
+    DateTime? LastEvaluatedAtUtc,
+    DateTime NextEvaluationDateUtc);
+
+public sealed record SellerPerformanceWarningItemDto(
+    string Metric,
+    decimal CurrentValue,
+    decimal Threshold,
+    string Severity,
+    string Message,
+    string RecommendedAction);
+
+public sealed record SellerPerformanceWarningDto(
+    string? Severity,
+    IReadOnlyList<SellerPerformanceWarningItemDto> Items,
+    DateTime NextEvaluationDateUtc);
 
 public sealed record PaginationDto(int Page, int PageSize, int TotalItems, int TotalPages);
 public sealed record PagedResultDto<T>(IReadOnlyList<T> Items, PaginationDto Pagination);

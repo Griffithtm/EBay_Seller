@@ -713,6 +713,75 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.ToTable("Review", (string)null);
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.SellerPerformance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("CasesClosedWithoutSellerResolutionRate")
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("casesClosedWithoutSellerResolutionRate");
+
+                    b.Property<DateTime?>("LastEvaluatedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("lastEvaluatedAtUtc");
+
+                    b.Property<decimal>("LateShipmentRate")
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("lateShipmentRate");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("level");
+
+                    b.Property<DateTime?>("ManualOverrideAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("manualOverrideAtUtc");
+
+                    b.Property<int?>("ManualOverrideByAdminId")
+                        .HasColumnType("int")
+                        .HasColumnName("manualOverrideByAdminId");
+
+                    b.Property<DateTime>("NextEvaluationDateUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("nextEvaluationDateUtc");
+
+                    b.Property<decimal>("SalesLast12Months")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("salesLast12Months");
+
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int")
+                        .HasColumnName("sellerId");
+
+                    b.Property<decimal>("TrackingUploadedOnTimeRate")
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("trackingUploadedOnTimeRate");
+
+                    b.Property<decimal>("TransactionDefectRate")
+                        .HasColumnType("decimal(9,4)")
+                        .HasColumnName("transactionDefectRate");
+
+                    b.Property<int>("TransactionsLast12Months")
+                        .HasColumnType("int")
+                        .HasColumnName("transactionsLast12Months");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManualOverrideByAdminId");
+
+                    b.HasIndex("SellerId")
+                        .IsUnique();
+
+                    b.ToTable("SellerPerformance", (string)null);
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.ShippingInfo", b =>
                 {
                     b.Property<int>("Id")
@@ -735,6 +804,10 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int")
                         .HasColumnName("orderId");
+
+                    b.Property<DateTime?>("ShippedAtUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("shippedAtUtc");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1162,6 +1235,22 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Reviewer");
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.SellerPerformance", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ManualOverrideByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CloneEbay.Domain.Entities.User", "Seller")
+                        .WithOne("Performance")
+                        .HasForeignKey("CloneEbay.Domain.Entities.SellerPerformance", "SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.ShippingInfo", b =>
                 {
                     b.HasOne("CloneEbay.Domain.Entities.Order", "Order")
@@ -1221,6 +1310,8 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Feedback");
 
                     b.Navigation("Orders");
+
+                    b.Navigation("Performance");
 
                     b.Navigation("Products");
 

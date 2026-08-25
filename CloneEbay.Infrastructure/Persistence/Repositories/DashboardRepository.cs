@@ -100,26 +100,56 @@ public sealed class DashboardRepository(CloneEbayDbContext dbContext) : IDashboa
             .ToArray();
     }
 
-    public async Task<SellerPerformanceDto> GetPerformanceAsync(
+    public async Task<(int TotalOrders, decimal LateShipmentRate, decimal DisputeRate, decimal PositiveFeedbackRate)> GetPerformanceAsync(
         int sellerId,
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
-        var totalOrders = await BaseSellerOrderItems(sellerId, fromUtc, toUtc)
+        var orders = await BaseSellerOrderItems(sellerId, fromUtc, toUtc)
             .Select(item => item.OrderId)
             .Distinct()
-            .CountAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
 
-        var sellerLevel = totalOrders >= 10 ? "TopRated" : "AboveStandard";
-        return new SellerPerformanceDto(
-            "period",
-            totalOrders,
-            LateShipmentRate: 0.0m,
-            DisputeRate: 0.0m,
-            SellerLevel: sellerLevel,
-            PositiveFeedbackRate: 100.0m
-        );
+        if (orders.Count == 0)
+        {
+            var feedbackForEmptyPeriod = await dbContext.Feedbacks
+                .AsNoTracking()
+                .Where(f => f.SellerId == sellerId)
+                .Select(f => (decimal?)f.PositiveRate)
+                .SingleOrDefaultAsync(cancellationToken);
+            return (0, 0m, 0m, feedbackForEmptyPeriod ?? 100m);
+        }
+
+        var shipmentInfo = await dbContext.Orders
+            .AsNoTracking()
+            .Where(o => orders.Contains(o.Id))
+            .Select(o => new
+            {
+                o.OrderDateUtc,
+                ShippedAtUtc = o.ShippingInfo != null ? o.ShippingInfo.ShippedAtUtc : null
+            })
+            .ToListAsync(cancellationToken);
+
+        var shipped = shipmentInfo.Where(o => o.ShippedAtUtc.HasValue).ToArray();
+        var lateShipped = shipped.Count(o => (o.ShippedAtUtc!.Value - o.OrderDateUtc).TotalDays > SellerHandlingTimePolicy.HandlingTimeDays);
+        var lateShipmentRate = shipped.Length == 0 ? 0m : Math.Round(lateShipped * 100m / shipped.Length, 2);
+
+        var disputeCount = await dbContext.Disputes
+            .AsNoTracking()
+            .Where(d => orders.Contains(d.OrderId))
+            .Select(d => d.OrderId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+        var disputeRate = Math.Round(disputeCount * 100m / orders.Count, 2);
+
+        var positiveFeedbackRate = await dbContext.Feedbacks
+            .AsNoTracking()
+            .Where(f => f.SellerId == sellerId)
+            .Select(f => (decimal?)f.PositiveRate)
+            .SingleOrDefaultAsync(cancellationToken) ?? 100m;
+
+        return (orders.Count, lateShipmentRate, disputeRate, positiveFeedbackRate);
     }
 
     private IQueryable<OrderItem> BaseSellerOrderItems(int sellerId, DateTime fromUtc, DateTime toUtc) =>

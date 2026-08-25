@@ -68,6 +68,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISellerService, SellerService>();
+builder.Services.AddScoped<ISellerPerformanceService, SellerPerformanceService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
@@ -157,6 +158,7 @@ builder.Services.AddScoped<IAuthorizationHandler, VerifiedSellerAuthorizationHan
 builder.Services.AddSingleton<IStoreBannerStorage, LocalStoreBannerStorage>();
 builder.Services.AddSingleton<IProductImageStorage, LocalProductImageStorage>();
 builder.Services.AddHostedService<AuctionClosingService>();
+builder.Services.AddHostedService<SellerPerformanceEvaluationService>();
 
 builder.Services.AddCors(options =>
 {

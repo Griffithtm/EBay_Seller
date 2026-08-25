@@ -17,6 +17,12 @@ public sealed class SellerApplyViewModel
     public string StoreName { get; set; } = string.Empty;
 }
 
+public sealed class SellerPerformanceViewModel
+{
+    public required SellerPerformanceLevelDto Performance { get; init; }
+    public SellerPerformanceWarningDto? Warning { get; init; }
+}
+
 public sealed class StoreProfileViewModel
 {
     public int SellerId { get; set; }

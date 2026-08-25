@@ -57,6 +57,29 @@ public sealed class SellerController(SellerApiClient apiClient) : Controller
     }
 
     [Authorize(Policy = "VerifiedSeller")]
+    [HttpGet("performance")]
+    public async Task<IActionResult> Performance(CancellationToken cancellationToken)
+    {
+        var performanceTask = apiClient.GetSellerPerformanceAsync(cancellationToken);
+        var warningsTask = apiClient.GetSellerPerformanceWarningsAsync(cancellationToken);
+        await Task.WhenAll(performanceTask, warningsTask);
+        var performanceResult = await performanceTask;
+        var warningsResult = await warningsTask;
+
+        if (!performanceResult.Success || performanceResult.Data is null)
+        {
+            TempData["Error"] = performanceResult.ErrorMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(new SellerPerformanceViewModel
+        {
+            Performance = performanceResult.Data,
+            Warning = warningsResult.Data
+        });
+    }
+
+    [Authorize(Policy = "VerifiedSeller")]
     [HttpGet("buyer-summary/{buyerId:int}")]
     public async Task<IActionResult> GetBuyerSummary(int buyerId, CancellationToken cancellationToken)
     {
