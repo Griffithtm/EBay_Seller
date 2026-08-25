@@ -35,6 +35,17 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "QUANTITY_NEGATIVE" => "Tồn kho không được là số âm.",
         "PRODUCT_CREATE_RATE_LIMIT" => "Bạn đã đạt giới hạn đăng sản phẩm. Vui lòng thử lại sau.",
         "SELLING_LIMIT_EXCEEDED" => Error?.Message ?? "Bạn đã đạt giới hạn đăng bán theo cấp độ tài khoản hiện tại.",
+        "UNSUPPORTED_REPORT_SOURCE" => "Nguồn báo cáo không được hỗ trợ.",
+        "UNRECOGNIZED_REPORT_TYPE" => "Loại báo cáo không hợp lệ với nguồn đã chọn.",
+        "REPORT_RANGE_INVALID" => "Khoảng ngày kết thúc không được trước ngày bắt đầu.",
+        "REPORT_TIMEZONE_INVALID" => "Múi giờ không hợp lệ.",
+        "REPORT_FREQUENCY_INVALID" => "Tần suất lặp lại không hợp lệ.",
+        "REPORT_DELIVERY_EMAIL_INVALID" => "Email nhận báo cáo không hợp lệ.",
+        "REPORT_END_DATE_INVALID" => "Ngày kết thúc không được ở quá khứ.",
+        "REPORT_SCHEDULE_DUPLICATE" => "Đã tồn tại lịch báo cáo đang hoạt động cho nguồn/loại này.",
+        "REPORT_SCHEDULE_NOT_FOUND" => "Không tìm thấy lịch báo cáo.",
+        "INVALID_PAYMENT_REPORT_PERIOD" => "Kỳ báo cáo không hợp lệ.",
+        "INVALID_PAYMENT_REPORT_COMPARED" => "Tuỳ chọn so sánh không hợp lệ.",
         "NOT_AN_AUCTION_PRODUCT" => "Sản phẩm này không phải listing đấu giá.",
         "SELLER_CANNOT_BID_OWN_PRODUCT" => "Bạn không thể đặt giá cho sản phẩm của chính mình.",
         "BID_TOO_LOW" => "Giá đặt phải cao hơn giá hiện tại.",
@@ -99,6 +110,58 @@ public sealed record SellerApplicationDto(
     string? RejectionReason,
     DateTime SubmittedAtUtc,
     DateTime? ReviewedAtUtc);
+
+public sealed record PaymentReportSectionDto(
+    decimal GrossSales, decimal Refunds, decimal Expenses, decimal Charges, decimal Payouts, decimal NetTransfersTotal);
+
+public sealed record PaymentReportPeriodDto(DateTime FromUtc, DateTime ToUtc, PaymentReportSectionDto Figures, string? Note);
+
+public sealed record PaymentReportResponseDto(string Currency, PaymentReportPeriodDto Current, PaymentReportPeriodDto? Comparison);
+
+public sealed record PerformanceSummaryDto(
+    string Period,
+    decimal TotalRevenue,
+    int TotalOrders,
+    decimal SellingCosts,
+    string SellingCostsNote,
+    bool TrafficAvailable,
+    string SellerLevel,
+    string SellerLevelTitle,
+    string SellerLevelMessage);
+
+public sealed record PerformanceSalesReportDto(
+    string Period, decimal TotalRevenue, int TotalOrders, decimal AverageOrderValue,
+    int TotalBuyers, int OneTimeBuyers, int RepeatBuyers);
+
+public sealed record PerformanceTrafficDto(bool Available, string Note);
+
+public sealed record PerformanceServiceMetricsDto(
+    decimal TransactionDefectRate, decimal LateShipmentRate, decimal TrackingUploadedOnTimeRate,
+    decimal CasesClosedWithoutSellerResolutionRate, string Note);
+
+public sealed record ReportDownloadDto(
+    int Id,
+    string ReferenceCode,
+    string Source,
+    string Type,
+    string Status,
+    DateTime RequestedAtUtc,
+    DateTime? CompletedAtUtc,
+    string? FileUrl,
+    DateTime? RangeStartUtc,
+    DateTime? RangeEndUtc);
+
+public sealed record ReportScheduleDto(
+    int Id,
+    string Source,
+    string Type,
+    string Frequency,
+    DateTime CreatedAtUtc,
+    DateTime? LastRunAtUtc,
+    DateTime? NextRunAtUtc,
+    DateTime? EndDateUtc,
+    bool IsActive,
+    string? DeliveryEmail);
 
 public sealed record SellerPerformanceLevelDto(
     int SellerId,

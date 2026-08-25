@@ -1,0 +1,51 @@
+@model PaymentsReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo tài chính";
+    var r = Model.Report;
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Seller" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Báo cáo tài chính</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">PAYMENTS REPORT</span>
+        <h1>Doanh thu, hoàn tiền &amp; tiền đã thanh toán</h1>
+        <p>Số liệu thật từ đơn hàng, yêu cầu trả hàng và bảng thanh toán — không suy diễn.</p>
+    </div>
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+        <select name="period" class="form-select" onchange="this.form.submit()" aria-label="Chọn kỳ báo cáo">
+            <option value="thisMonth" selected="@(Model.Period == "thisMonth")">Tháng này</option>
+            <option value="lastMonth" selected="@(Model.Period == "lastMonth")">Tháng trước</option>
+            <option value="last90Days" selected="@(Model.Period == "last90Days")">90 ngày gần nhất</option>
+            <option value="thisYear" selected="@(Model.Period == "thisYear")">Năm nay</option>
+        </select>
+        <select name="compared" class="form-select" onchange="this.form.submit()" aria-label="So sánh với">
+            <option value="none" selected="@(Model.Compared == "none")">Không so sánh</option>
+            <option value="previousPeriod" selected="@(Model.Compared == "previousPeriod")">Kỳ liền trước</option>
+            <option value="samePeriodLastYear" selected="@(Model.Compared == "samePeriodLastYear")">Cùng kỳ năm trước</option>
+        </select>
+    </form>
+</section>
+
+@if (r is null)
+{
+    <div class="table-empty reveal"><h2>Không tải được báo cáo</h2><p>Vui lòng thử lại hoặc kiểm tra kết nối API.</p></div>
+}
+else
+{
+    <div class="row g-4 reveal reveal-delay-1">
+        <div class="col-lg-@(r.Comparison is null ? "12" : "6")">
+            @await Html.PartialAsync("_PaymentPeriodCard", ("Kỳ hiện tại", r.Current, r.Currency))
+        </div>
+        @if (r.Comparison is not null)
+        {
+            <div class="col-lg-6">
+                @await Html.PartialAsync("_PaymentPeriodCard", ("Kỳ so sánh", r.Comparison, r.Currency))
+            </div>
+        }
+    </div>
+}

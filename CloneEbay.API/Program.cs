@@ -19,6 +19,9 @@ using CloneEbay.Application.Reviews;
 using CloneEbay.Application.Returns;
 using CloneEbay.Application.Disputes;
 using CloneEbay.Application.Messages;
+using CloneEbay.Application.Reports;
+using CloneEbay.Application.Payments;
+using CloneEbay.Application.Performance;
 using CloneEbay.API.Hubs;
 using CloneEbay.Infrastructure;
 using CloneEbay.Infrastructure.Persistence;
@@ -69,6 +72,9 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISellerService, SellerService>();
 builder.Services.AddScoped<ISellerPerformanceService, SellerPerformanceService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IPaymentsReportService, PaymentsReportService>();
+builder.Services.AddScoped<IPerformanceReportService, PerformanceReportService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
@@ -159,6 +165,7 @@ builder.Services.AddSingleton<IStoreBannerStorage, LocalStoreBannerStorage>();
 builder.Services.AddSingleton<IProductImageStorage, LocalProductImageStorage>();
 builder.Services.AddHostedService<AuctionClosingService>();
 builder.Services.AddHostedService<SellerPerformanceEvaluationService>();
+builder.Services.AddHostedService<ReportScheduleExecutionService>();
 
 builder.Services.AddCors(options =>
 {

@@ -1,0 +1,212 @@
+@model ReportsIndexViewModel
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Báo cáo";
+    var apiBase = Configuration["Api:PublicBaseUrl"] ?? Configuration["Api:BaseUrl"] ?? string.Empty;
+    string FileUrl(string? path) => string.IsNullOrWhiteSpace(path)
+        ? string.Empty
+        : (Uri.TryCreate(path, UriKind.Absolute, out _) ? path : $"{apiBase.TrimEnd('/')}/{path.TrimStart('/')}");
+
+    var listingTypes = new (string Value, string Label)[]
+    {
+        ("all-active", "Đang bán (Active)"),
+        ("out-of-stock", "Hết hàng"),
+        ("hidden", "Đã ẩn"),
+        ("auction-ended", "Đấu giá đã kết thúc")
+    };
+    var orderTypes = new (string Value, string Label)[]
+    {
+        ("all-orders", "Tất cả đơn hàng"),
+        ("waiting-payment", "Chờ thanh toán"),
+        ("confirmed", "Đã xác nhận"),
+        ("shipped", "Đang giao"),
+        ("delivered", "Đã giao"),
+        ("cancelled", "Đã huỷ")
+    };
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Seller" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Báo cáo</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">REPORTS</span>
+        <h1>Xuất báo cáo &amp; đặt lịch tự động</h1>
+        <p>Tải ngay báo cáo CSV cho sản phẩm/đơn hàng, hoặc đặt lịch để hệ thống tự sinh lại định kỳ.</p>
+    </div>
+</section>
+
+<div class="row g-4 reveal reveal-delay-1">
+    <div class="col-lg-6">
+        <section class="verification-progress" style="height:100%;">
+            <div class="surface-heading compact-heading"><div><h2>Xuất báo cáo ngay</h2><p>Kết quả có ngay trong vài giây, xuất hiện ở bảng bên dưới.</p></div></div>
+            <form asp-action="CreateDownload" method="post" data-loading-form class="d-flex flex-column gap-3">
+                @Html.AntiForgeryToken()
+                <div>
+                    <label class="form-label" for="dl-source">Nguồn</label>
+                    <select id="dl-source" name="Source" class="form-select" onchange="toggleDownloadTypes()">
+                        <option value="listings">Sản phẩm (Listings)</option>
+                        <option value="orders">Đơn hàng (Orders)</option>
+                    </select>
+                </div>
+                <div id="dl-type-listings">
+                    <label class="form-label" for="dl-type-listings-select">Loại (sản phẩm)</label>
+                    <select id="dl-type-listings-select" class="form-select" onchange="document.getElementById('dl-type').value=this.value">
+                        @foreach (var t in listingTypes) { <option value="@t.Value">@t.Label</option> }
+                    </select>
+                </div>
+                <div id="dl-type-orders" style="display:none;">
+                    <label class="form-label" for="dl-type-orders-select">Loại (đơn hàng)</label>
+                    <select id="dl-type-orders-select" class="form-select" onchange="document.getElementById('dl-type').value=this.value">
+                        @foreach (var t in orderTypes) { <option value="@t.Value">@t.Label</option> }
+                    </select>
+                </div>
+                <input type="hidden" id="dl-type" name="Type" value="all-active" />
+                <div class="row g-2">
+                    <div class="col-6"><label class="form-label">Từ ngày (tuỳ chọn)</label><input type="date" name="RangeStartUtc" class="form-control" /></div>
+                    <div class="col-6"><label class="form-label">Đến ngày (tuỳ chọn)</label><input type="date" name="RangeEndUtc" class="form-control" /></div>
+                </div>
+                <small class="text-muted">Bỏ trống khoảng ngày cho đơn hàng → mặc định 90 ngày gần nhất.</small>
+                <button type="submit" class="btn btn-primary" data-loading-text="Đang xuất...">Xuất báo cáo ngay</button>
+            </form>
+        </section>
+    </div>
+
+    <div class="col-lg-6">
+        <section class="verification-progress" style="height:100%;">
+            <div class="surface-heading compact-heading"><div><h2>Đặt lịch báo cáo định kỳ</h2><p>Mỗi (nguồn, loại) chỉ được 1 lịch đang hoạt động.</p></div></div>
+            <form asp-action="CreateSchedule" method="post" data-loading-form class="d-flex flex-column gap-3">
+                @Html.AntiForgeryToken()
+                <div>
+                    <label class="form-label" for="sc-source">Nguồn</label>
+                    <select id="sc-source" name="Source" class="form-select" onchange="toggleScheduleTypes()">
+                        <option value="listings">Sản phẩm (Listings)</option>
+                        <option value="orders">Đơn hàng (Orders)</option>
+                    </select>
+                </div>
+                <div id="sc-type-listings">
+                    <label class="form-label">Loại (sản phẩm)</label>
+                    <select id="sc-type-listings-select" class="form-select" onchange="document.getElementById('sc-type').value=this.value">
+                        @foreach (var t in listingTypes) { <option value="@t.Value">@t.Label</option> }
+                    </select>
+                </div>
+                <div id="sc-type-orders" style="display:none;">
+                    <label class="form-label">Loại (đơn hàng)</label>
+                    <select id="sc-type-orders-select" class="form-select" onchange="document.getElementById('sc-type').value=this.value">
+                        @foreach (var t in orderTypes) { <option value="@t.Value">@t.Label</option> }
+                    </select>
+                </div>
+                <input type="hidden" id="sc-type" name="Type" value="all-active" />
+                <div>
+                    <label class="form-label">Tần suất</label>
+                    <select name="Frequency" class="form-select">
+                        <option value="Hourly">Mỗi giờ</option>
+                        <option value="Daily" selected>Mỗi ngày</option>
+                        <option value="Weekly">Mỗi tuần</option>
+                        <option value="Monthly">Mỗi tháng</option>
+                    </select>
+                </div>
+                <div><label class="form-label">Email nhận báo cáo (tuỳ chọn)</label><input type="email" name="DeliveryEmail" class="form-control" placeholder="you@example.com" /></div>
+                <div><label class="form-label">Ngày kết thúc (tuỳ chọn)</label><input type="date" name="EndDateUtc" class="form-control" /></div>
+                <button type="submit" class="btn btn-primary" data-loading-text="Đang đặt lịch...">Đặt lịch báo cáo</button>
+            </form>
+        </section>
+    </div>
+</div>
+
+<section class="verification-progress reveal reveal-delay-2">
+    <div class="surface-heading compact-heading"><div><h2>Lịch sử xuất báo cáo</h2><p>@Model.Downloads.Count kết quả gần nhất.</p></div></div>
+    @if (Model.Downloads.Count == 0)
+    {
+        <div class="table-empty"><h2>Chưa có báo cáo nào</h2><p>Dùng form bên trên để xuất báo cáo đầu tiên.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Mã</th><th>Nguồn</th><th>Loại</th><th>Trạng thái</th><th>Thời điểm yêu cầu</th><th>File</th></tr></thead>
+                <tbody>
+                    @foreach (var d in Model.Downloads)
+                    {
+                        var statusClass = d.Status switch { "Completed" => "success", "Failed" => "danger", "Processing" => "info", _ => "neutral" };
+                        <tr>
+                            <td><code>@d.ReferenceCode</code></td>
+                            <td>@d.Source</td>
+                            <td>@d.Type</td>
+                            <td><span class="status-pill @statusClass"><i></i>@d.Status</span></td>
+                            <td>@d.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (d.Status == "Completed" && !string.IsNullOrEmpty(d.FileUrl))
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" href="@FileUrl(d.FileUrl)" target="_blank" rel="noopener">Tải CSV ↓</a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="verification-progress reveal reveal-delay-2">
+    <div class="surface-heading compact-heading"><div><h2>Lịch báo cáo định kỳ</h2><p>@Model.Schedules.Count(s => s.IsActive) đang hoạt động / @Model.Schedules.Count tổng.</p></div></div>
+    @if (Model.Schedules.Count == 0)
+    {
+        <div class="table-empty"><h2>Chưa có lịch nào</h2><p>Dùng form bên trên để đặt lịch đầu tiên.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Nguồn</th><th>Loại</th><th>Tần suất</th><th>Lần chạy tới</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Schedules)
+                    {
+                        <tr>
+                            <td>@s.Source</td>
+                            <td>@s.Type</td>
+                            <td>@s.Frequency</td>
+                            <td>@(s.NextRunAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                            <td><span class="status-pill @(s.IsActive ? "success" : "neutral")"><i></i>@(s.IsActive ? "Đang hoạt động" : "Đã tắt")</span></td>
+                            <td>
+                                @if (s.IsActive)
+                                {
+                                    <form asp-action="DeactivateSchedule" asp-route-id="@s.Id" method="post" data-loading-form data-confirm="Tắt lịch báo cáo này?">
+                                        <button class="btn btn-sm btn-danger-soft" type="submit">Tắt</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<script>
+    function toggleDownloadTypes() {
+        var isListings = document.getElementById('dl-source').value === 'listings';
+        document.getElementById('dl-type-listings').style.display = isListings ? '' : 'none';
+        document.getElementById('dl-type-orders').style.display = isListings ? 'none' : '';
+        document.getElementById('dl-type').value = isListings
+            ? document.getElementById('dl-type-listings-select').value
+            : document.getElementById('dl-type-orders-select').value;
+    }
+    function toggleScheduleTypes() {
+        var isListings = document.getElementById('sc-source').value === 'listings';
+        document.getElementById('sc-type-listings').style.display = isListings ? '' : 'none';
+        document.getElementById('sc-type-orders').style.display = isListings ? 'none' : '';
+        document.getElementById('sc-type').value = isListings
+            ? document.getElementById('sc-type-listings-select').value
+            : document.getElementById('sc-type-orders-select').value;
+    }
+</script>

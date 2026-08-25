@@ -1,0 +1,91 @@
+@model PerformanceReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo hiệu suất";
+    var isWeek = Model.Period == "week";
+    var levelClass = Model.Summary?.SellerLevel switch { "TopRated" => "success", "AboveStandard" => "info", _ => "danger" };
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Seller" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Báo cáo hiệu suất</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">PERFORMANCE REPORT</span>
+        <h1>Hiệu suất bán hàng theo kỳ</h1>
+        <p>Doanh thu, khách hàng, và các chỉ số vận hành ảnh hưởng tới cấp độ tài khoản.</p>
+    </div>
+    <form method="get" class="d-flex align-items-center gap-2">
+        <select name="period" class="form-select" onchange="this.form.submit()" aria-label="Chọn kỳ báo cáo">
+            <option value="week" selected="@isWeek">Kỳ: Tuần này (7 ngày)</option>
+            <option value="month" selected="@(!isWeek)">Kỳ: Tháng này</option>
+        </select>
+    </form>
+</section>
+
+@if (Model.Summary is not null)
+{
+    <section class="catalog-hero reveal reveal-delay-1">
+        <div>
+            <span class="section-kicker">SELLER LEVEL</span>
+            <h1 style="font-size:1.5rem;">@Model.Summary.SellerLevelTitle</h1>
+            <p>@Model.Summary.SellerLevelMessage</p>
+        </div>
+        <span class="status-pill @levelClass"><i></i>@Model.Summary.SellerLevel</span>
+    </section>
+
+    <section class="catalog-metrics reveal reveal-delay-1" aria-label="Tổng quan">
+        <article>
+            <span class="metric-symbol blue">₫</span>
+            <div><small>TỔNG DOANH THU</small><strong>@Model.Summary.TotalRevenue.ToString("N0") ₫</strong><p>@(isWeek ? "7 ngày qua" : "Tháng hiện tại")</p></div>
+        </article>
+        <article>
+            <span class="metric-symbol green">✓</span>
+            <div><small>TỔNG ĐƠN HÀNG</small><strong>@Model.Summary.TotalOrders</strong></div>
+        </article>
+        <article>
+            <span class="metric-symbol orange">−</span>
+            <div><small>SELLING COSTS</small><strong>@Model.Summary.SellingCosts.ToString("N0") ₫</strong><p>@Model.Summary.SellingCostsNote</p></div>
+        </article>
+        <article>
+            <span class="metric-symbol violet">◔</span>
+            <div><small>TRAFFIC</small><strong>@(Model.Summary.TrafficAvailable ? "Có dữ liệu" : "Chưa theo dõi")</strong></div>
+        </article>
+    </section>
+}
+
+@if (Model.Sales is not null)
+{
+    <section class="verification-progress reveal reveal-delay-2">
+        <div class="surface-heading compact-heading"><div><h2>Sales Report — Khách hàng</h2><p>Doanh thu thật + phân khúc người mua trong kỳ đã chọn.</p></div></div>
+        <div class="status-meta-grid">
+            <div><small>DOANH THU</small><strong>@Model.Sales.TotalRevenue.ToString("N0") ₫</strong></div>
+            <div><small>SỐ ĐƠN</small><strong>@Model.Sales.TotalOrders</strong></div>
+            <div><small>GIÁ TRỊ ĐƠN TB</small><strong>@Model.Sales.AverageOrderValue.ToString("N0") ₫</strong></div>
+            <div><small>TỔNG NGƯỜI MUA</small><strong>@Model.Sales.TotalBuyers</strong></div>
+            <div><small>MUA 1 LẦN</small><strong>@Model.Sales.OneTimeBuyers</strong></div>
+            <div><small>MUA LẠI (≥2 ĐƠN)</small><strong>@Model.Sales.RepeatBuyers</strong></div>
+        </div>
+    </section>
+}
+
+@if (Model.ServiceMetrics is not null)
+{
+    <section class="catalog-metrics reveal reveal-delay-2" aria-label="Chỉ số dịch vụ">
+        <article><span class="metric-symbol red">%</span><div><small>DEFECT RATE</small><strong>@Model.ServiceMetrics.TransactionDefectRate.ToString("0.##")%</strong></div></article>
+        <article><span class="metric-symbol orange">%</span><div><small>LATE SHIPMENT</small><strong>@Model.ServiceMetrics.LateShipmentRate.ToString("0.##")%</strong></div></article>
+        <article><span class="metric-symbol blue">%</span><div><small>TRACKING ON-TIME</small><strong>@Model.ServiceMetrics.TrackingUploadedOnTimeRate.ToString("0.##")%</strong></div></article>
+        <article><span class="metric-symbol violet">%</span><div><small>CASES W/O RESOLUTION</small><strong>@Model.ServiceMetrics.CasesClosedWithoutSellerResolutionRate.ToString("0.##")%</strong></div></article>
+    </section>
+    <p class="text-muted small reveal reveal-delay-2">@Model.ServiceMetrics.Note · <a asp-controller="Seller" asp-action="Performance">Xem chi tiết Cấp độ tài khoản →</a></p>
+}
+
+@if (Model.Traffic is not null && !Model.Traffic.Available)
+{
+    <div class="context-banner banner-info reveal reveal-delay-2">
+        <span class="context-icon">i</span>
+        <div><strong>Traffic chưa khả dụng</strong><p>@Model.Traffic.Note</p></div>
+    </div>
+}
