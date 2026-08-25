@@ -166,6 +166,19 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("discountPercent");
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Percentage")
+                        .HasColumnName("discountType");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("discountValue");
+
                     b.Property<DateTime>("EndDateUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("endDate");
@@ -174,9 +187,34 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("maxUsage");
 
-                    b.Property<int>("ProductId")
+                    b.Property<int>("MaxUsagePerBuyer")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("maxUsagePerBuyer");
+
+                    b.Property<decimal>("MinSpend")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("minSpend");
+
+                    b.Property<int?>("ProductId")
                         .HasColumnType("int")
                         .HasColumnName("productId");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("PRODUCT")
+                        .HasColumnName("scope");
+
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int")
+                        .HasColumnName("sellerId");
 
                     b.Property<DateTime>("StartDateUtc")
                         .HasColumnType("datetime2")
@@ -192,14 +230,14 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId", "Code")
+                    b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("Coupon", null, t =>
                         {
                             t.HasCheckConstraint("CK_Coupon_DateRange", "[endDate] > [startDate]");
-
-                            t.HasCheckConstraint("CK_Coupon_DiscountPercent", "[discountPercent] > 0 AND [discountPercent] <= 100");
 
                             t.HasCheckConstraint("CK_Coupon_MaxUsage", "[maxUsage] >= 1");
 
@@ -216,11 +254,36 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("DeadlineUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deadlineUtc");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)")
                         .HasColumnName("description");
+
+                    b.Property<string>("DisputeReason")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("SNAD")
+                        .HasColumnName("disputeReason");
+
+                    b.Property<decimal>("FeeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("feeAmount");
+
+                    b.Property<bool>("IsChargeback")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("isChargeback");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int")
@@ -234,6 +297,11 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)")
                         .HasColumnName("resolution");
+
+                    b.Property<string>("SellerResponse")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("sellerResponse");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -382,9 +450,22 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("buyerId");
 
+                    b.Property<decimal>("FinalValueFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("finalValueFee");
+
                     b.Property<DateTime>("OrderDateUtc")
                         .HasColumnType("datetime2")
                         .HasColumnName("orderDate");
+
+                    b.Property<string>("PayoutStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Pending")
+                        .HasColumnName("payoutStatus");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -473,6 +554,16 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("paidAt");
 
+                    b.Property<string>("PaymentGateway")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaypalOrderId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PaypalPayerId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -528,6 +619,10 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(4000)")
                         .HasColumnName("description");
 
+                    b.Property<int?>("DurationDays")
+                        .HasColumnType("int")
+                        .HasColumnName("durationDays");
+
                     b.Property<string>("ImagesJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -537,10 +632,31 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("isAuction");
 
+                    b.Property<string>("ItemCondition")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("NEW")
+                        .HasColumnName("itemCondition");
+
+                    b.Property<string>("ListingFormat")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("FixedPrice")
+                        .HasColumnName("listingFormat");
+
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("price");
+
+                    b.Property<decimal?>("ReservePrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("reservePrice");
 
                     b.Property<int>("SellerId")
                         .HasColumnType("int")
@@ -638,6 +754,16 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("createdAt");
+
+                    b.Property<DateTime?>("DeadlineUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("deadlineUtc");
+
+                    b.Property<bool>("IsSnad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("isSnad");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int")
@@ -785,16 +911,40 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(2000)")
                         .HasColumnName("description");
 
+                    b.Property<int>("FeedbackScore")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("feedbackScore");
+
                     b.Property<string>("LegalName")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)")
                         .HasColumnName("legalName");
 
+                    b.Property<string>("PaymentPolicy")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("paymentPolicy");
+
+                    b.Property<string>("PayoutBankAccount")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("payoutBankAccount");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("rejectionReason");
+
+                    b.Property<string>("ReturnPolicy")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("returnPolicy");
 
                     b.Property<DateTime?>("ReviewedAtUtc")
                         .HasColumnType("datetime2")
@@ -814,11 +964,23 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("sellerType");
 
+                    b.Property<string>("ShippingPolicy")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("shippingPolicy");
+
                     b.Property<string>("StoreName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("storeName");
+
+                    b.Property<string>("TaxId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("taxId");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2")
@@ -923,6 +1085,40 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.ToTable("User", (string)null);
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Warehouse", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LastUpdatedUtc")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("lastUpdatedUtc");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("location");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int")
+                        .HasColumnName("productId");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId")
+                        .IsUnique();
+
+                    b.ToTable("Warehouse", (string)null);
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Address", b =>
                 {
                     b.HasOne("CloneEbay.Domain.Entities.User", "User")
@@ -958,8 +1154,7 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.HasOne("CloneEbay.Domain.Entities.Product", "Product")
                         .WithMany("Coupons")
                         .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Product");
                 });
@@ -1184,6 +1379,17 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                     b.Navigation("Seller");
                 });
 
+            modelBuilder.Entity("CloneEbay.Domain.Entities.Warehouse", b =>
+                {
+                    b.HasOne("CloneEbay.Domain.Entities.Product", "Product")
+                        .WithOne("Warehouse")
+                        .HasForeignKey("CloneEbay.Domain.Entities.Warehouse", "ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("CloneEbay.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
@@ -1210,6 +1416,8 @@ namespace CloneEbay.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Warehouse");
                 });
 
             modelBuilder.Entity("CloneEbay.Domain.Entities.User", b =>

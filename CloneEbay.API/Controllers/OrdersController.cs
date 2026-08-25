@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using CloneEbay.API.Authorization;
 using CloneEbay.API.Extensions;
 using CloneEbay.API.Models;
@@ -27,6 +26,16 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         return Ok(ApiEnvelope<PagedResult<OrderSummaryDto>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpPost]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CreateOrder(
+        [FromBody] CreateOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CreateManualOrderAsync(currentSellerId, request, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> GetOrderDetail(
         int id,
@@ -35,38 +44,6 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         var currentSellerId = User.GetRequiredUserId();
         var result = await orderService.GetSellerOrderDetailAsync(id, currentSellerId, cancellationToken);
         return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
-    [HttpPut("{id:int}/confirm")]
-    public async Task<ActionResult<ApiEnvelope<OrderConfirmResponse>>> ConfirmOrder(
-        int id,
-        CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.ConfirmOrderAsync(id, currentSellerId, cancellationToken);
-        return Ok(ApiEnvelope<OrderConfirmResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
-    [HttpPut("{id:int}/status")]
-    public async Task<ActionResult<ApiEnvelope<UpdateShippingStatusResponse>>> UpdateShippingStatus(
-        int id,
-        [FromBody] UpdateShippingStatusRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.UpdateShippingStatusAsync(id, currentSellerId, request, cancellationToken);
-        return Ok(ApiEnvelope<UpdateShippingStatusResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("{id:int}/shipping-label")]
-    public async Task<ActionResult<ApiEnvelope<CreateShippingLabelResponse>>> CreateShippingLabel(
-        int id,
-        [FromBody] CreateShippingLabelRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.CreateShippingLabelAsync(id, currentSellerId, request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<CreateShippingLabelResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{id:int}/payment")]
@@ -79,41 +56,87 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         return Ok(ApiEnvelope<PaymentDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 
-    [HttpPost("mock")]
-    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CreateMockOrder(CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.CreateMockOrderAsync(currentSellerId, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("manual")]
-    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CreateManualOrder(
-        [FromBody] CreateManualOrderRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.CreateManualOrderAsync(currentSellerId, request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
-    [HttpPost("{id:int}/pay-vnpay")]
-    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> PayVnPay(
-        int id,
-        CancellationToken cancellationToken = default)
-    {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.PayVnPayAsync(id, currentSellerId, cancellationToken);
-        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
-    }
-
     [HttpPost("{id:int}/cancel")]
-    public async Task<ActionResult<ApiEnvelope<OrderConfirmResponse>>> CancelOrder(
+    public async Task<ActionResult<ApiEnvelope<OrderStatusResponse>>> CancelOrder(
         int id,
         CancellationToken cancellationToken = default)
     {
         var currentSellerId = User.GetRequiredUserId();
         var result = await orderService.CancelOrderAsync(id, currentSellerId, cancellationToken);
-        return Ok(ApiEnvelope<OrderConfirmResponse>.Ok(result, HttpContext.TraceIdentifier));
+        return Ok(ApiEnvelope<OrderStatusResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("{id:int}/confirm-shipment")]
+    public async Task<ActionResult<ApiEnvelope<ConfirmShipmentResponse>>> ConfirmShipment(
+        int id,
+        [FromBody] ConfirmShipmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.ConfirmShipmentAsync(id, currentSellerId, request, cancellationToken);
+        return Ok(ApiEnvelope<ConfirmShipmentResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/paypal-checkout")]
+    public async Task<ActionResult<ApiEnvelope<CreatePayPalOrderResponse>>> CreatePayPalCheckout(
+        int id,
+        [FromBody] CreatePayPalOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CreatePayPalOrderAsync(id, currentSellerId, request, cancellationToken);
+        return Ok(ApiEnvelope<CreatePayPalOrderResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/paypal-capture")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CapturePayPalCheckout(
+        int id,
+        [FromBody] CapturePayPalOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CapturePayPalOrderAsync(id, currentSellerId, request, cancellationToken);
+        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/vnpay-checkout")]
+    public async Task<ActionResult<ApiEnvelope<CreateVNPayOrderResponse>>> CreateVNPayCheckout(
+        int id,
+        [FromBody] CreateVNPayOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CreateVNPayOrderAsync(id, currentSellerId, request, cancellationToken);
+        return Ok(ApiEnvelope<CreateVNPayOrderResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/vnpay-capture")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> CaptureVNPayCheckout(
+        int id,
+        [FromBody] CaptureVNPayOrderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.CaptureVNPayOrderAsync(id, currentSellerId, request, cancellationToken);
+        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/simulate-delivery")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> SimulateDelivery(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.SimulateDeliveryAsync(id, currentSellerId, cancellationToken);
+        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("payouts")]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyCollection<SellerPayoutSummaryDto>>>> GetSellerPayouts(
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.GetSellerPayoutsAsync(currentSellerId, cancellationToken);
+        return Ok(ApiEnvelope<IReadOnlyCollection<SellerPayoutSummaryDto>>.Ok(result, HttpContext.TraceIdentifier));
     }
 }

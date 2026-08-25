@@ -55,6 +55,64 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         GetAsync<PagedResultDto<ProductDto>>($"api/products?page={page}&pageSize={pageSize}", cancellationToken: cancellationToken);
 
+    public Task<ApiCallResult<OrderDetailDto>> CreateManualOrderAsync(
+        CreateManualOrderViewModel model,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new
+        {
+            buyerFullName = model.BuyerFullName,
+            buyerPhone = model.BuyerPhone,
+            country = model.Country,
+            city = model.City,
+            district = model.District,
+            street = model.Street,
+            zipCode = model.ZipCode,
+            paymentMethod = model.PaymentMethod,
+            items = new[]
+            {
+                new
+                {
+                    productId = model.ProductId,
+                    quantity = model.Quantity,
+                    unitPrice = (decimal?)null
+                }
+            }
+        };
+
+        return PostAsync<OrderDetailDto>("api/orders", body, authenticated: true, cancellationToken: cancellationToken);
+    }
+
+    public Task<ApiCallResult<PayPalCheckoutResponseDto>> CreatePayPalCheckoutAsync(
+        int orderId,
+        string? returnUrl = null,
+        string? cancelUrl = null,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<PayPalCheckoutResponseDto>($"api/orders/{orderId}/paypal-checkout", new { returnUrl, cancelUrl }, authenticated: true, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CapturePayPalCheckoutAsync(
+        int orderId,
+        string paypalOrderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/paypal-capture", new { paypalOrderId }, authenticated: true, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<VNPayCheckoutResponseDto>> CreateVNPayCheckoutAsync(
+        int orderId,
+        string? returnUrl = null,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<VNPayCheckoutResponseDto>($"api/orders/{orderId}/vnpay-checkout", new { returnUrl }, authenticated: true, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> CaptureVNPayCheckoutAsync(
+        int orderId,
+        Dictionary<string, string> queryParams,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/vnpay-capture", new { queryParams }, authenticated: true, cancellationToken: cancellationToken);
+
+    public Task<ApiCallResult<OrderDetailDto>> SimulateDeliveryAsync(
+        int orderId,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/simulate-delivery", new { }, authenticated: true, cancellationToken: cancellationToken);
+
     public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
         CouponFormViewModel model,
         CancellationToken cancellationToken = default) =>
@@ -113,22 +171,6 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         GetAsync<OrderDetailDto>($"api/orders/{id}", cancellationToken: cancellationToken);
 
-    public Task<ApiCallResult<OrderConfirmDto>> ConfirmOrderAsync(
-        int id,
-        CancellationToken cancellationToken = default) =>
-        PutAsync<OrderConfirmDto>($"api/orders/{id}/confirm", null, cancellationToken: cancellationToken);
-
-    public Task<ApiCallResult<UpdateShippingStatusResponseDto>> UpdateShippingStatusAsync(
-        int id,
-        string status,
-        CancellationToken cancellationToken = default) =>
-        PutAsync<UpdateShippingStatusResponseDto>($"api/orders/{id}/status", new { status }, cancellationToken: cancellationToken);
-
-    public Task<ApiCallResult<ShippingLabelResponseDto>> CreateShippingLabelAsync(
-        int id,
-        string carrier,
-        CancellationToken cancellationToken = default) =>
-        PostAsync<ShippingLabelResponseDto>($"api/orders/{id}/shipping-label", new { carrier }, cancellationToken: cancellationToken);
 
     public Task<ApiCallResult<ShippingInfoDto>> GetShippingInfoAsync(
         int orderId,
@@ -140,19 +182,6 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         GetAsync<PaymentDetailDto>($"api/orders/{orderId}/payment", cancellationToken: cancellationToken);
 
-    public Task<ApiCallResult<OrderDetailDto>> CreateMockOrderAsync(
-        CancellationToken cancellationToken = default) =>
-        PostAsync<OrderDetailDto>("api/orders/mock", new { }, cancellationToken: cancellationToken);
-
-    public Task<ApiCallResult<OrderDetailDto>> CreateManualOrderAsync(
-        CreateManualOrderViewModel model,
-        CancellationToken cancellationToken = default) =>
-        PostAsync<OrderDetailDto>("api/orders/manual", model, cancellationToken: cancellationToken);
-
-    public Task<ApiCallResult<OrderDetailDto>> PayVnPayAsync(
-        int orderId,
-        CancellationToken cancellationToken = default) =>
-        PostAsync<OrderDetailDto>($"api/orders/{orderId}/pay-vnpay", new { }, cancellationToken: cancellationToken);
 
     public Task<ApiCallResult<OrderConfirmDto>> CancelOrderAsync(
         int orderId,

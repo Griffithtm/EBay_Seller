@@ -21,6 +21,56 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
         return View(result);
     }
 
+    [HttpGet("create")]
+    public async Task<IActionResult> Create(CancellationToken cancellationToken = default)
+    {
+        var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken);
+        ViewBag.Products = productsResult.Data?.Items ?? [];
+        return View(new CreateManualOrderViewModel());
+    }
+
+    [HttpPost("create")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(CreateManualOrderViewModel model, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken);
+            ViewBag.Products = productsResult.Data?.Items ?? [];
+            return View(model);
+        }
+
+        var result = await apiClient.CreateManualOrderAsync(model, cancellationToken);
+        if (!result.Success || result.Data is null)
+        {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+            var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken);
+            ViewBag.Products = productsResult.Data?.Items ?? [];
+            return View(model);
+        }
+
+        var orderId = result.Data.Id;
+
+        if (string.Equals(model.PaymentMethod, "VNPay Sandbox Gateway", StringComparison.OrdinalIgnoreCase))
+        {
+            var returnUrl = Url.Action("VNPayReturn", "Orders", new { id = orderId }, Request.Scheme);
+            var vnpayResult = await apiClient.CreateVNPayCheckoutAsync(orderId, returnUrl, cancellationToken);
+            if (vnpayResult.Success && !string.IsNullOrWhiteSpace(vnpayResult.Data?.PaymentUrl))
+            {
+                return Redirect(vnpayResult.Data.PaymentUrl);
+            }
+            return Redirect("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html");
+        }
+
+        if (string.Equals(model.PaymentMethod, "PayPal Sandbox Gateway", StringComparison.OrdinalIgnoreCase))
+        {
+            return RedirectToAction(nameof(PayPalGateway), new { id = orderId });
+        }
+
+        TempData["SuccessMessage"] = $"Tạo đơn hàng #{orderId} thành công!";
+        return RedirectToAction(nameof(Detail), new { id = orderId });
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id, CancellationToken cancellationToken = default)
     {
@@ -38,132 +88,100 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
         return View(result.Data);
     }
 
-    [HttpPost("{id:int}/confirm")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Confirm(int id, CancellationToken cancellationToken = default)
+    [HttpGet("{id:int}/paypal-gateway")]
+    public async Task<IActionResult> PayPalGateway(int id, CancellationToken cancellationToken = default)
     {
-        var result = await apiClient.ConfirmOrderAsync(id, cancellationToken);
-        if (!result.Success)
-        {
-            TempData["ErrorMessage"] = result.ErrorMessage;
-        }
-        else
-        {
-            TempData["SuccessMessage"] = "Đã xác nhận đơn hàng thành công và trừ tồn kho!";
-        }
-
-        return RedirectToAction(nameof(Detail), new { id });
-    }
-
-    [HttpPost("{id:int}/shipping-label")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateShippingLabel(int id, string carrier, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(carrier))
-        {
-            TempData["ErrorMessage"] = "Vui lòng chọn đơn vị vận chuyển.";
-            return RedirectToAction(nameof(Detail), new { id });
-        }
-
-        var result = await apiClient.CreateShippingLabelAsync(id, carrier, cancellationToken);
-        if (!result.Success)
-        {
-            TempData["ErrorMessage"] = result.ErrorMessage;
-        }
-        else
-        {
-            TempData["SuccessMessage"] = $"Đã tạo phiếu vận chuyển thành công! Mã vận đơn: {result.Data?.TrackingNumber}";
-        }
-
-        return RedirectToAction(nameof(Detail), new { id });
-    }
-
-    [HttpPost("{id:int}/status")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateShippingStatus(int id, string status, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(status))
-        {
-            TempData["ErrorMessage"] = "Vui lòng chọn trạng thái vận chuyển.";
-            return RedirectToAction(nameof(Detail), new { id });
-        }
-
-        var result = await apiClient.UpdateShippingStatusAsync(id, status, cancellationToken);
-        if (!result.Success)
-        {
-            TempData["ErrorMessage"] = result.ErrorMessage;
-        }
-        else
-        {
-            TempData["SuccessMessage"] = $"Đã cập nhật trạng thái vận chuyển sang {status}!";
-        }
-
-        return RedirectToAction(nameof(Detail), new { id });
-    }
-
-    [HttpPost("create-mock")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateMock(CancellationToken cancellationToken = default)
-    {
-        var result = await apiClient.CreateMockOrderAsync(cancellationToken);
+        var result = await apiClient.GetOrderDetailAsync(id, cancellationToken);
         if (!result.Success || result.Data is null)
         {
-            TempData["ErrorMessage"] = result.ErrorMessage;
+            TempData["ErrorMessage"] = "Không tìm thấy đơn hàng.";
             return RedirectToAction(nameof(Index));
         }
 
-        TempData["SuccessMessage"] = $"Đã tạo đơn hàng mới #{result.Data.Id} thành công!";
-        return RedirectToAction(nameof(Detail), new { id = result.Data.Id });
+        return View("PayPalGateway", result.Data);
     }
 
-    [HttpGet("create")]
-    public async Task<IActionResult> Create(CancellationToken cancellationToken = default)
+    [HttpGet("{id:int}/vnpay-return")]
+    public async Task<IActionResult> VNPayReturn(int id, [FromQuery] string? vnp_ResponseCode, CancellationToken cancellationToken = default)
     {
-        var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken: cancellationToken);
-        var viewModel = new CreateManualOrderViewModel
+        var queryDict = Request.Query.ToDictionary(k => k.Key, v => v.Value.ToString());
+        if (!queryDict.ContainsKey("vnp_ResponseCode"))
         {
-            AvailableProducts = productsResult.Data?.Items ?? new List<ProductDto>()
-        };
-        return View(viewModel);
-    }
-
-    [HttpPost("create")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateManualOrderViewModel model, CancellationToken cancellationToken = default)
-    {
-        if (!ModelState.IsValid)
-        {
-            var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken: cancellationToken);
-            model.AvailableProducts = productsResult.Data?.Items ?? new List<ProductDto>();
-            return View(model);
+            queryDict["vnp_ResponseCode"] = "00";
         }
 
-        model.PaymentStatus = "Pending";
-        var result = await apiClient.CreateManualOrderAsync(model, cancellationToken);
-        if (!result.Success || result.Data is null)
-        {
-            TempData["ErrorMessage"] = result.ErrorMessage;
-            var productsResult = await apiClient.GetProductsAsync(page: 1, pageSize: 100, cancellationToken: cancellationToken);
-            model.AvailableProducts = productsResult.Data?.Items ?? new List<ProductDto>();
-            return View(model);
-        }
-
-        TempData["SuccessMessage"] = $"Đã tạo đơn hàng thủ công #{result.Data.Id} thành công!";
-        return RedirectToAction(nameof(Detail), new { id = result.Data.Id });
-    }
-
-    [HttpPost("{id:int}/pay-vnpay")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PayVnPay(int id, CancellationToken cancellationToken = default)
-    {
-        var result = await apiClient.PayVnPayAsync(id, cancellationToken);
+        var result = await apiClient.CaptureVNPayCheckoutAsync(id, queryDict, cancellationToken);
         if (!result.Success)
         {
             TempData["ErrorMessage"] = result.ErrorMessage;
         }
         else
         {
-            TempData["SuccessMessage"] = $"Thanh toán giao dịch VNPay Sandbox Test cho Đơn hàng #{id} thành công (chuyển sang Completed)!";
+            TempData["SuccessMessage"] = $"Thanh toán VNPay thành công cho Đơn hàng #{id}!";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    [HttpPost("{id:int}/paypal-checkout")]
+    [ValidateAntiForgeryToken]
+    public IActionResult PayPalCheckout(int id)
+    {
+        return RedirectToAction(nameof(PayPalGateway), new { id });
+    }
+
+    [HttpGet("{id:int}/paypal-return")]
+    public async Task<IActionResult> PayPalReturn(int id, [FromQuery] string? token, CancellationToken cancellationToken = default)
+    {
+        var paypalToken = string.IsNullOrWhiteSpace(token) ? $"PAYPAL-ORDER-{id}-{Guid.NewGuid():N}" : token;
+        var result = await apiClient.CapturePayPalCheckoutAsync(id, paypalToken, cancellationToken);
+
+        if (!result.Success)
+        {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"Thanh toán PayPal thành công cho Đơn hàng #{id}!";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    [HttpPost("{id:int}/confirm-shipment")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmShipment(int id, string trackingNumber, string carrierCode, CancellationToken cancellationToken = default)
+    {
+        var result = await apiClient.PutAsync<OrderDetailDto>(
+            $"api/orders/{id}/confirm-shipment",
+            new { trackingNumber, carrierCode },
+            authenticated: true,
+            cancellationToken: cancellationToken);
+
+        if (!result.Success)
+        {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"Đã bàn giao đơn hàng #{id} cho đơn vị vận chuyển!";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    [HttpPost("{id:int}/simulate-delivery")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SimulateDelivery(int id, CancellationToken cancellationToken = default)
+    {
+        var result = await apiClient.SimulateDeliveryAsync(id, cancellationToken);
+        if (!result.Success)
+        {
+            TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["SuccessMessage"] = $"Đơn hàng #{id} đã giao thành công!";
         }
 
         return RedirectToAction(nameof(Detail), new { id });
@@ -180,7 +198,7 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
         }
         else
         {
-            TempData["SuccessMessage"] = $"Đã hủy Đơn hàng #{id} thành công (tồn kho đã được hoàn trả nếu từng trừ)!";
+            TempData["SuccessMessage"] = $"Đã hủy Đơn hàng #{id} thành công!";
         }
 
         return RedirectToAction(nameof(Detail), new { id });

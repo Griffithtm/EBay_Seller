@@ -11,29 +11,12 @@ public interface IOrderService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<OrderDetailResponse> CreateManualOrderAsync(
+        int sellerId,
+        CreateOrderRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<OrderDetailResponse> GetSellerOrderDetailAsync(
-        int orderId,
-        int sellerId,
-        CancellationToken cancellationToken = default);
-
-    Task<OrderConfirmResponse> ConfirmOrderAsync(
-        int orderId,
-        int sellerId,
-        CancellationToken cancellationToken = default);
-
-    Task<UpdateShippingStatusResponse> UpdateShippingStatusAsync(
-        int orderId,
-        int sellerId,
-        UpdateShippingStatusRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task<CreateShippingLabelResponse> CreateShippingLabelAsync(
-        int orderId,
-        int sellerId,
-        CreateShippingLabelRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task<ShippingInfoSummaryDto> GetShippingInfoAsync(
         int orderId,
         int sellerId,
         CancellationToken cancellationToken = default);
@@ -43,22 +26,54 @@ public interface IOrderService
         int sellerId,
         CancellationToken cancellationToken = default);
 
-    Task<OrderDetailResponse> CreateMockOrderAsync(
-        int sellerId,
-        CancellationToken cancellationToken = default);
-
-    Task<OrderDetailResponse> CreateManualOrderAsync(
-        int sellerId,
-        CreateManualOrderRequest request,
-        CancellationToken cancellationToken = default);
-
-    Task<OrderDetailResponse> PayVnPayAsync(
+    Task<ShippingInfoSummaryDto> GetShippingInfoAsync(
         int orderId,
         int sellerId,
         CancellationToken cancellationToken = default);
 
-    Task<OrderConfirmResponse> CancelOrderAsync(
+    Task<OrderStatusResponse> CancelOrderAsync(
         int orderId,
         int sellerId,
         CancellationToken cancellationToken = default);
+
+    Task<ConfirmShipmentResponse> ConfirmShipmentAsync(
+        int orderId,
+        int sellerId,
+        ConfirmShipmentRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<CreatePayPalOrderResponse> CreatePayPalOrderAsync(
+        int orderId,
+        int sellerId,
+        CreatePayPalOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> CapturePayPalOrderAsync(
+        int orderId,
+        int sellerId,
+        CapturePayPalOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<CreateVNPayOrderResponse> CreateVNPayOrderAsync(
+        int orderId,
+        int sellerId,
+        CreateVNPayOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> CaptureVNPayOrderAsync(
+        int orderId,
+        int sellerId,
+        CaptureVNPayOrderRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> SimulateDeliveryAsync(
+        int orderId,
+        int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<SellerPayoutSummaryDto>> GetSellerPayoutsAsync(
+        int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> AutoProgressOrdersAsync(CancellationToken cancellationToken = default);
 }

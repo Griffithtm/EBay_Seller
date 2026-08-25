@@ -157,6 +157,7 @@ builder.Services.AddScoped<IAuthorizationHandler, VerifiedSellerAuthorizationHan
 builder.Services.AddSingleton<IStoreBannerStorage, LocalStoreBannerStorage>();
 builder.Services.AddSingleton<IProductImageStorage, LocalProductImageStorage>();
 builder.Services.AddHostedService<AuctionClosingService>();
+builder.Services.AddHostedService<OrderAutoProgressService>();
 
 builder.Services.AddCors(options =>
 {

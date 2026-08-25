@@ -40,9 +40,12 @@ public static class DependencyInjection
         services.AddScoped<IDisputeRepository, DisputeRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
-        services.AddScoped<ICouponRepository, CouponRepository>();
-        services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CloneEbayDbContext>());
+        services.AddHttpClient<IPayPalPaymentService, PayPalPaymentService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<IVNPayPaymentService, VNPayPaymentService>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IClock, SystemClock>();
         services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>

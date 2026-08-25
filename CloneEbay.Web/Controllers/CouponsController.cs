@@ -125,7 +125,7 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
     private static CouponFormViewModel ToFormModel(CouponDto coupon) => new()
     {
         Id = coupon.Id,
-        ProductId = coupon.ProductId,
+        ProductId = coupon.ProductId ?? 0,
         Code = coupon.Code,
         DiscountPercent = coupon.DiscountPercent,
         StartDate = coupon.StartDate.ToLocalTime(),

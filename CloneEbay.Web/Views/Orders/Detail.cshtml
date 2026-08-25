@@ -1,69 +1,287 @@
 @model OrderDetailDto
 @{
-    ViewData["Title"] = $"Chi tiết Đơn hàng #{Model.Id}";
+    ViewData["Title"] = $"Đơn hàng #{Model.Id} · eBay Seller Hub";
 
     string StatusBadgeClass(string status) => status switch
     {
-        "Pending" => "bg-warning text-dark",
-        "Confirmed" => "bg-primary",
-        "Shipped" => "bg-info text-dark",
-        "Delivered" => "bg-success",
-        "Cancelled" => "bg-danger",
-        _ => "bg-secondary"
+        "AWAITING_PAYMENT" => "bg-warning text-dark",
+        "AWAITING_SHIPMENT" => "bg-primary text-white",
+        "SHIPPED" => "bg-info text-dark",
+        "DELIVERED" => "bg-success text-white",
+        "CANCELLED" => "bg-danger text-white",
+        _ => "bg-secondary text-white"
     };
 
     string StatusLabel(string status) => status switch
     {
-        "Pending" => "Chờ xác nhận (Pending)",
-        "Confirmed" => "Đã xác nhận (Confirmed)",
-        "Shipped" => "Đã giao vận chuyển (Shipped)",
-        "Delivered" => "Đã giao thành công (Delivered)",
-        "Cancelled" => "Đã hủy (Cancelled)",
+        "AWAITING_PAYMENT" => "AWAITING PAYMENT",
+        "AWAITING_SHIPMENT" => "AWAITING SHIPMENT",
+        "SHIPPED" => "SHIPPED",
+        "DELIVERED" => "DELIVERED",
+        "CANCELLED" => "CANCELLED",
         _ => status
+    };
+
+    var isPaid = Model.Payment?.Status == "Completed" || Model.Status != "AWAITING_PAYMENT";
+    var isPreparing = Model.Status == "AWAITING_SHIPMENT";
+    var isShipped = Model.Status == "SHIPPED";
+    var isDelivered = Model.Status == "DELIVERED";
+
+    // Compute active step (1 to 5)
+    int currentStep = 1;
+    if (isDelivered) currentStep = 5;
+    else if (isShipped) currentStep = 4;
+    else if (isPreparing) currentStep = 3;
+    else if (isPaid) currentStep = 2;
+
+    int progressPercent = currentStep switch
+    {
+        5 => 100,
+        4 => 75,
+        3 => 50,
+        2 => 25,
+        _ => 0
     };
 }
 
+<style>
+    .tracking-stepper {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        padding: 10px 10px;
+    }
+    .stepper-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+    .stepper-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.95rem;
+        background: #f8fafc;
+        color: #94a3b8;
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+    .stepper-item.completed .stepper-circle {
+        background: #10b981;
+        color: #ffffff;
+        border-color: #10b981;
+    }
+    .stepper-item.active .stepper-circle {
+        background: #0064d2;
+        color: #ffffff;
+        border-color: #0064d2;
+        box-shadow: 0 0 0 4px rgba(0, 100, 210, 0.15);
+    }
+    .stepper-label {
+        margin-top: 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #64748b;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .stepper-item.completed .stepper-label {
+        color: #0f172a;
+    }
+    .stepper-item.active .stepper-label {
+        color: #0064d2;
+    }
+    .stepper-line {
+        position: absolute;
+        top: 28px;
+        left: 10%;
+        right: 10%;
+        height: 3px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+    .stepper-line-progress {
+        height: 100%;
+        background: #10b981;
+        transition: width 0.4s ease;
+    }
+
+    /* Elegant Carrier Timeline */
+    .carrier-timeline {
+        position: relative;
+        padding: 8px 0;
+    }
+    .carrier-event {
+        display: flex;
+        align-items: flex-start;
+        position: relative;
+        padding-bottom: 22px;
+    }
+    .carrier-event:last-child {
+        padding-bottom: 0;
+    }
+    .carrier-event::before {
+        content: "";
+        position: absolute;
+        left: 17px;
+        top: 36px;
+        bottom: 0;
+        width: 2px;
+        background: #e2e8f0;
+    }
+    .carrier-event:last-child::before {
+        display: none;
+    }
+    .carrier-event.active::before {
+        background: #10b981;
+    }
+    .event-node {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        z-index: 2;
+        background: #f1f5f9;
+        color: #94a3b8;
+        border: 2px solid #e2e8f0;
+    }
+    .carrier-event.completed .event-node {
+        background: #dcfce7;
+        color: #16a34a;
+        border-color: #86efac;
+    }
+    .carrier-event.current .event-node {
+        background: #e0f2fe;
+        color: #0284c7;
+        border-color: #7dd3fc;
+        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
+    }
+    .event-content {
+        margin-left: 16px;
+        flex-grow: 1;
+        padding-top: 6px;
+    }
+    .event-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 2px;
+    }
+    .event-subtitle {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+</style>
+
 <div class="page-breadcrumb reveal">
-    <a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span>
-    <a asp-action="Index">Đơn hàng</a><span>›</span>
-    <strong>Đơn hàng #@Model.Id</strong>
+    <a asp-controller="Home" asp-action="Index">eBay Seller Hub</a><span>›</span>
+    <a asp-action="Index">Orders</a><span>›</span>
+    <strong>#@Model.Id</strong>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Đơn hàng #@Model.Id <span class="badge @StatusBadgeClass(Model.Status)">@StatusLabel(Model.Status)</span></h2>
-    <a class="btn btn-outline-secondary" asp-action="Index">← Quay lại danh sách</a>
+<div class="d-flex justify-content-between align-items-center mb-4 reveal">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark">
+            Đơn hàng #@Model.Id 
+            <span class="badge @StatusBadgeClass(Model.Status) fs-6 align-middle ms-2">@StatusLabel(Model.Status)</span>
+        </h2>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm px-3" asp-action="Index">← Danh sách Đơn hàng</a>
 </div>
 
 @if (TempData["ErrorMessage"] is string error)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show rounded-3" role="alert">
         @error
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 @if (TempData["SuccessMessage"] is string success)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="alert alert-success alert-dismissible fade show rounded-3" role="alert">
         @success
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
 
-<div class="row g-4">
-    <!-- Cột trái: Sản phẩm & Thao tác chính -->
-    <div class="col-md-8">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-                <h5 class="card-title mb-0">Sản phẩm thuộc cửa hàng của bạn</h5>
+<!-- TRACKING PROGRESS STEPPER (5 GIAI ĐOẠN) -->
+<div class="card shadow-sm border-0 rounded-4 mb-4 p-4 reveal" style="background: #ffffff;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="fw-bold text-dark"><i class="bi bi-truck me-2 text-primary"></i>eBay Tracking Status</span>
+        <span class="badge @(isDelivered ? "bg-success text-white" : isShipped ? "bg-info text-dark" : isPreparing ? "bg-primary text-white" : "bg-warning text-dark") px-3 py-1">
+            @StatusLabel(Model.Status)
+        </span>
+    </div>
+
+    <div class="position-relative my-3">
+        <div class="stepper-line">
+            <div class="stepper-line-progress" style="width: @progressPercent%"></div>
+        </div>
+        <div class="tracking-stepper">
+            <!-- 1. Đã tạo đơn -->
+            <div class="stepper-item completed">
+                <div class="stepper-circle"><i class="bi bi-check-lg"></i></div>
+                <div class="stepper-label">Đã tạo đơn</div>
+            </div>
+            <!-- 2. Đã thanh toán -->
+            <div class="stepper-item @(currentStep >= 2 ? "completed" : "active")">
+                <div class="stepper-circle">
+                    @if (currentStep >= 2) { <i class="bi bi-check-lg"></i> } else { <span>2</span> }
+                </div>
+                <div class="stepper-label">Đã thanh toán</div>
+            </div>
+            <!-- 3. Đang chuẩn bị hàng -->
+            <div class="stepper-item @(currentStep > 3 ? "completed" : currentStep == 3 ? "active" : "")">
+                <div class="stepper-circle">
+                    @if (currentStep > 3) { <i class="bi bi-check-lg"></i> } else if (currentStep == 3) { <i class="bi bi-box-seam"></i> } else { <span>3</span> }
+                </div>
+                <div class="stepper-label">Đang chuẩn bị hàng</div>
+            </div>
+            <!-- 4. Đang vận chuyển -->
+            <div class="stepper-item @(currentStep > 4 ? "completed" : currentStep == 4 ? "active" : "")">
+                <div class="stepper-circle">
+                    @if (currentStep > 4) { <i class="bi bi-check-lg"></i> } else if (currentStep == 4) { <i class="bi bi-truck"></i> } else { <span>4</span> }
+                </div>
+                <div class="stepper-label">Đang vận chuyển</div>
+            </div>
+            <!-- 5. Đã nhận hàng -->
+            <div class="stepper-item @(currentStep == 5 ? "completed" : "")">
+                <div class="stepper-circle">
+                    @if (currentStep == 5) { <i class="bi bi-check-lg"></i> } else { <span>5</span> }
+                </div>
+                <div class="stepper-label">Đã nhận hàng</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 reveal">
+    <!-- Cột trái: Sản phẩm & Lộ trình vận chuyển -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-light py-3 border-0">
+                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-bag-check text-primary me-2"></i>Sản phẩm</h6>
             </div>
             <div class="card-body p-0">
                 <table class="table align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Sản phẩm</th>
+                            <th class="ps-4">Sản phẩm</th>
                             <th>Đơn giá</th>
-                            <th>Số lượng</th>
-                            <th class="text-end">Thành tiền</th>
+                            <th class="text-center">Số lượng</th>
+                            <th class="text-end pe-4">Thành tiền</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,18 +289,29 @@
                         {
                             var total = item.UnitPrice * item.Quantity;
                             <tr>
-                                <td><strong>@item.Title</strong> <small class="text-muted">(ID: @item.ProductId)</small></td>
+                                <td class="ps-4">
+                                    <strong class="text-dark">@item.Title</strong>
+                                </td>
                                 <td>@item.UnitPrice.ToString("N0") VNĐ</td>
-                                <td>@item.Quantity</td>
-                                <td class="text-end font-weight-bold">@total.ToString("N0") VNĐ</td>
+                                <td class="text-center fw-bold">@item.Quantity</td>
+                                <td class="text-end pe-4 fw-bold">@total.ToString("N0") VNĐ</td>
                             </tr>
                         }
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="3" class="text-end"><strong>Tổng cộng phần Seller:</strong></td>
-                            <td class="text-end text-success font-weight-bold fs-5">
-                                @Model.OrderItems.Sum(i => i.UnitPrice * i.Quantity).ToString("N0") VNĐ
+                            <td colspan="3" class="text-end fw-bold ps-4">Tổng tiền hàng:</td>
+                            <td class="text-end pe-4 fw-bold fs-5 text-primary">@Model.TotalPrice.ToString("N0") VNĐ</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td colspan="3" class="text-end text-danger fw-bold ps-4">Phí sàn Final Value Fee (10%):</td>
+                            <td class="text-end pe-4 text-danger fw-bold">-@Model.FinalValueFee.ToString("N0") VNĐ</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td colspan="3" class="text-end text-success fw-bold ps-4">Thực nhận Payout:</td>
+                            <td class="text-end pe-4 text-success fw-bold fs-5">
+                                @Model.NetPayoutAmount.ToString("N0") VNĐ
+                                <small class="d-block text-muted fw-normal fs-6">Giải ngân: <span class="badge @(Model.PayoutStatus == "Released" ? "bg-success" : Model.PayoutStatus?.Contains("Hold") == true ? "bg-warning text-dark" : "bg-info text-dark")">@Model.PayoutStatus</span></small>
                             </td>
                         </tr>
                     </tfoot>
@@ -90,187 +319,195 @@
             </div>
         </div>
 
-        <!-- Khối xử lý đơn hàng (Actions) -->
-        <div class="card shadow-sm border-primary">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">Xử lý &amp; Cập nhật Đơn hàng</h5>
+        <!-- Lộ trình vận chuyển -->
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-light py-3 border-0">
+                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-geo-alt-fill text-primary me-2"></i>Lộ trình Vận chuyển</h6>
             </div>
-            <div class="card-body">
-                @if (Model.Status == "Cancelled")
+            <div class="card-body p-4">
+                @if (Model.Status == "CANCELLED")
                 {
-                    <div class="alert alert-danger mb-0">
-                        ❌ <strong>Đơn hàng này đã bị HỦY.</strong> Toàn bộ quy trình xử lý đơn hàng và giao vận đã ngưng. Tồn kho sản phẩm đã được hoàn trả (nếu đã trừ).
+                    <div class="alert alert-danger mb-0 rounded-3">
+                        <i class="bi bi-x-circle me-2"></i>Đơn hàng đã hủy.
+                    </div>
+                }
+                else if (Model.Status == "AWAITING_PAYMENT")
+                {
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-warning fw-bold"><i class="bi bi-hourglass-split me-2"></i>Chờ người mua hoàn tất thanh toán</div>
+                        <div class="d-flex gap-2">
+                            @if (Model.Payment?.Method?.Contains("VNPay", StringComparison.OrdinalIgnoreCase) == true)
+                            {
+                                <a href="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html" target="_blank" class="btn btn-primary btn-sm fw-bold px-3" style="background:#005baa;border-color:#005baa;">
+                                    <i class="bi bi-wallet2 me-1"></i>Mở VNPay Sandbox
+                                </a>
+                                <a asp-action="VNPayReturn" asp-route-id="@Model.Id" asp-route-vnp_ResponseCode="00" class="btn btn-success btn-sm fw-bold px-3">
+                                    <i class="bi bi-check-circle me-1"></i>Xác nhận VNPay
+                                </a>
+                            }
+                            else if (Model.Payment?.Method?.Contains("PayPal", StringComparison.OrdinalIgnoreCase) == true)
+                            {
+                                <a asp-action="PayPalGateway" asp-route-id="@Model.Id" class="btn btn-warning btn-sm fw-bold px-3 text-dark" style="background:#ffc439;border-color:#ffc439;">
+                                    <i class="bi bi-paypal me-1"></i>Thanh toán PayPal
+                                </a>
+                            }
+                            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Hủy</button>
+                            </form>
+                        </div>
                     </div>
                 }
                 else
                 {
-                    @if (Model.Status == "Pending" || Model.Status == "WaitingPayment")
-                    {
-                        <div class="p-3 bg-light rounded border mb-3">
-                            <h6>1. Xác nhận đơn hàng (Trừ tồn kho)</h6>
-                            <p class="small text-muted mb-3">Bấm xác nhận để đổi trạng thái đơn sang Confirmed và tự động trừ tồn kho cho sản phẩm.</p>
-                            <div class="d-flex gap-2">
-                                <form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-success">✔ Xác nhận đơn hàng &amp; Trừ tồn kho</button>
-                                </form>
-                                <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn HỦY đơn hàng này?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-outline-danger">❌ Hủy đơn hàng</button>
-                                </form>
-                            </div>
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <div>
+                            <span class="fw-bold text-dark"><i class="bi bi-box-seam me-2 text-primary"></i>Mã vận đơn: <code class="text-primary fs-6">@(Model.Shipping?.TrackingNumber ?? $"EBAY-{Model.Id}")</code></span>
+                            <div class="text-muted small mt-1">Hãng vận chuyển: <strong>@(Model.Shipping?.Carrier ?? "VIETTELPOST")</strong></div>
                         </div>
-                    }
-                    else if (Model.Status == "Confirmed" && Model.Shipping == null)
-                    {
-                        <div class="p-3 bg-light rounded border mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6>2. Tạo phiếu vận chuyển giả lập (Tạo Nhãn)</h6>
-                                <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Hủy đơn hàng sẽ hoàn trả tồn kho sản phẩm. Bạn có chắc chắn?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">❌ Hủy đơn hàng</button>
-                                </form>
-                            </div>
-                            <p class="small text-muted mb-2">Chọn đơn vị vận chuyển để sinh mã vận đơn. Trạng thái đơn vẫn là <strong>Confirmed</strong>.</p>
-                            <form asp-action="CreateShippingLabel" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-center">
-                                @Html.AntiForgeryToken()
-                                <div class="col-auto">
-                                    <select name="carrier" class="form-select" required>
-                                        <option value="GHN">Giao Hàng Nhanh (GHN)</option>
-                                        <option value="GHTK">Giao Hàng Tiết Kiệm (GHTK)</option>
-                                        <option value="ViettelPost">Viettel Post</option>
-                                        <option value="VNPost">VN Post</option>
-                                    </select>
-                                </div>
-                                <div class="col-auto">
-                                    <button type="submit" class="btn btn-primary">🏷️ Tạo phiếu vận chuyển (LabelCreated)</button>
-                                </div>
-                            </form>
-                        </div>
-                    }
+                        <span class="badge @(Model.Status == "DELIVERED" ? "bg-success" : Model.Status == "SHIPPED" ? "bg-info text-dark" : "bg-primary text-white") px-3 py-2">
+                            @StatusLabel(Model.Status)
+                        </span>
+                    </div>
 
-                    @if (Model.Shipping != null && Model.Status != "Delivered" && Model.Status != "Cancelled")
-                    {
-                        <div class="p-3 bg-light rounded border">
-                            <h6>3. Cập nhật trạng thái vận chuyển (State Machine)</h6>
-                            <p class="small text-muted mb-2">Cập nhật đúng theo tiến trình giao hàng thực tế. Khi chọn <strong>HandedToCarrier</strong>, trạng thái đơn sẽ tự động chuyển sang <strong>Shipped</strong>.</p>
-                            <form asp-action="UpdateShippingStatus" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-center">
-                                @Html.AntiForgeryToken()
-                                <div class="col-auto">
-                                    <select name="status" class="form-select" required>
-                                        <option value="">-- Chọn trạng thái mới --</option>
-                                        <option value="HandedToCarrier">Đã bàn giao đơn vị vận chuyển (HandedToCarrier -> Shipped)</option>
-                                        <option value="InTransit">Đang vận chuyển (InTransit)</option>
-                                        <option value="Delivered">Đã giao hàng thành công (Delivered)</option>
-                                        <option value="Cancelled">Hủy vận chuyển (Cancelled)</option>
-                                    </select>
-                                </div>
-                                <div class="col-auto">
-                                    <button type="submit" class="btn btn-warning">🚚 Cập nhật vận chuyển</button>
-                                </div>
-                            </form>
+                    <!-- ELEGANT TIMELINE -->
+                    <div class="carrier-timeline my-3">
+                        <div class="carrier-event completed active">
+                            <div class="event-node"><i class="bi bi-check-lg"></i></div>
+                            <div class="event-content">
+                                <div class="event-title">Xác nhận đơn hàng &amp; Thanh toán</div>
+                                <div class="event-subtitle">Đơn hàng hợp lệ, kho đã trừ tồn kho</div>
+                            </div>
                         </div>
-                    }
-                    else if (Model.Status == "Delivered")
-                    {
-                        <div class="alert alert-success mb-0">
-                            🎉 <strong>Đơn hàng đã được giao thành công!</strong> Quá trình xử lý đơn hàng và giao vận đã hoàn thành 100%.
+                        <div class="carrier-event @(currentStep >= 3 ? "completed active" : "")">
+                            <div class="event-node">
+                                @if (currentStep > 3) { <i class="bi bi-check-lg"></i> } else if (currentStep == 3) { <i class="bi bi-box-seam"></i> } else { <span>3</span> }
+                            </div>
+                            <div class="event-content">
+                                <div class="event-title">Đang chuẩn bị hàng tại kho</div>
+                                <div class="event-subtitle">Người bán đang kiểm tra &amp; đóng gói sản phẩm</div>
+                            </div>
                         </div>
-                    }
+                        <div class="carrier-event @(currentStep >= 4 ? "completed active" : "")">
+                            <div class="event-node">
+                                @if (currentStep > 4) { <i class="bi bi-check-lg"></i> } else if (currentStep == 4) { <i class="bi bi-truck"></i> } else { <span>4</span> }
+                            </div>
+                            <div class="event-content">
+                                <div class="event-title">Đang vận chuyển &amp; Giao hàng</div>
+                                <div class="event-subtitle">@(Model.Address?.Street), @(Model.Address?.City)</div>
+                            </div>
+                        </div>
+                        @if (Model.Status == "DELIVERED")
+                        {
+                            <div class="carrier-event completed">
+                                <div class="event-node"><i class="bi bi-house-check-fill"></i></div>
+                                <div class="event-content">
+                                    <div class="event-title text-success">Giao hàng thành công - Khách đã nhận hàng</div>
+                                    <div class="event-subtitle">Đang tạm giữ bảo đảm giao dịch (eMBG Hold)</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
             </div>
         </div>
     </div>
 
-    <!-- Cột phải: Địa chỉ, Thanh toán, Vận chuyển Read-Only -->
-    <div class="col-md-4">
-        <!-- Địa chỉ -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-                <h6 class="card-title mb-0">📍 Địa chỉ giao hàng</h6>
+    <!-- Cột phải: Địa chỉ & Thanh toán -->
+    <div class="col-lg-4">
+        <!-- Địa chỉ nhận hàng -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-light py-3 border-0">
+                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Địa chỉ nhận hàng</h6>
             </div>
             <div class="card-body">
                 @if (Model.Address is not null)
                 {
-                    <p class="mb-1"><strong>@Model.Address.FullName</strong> (@Model.Address.Phone)</p>
-                    <p class="mb-0 text-muted">@Model.Address.Street, @Model.Address.City, @Model.Address.State, @Model.Address.Country</p>
+                    <div class="fw-bold fs-6 mb-1 text-dark">@Model.Address.FullName</div>
+                    <div class="text-muted small mb-2"><i class="bi bi-telephone me-1"></i>@Model.Address.Phone</div>
+                    <div class="small text-dark">
+                        <div>@Model.Address.Street</div>
+                        <div>@(Model.Address.State), @(Model.Address.City)</div>
+                        <div class="fw-semibold text-primary">@(Model.Address.Country)</div>
+                    </div>
                 }
                 else
                 {
-                    <p class="text-muted mb-0">Chưa có thông tin địa chỉ.</p>
+                    <p class="text-muted mb-0 small">Không có thông tin địa chỉ.</p>
                 }
             </div>
         </div>
 
-        <!-- Trạng thái Thanh toán -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-                <h6 class="card-title mb-0">💳 Thanh toán</h6>
+        <!-- Thanh toán -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-light py-3 border-0">
+                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-credit-card-fill text-success me-2"></i>Thanh toán</h6>
             </div>
             <div class="card-body">
                 @if (Model.Payment is not null)
                 {
-                    <p class="mb-2">
-                        Trạng thái: 
-                        <span class="badge @(Model.Payment.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">@Model.Payment.Status</span>
-                    </p>
-                    @if (Model.Payment.Method == "VNPay")
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Phương thức:</span>
+                        <span class="badge bg-light text-dark border">@Model.Payment.Method</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Trạng thái:</span>
+                        <span class="badge @(Model.Payment.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">
+                            @Model.Payment.Status
+                        </span>
+                    </div>
+                    @if (Model.Payment.PaidAt.HasValue)
                     {
-                        <p class="mb-2 text-primary font-weight-bold">
-                            Phương thức: VNPay 💳
-                        </p>
-
-                        @if (Model.Payment.Status == "Pending")
-                        {
-                            <form asp-action="PayVnPay" asp-route-id="@Model.Id" method="post" class="mt-3">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold py-2 shadow-sm">
-                                    💳 Thanh toán ngay (VNPay Sandbox Test)
-                                </button>
-                            </form>
-                        }
-                    }
-                    else
-                    {
-                        <p class="mb-2 text-muted">
-                            <strong>Phương thức:</strong> COD (Thanh toán khi nhận hàng) 💵
-                        </p>
-                        @if (Model.Payment.Status == "Pending")
-                        {
-                            <div class="alert alert-light border small text-muted mt-2 mb-0">
-                                ℹ️ <strong>Đơn COD:</strong> Trạng thái sẽ tự động chuyển thành <strong>Completed</strong> khi giao hàng thành công (Delivered).
-                            </div>
-                        }
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-clock-history me-1"></i>Thanh toán lúc: @Model.Payment.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        </div>
                     }
                 }
                 else
                 {
-                    <p class="text-muted mb-0">Chưa có thông tin thanh toán.</p>
+                    <p class="text-muted mb-0 small">Chưa có thông tin thanh toán.</p>
                 }
             </div>
         </div>
 
-        <!-- Trạng thái Vận chuyển -->
-        <div class="card shadow-sm">
-            <div class="card-header bg-light">
-                <h6 class="card-title mb-0">🚚 Thông tin Vận chuyển</h6>
+        <!-- Vận chuyển -->
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-light py-3 border-0">
+                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-truck text-info me-2"></i>Vận chuyển</h6>
             </div>
             <div class="card-body">
                 @if (Model.Shipping is not null)
                 {
-                    <p class="mb-1">Đơn vị: <strong>@Model.Shipping.Carrier</strong></p>
-                    <p class="mb-1">Mã vận đơn: <code>@Model.Shipping.TrackingNumber</code></p>
-                    <p class="mb-1">Trạng thái: <span class="badge bg-info text-dark">@Model.Shipping.Status</span></p>
-                    @if (Model.Shipping.EstimatedArrival.HasValue)
-                    {
-                        <p class="mb-0 text-muted small">Dự kiến giao: @Model.Shipping.EstimatedArrival.Value.ToLocalTime().ToString("dd/MM/yyyy")</p>
-                    }
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Đơn vị:</span>
+                        <span class="fw-bold text-dark">@Model.Shipping.Carrier</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Mã vận đơn:</span>
+                        <code>@Model.Shipping.TrackingNumber</code>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Trạng thái:</span>
+                        <span class="badge bg-info text-dark">@Model.Shipping.Status</span>
+                    </div>
                 }
                 else
                 {
-                    <p class="text-muted mb-0">Chưa sinh phiếu vận chuyển.</p>
+                    <p class="text-muted mb-0 small">Đang xử lý xuất kho.</p>
                 }
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    @if (Model.Status == "AWAITING_SHIPMENT" || Model.Status == "SHIPPED")
+    {
+        <script>
+            // Silent background UI reload when background worker updates the order
+            setTimeout(function () {
+                window.location.reload();
+            }, 120000);
+        </script>
+    }
+}

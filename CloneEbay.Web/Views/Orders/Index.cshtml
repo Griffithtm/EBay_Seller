@@ -1,36 +1,35 @@
 @model ApiCallResult<PagedResultDto<OrderSummaryDto>>
 @{
-    ViewData["Title"] = "Quản lý Đơn hàng";
+    ViewData["Title"] = "eBay Orders & Fulfillment (PayPal Gateway)";
     var currentStatus = ViewBag.CurrentStatus as string;
 
     string StatusBadgeClass(string status) => status switch
     {
-        "Pending" => "bg-warning text-dark",
-        "Confirmed" => "bg-primary",
-        "Shipped" => "bg-info text-dark",
-        "Delivered" => "bg-success",
-        "Cancelled" => "bg-danger",
+        "AWAITING_PAYMENT" => "bg-warning text-dark",
+        "AWAITING_SHIPMENT" => "bg-primary text-white",
+        "SHIPPED" => "bg-info text-dark",
+        "DELIVERED" => "bg-success text-white",
+        "CANCELLED" => "bg-danger text-white",
         _ => "bg-secondary"
     };
 
     string StatusLabel(string status) => status switch
     {
-        "Pending" => "Chờ xác nhận",
-        "Confirmed" => "Đã xác nhận",
-        "Shipped" => "Đã giao vận chuyển",
-        "Delivered" => "Đã giao hàng",
-        "Cancelled" => "Đã hủy",
+        "AWAITING_PAYMENT" => "Chờ thanh toán (AWAITING_PAYMENT)",
+        "AWAITING_SHIPMENT" => "Chờ giao hàng (AWAITING_SHIPMENT)",
+        "SHIPPED" => "Đã gửi hàng (SHIPPED)",
+        "DELIVERED" => "Đã giao thành công (DELIVERED)",
+        "CANCELLED" => "Đã hủy (CANCELLED)",
         _ => status
     };
 }
 
-<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Đơn hàng</strong></div>
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">eBay Seller Hub</a><span>›</span><strong>Orders &amp; Shipping</strong></div>
 
 <section class="catalog-hero reveal">
     <div>
-        <span class="section-kicker">FULFILLMENT &amp; SHIPPING</span>
-        <h1>Quản lý Đơn hàng &amp;<br />Phiếu vận chuyển</h1>
-        <p>Theo dõi tiến trình đơn hàng của cửa hàng, xác nhận giữ kho và sinh phiếu vận chuyển giả lập.</p>
+        <span class="section-kicker" style="background:#0064d2;color:#fff;font-weight:bold;padding:4px 10px;border-radius:4px;font-size:0.75rem;">EBAY ORDERS &amp; SHIPPING</span>
+        <h1 class="mt-2">Quản lý Đơn hàng</h1>
     </div>
 </section>
 
@@ -49,20 +48,19 @@
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center mt-3">
-    <div></div>
-    <a asp-action="Create" class="btn btn-primary">➕ Tạo đơn mới</a>
+<div class="d-flex justify-content-end align-items-center mt-3 mb-2">
+    <a asp-action="Create" class="btn btn-outline-primary btn-sm">📝 Ghi nhận đơn thủ công</a>
 </div>
 
 <section class="catalog-workspace reveal reveal-delay-2 mt-2">
     <form class="catalog-toolbar" method="get">
-        <select name="status" aria-label="Lọc trạng thái">
-            <option value="">Tất cả trạng thái</option>
-            <option value="Pending" selected="@(currentStatus == "Pending")">Chờ xác nhận (Pending)</option>
-            <option value="Confirmed" selected="@(currentStatus == "Confirmed")">Đã xác nhận (Confirmed)</option>
-            <option value="Shipped" selected="@(currentStatus == "Shipped")">Đã giao vận chuyển (Shipped)</option>
-            <option value="Delivered" selected="@(currentStatus == "Delivered")">Đã giao thành công (Delivered)</option>
-            <option value="Cancelled" selected="@(currentStatus == "Cancelled")">Đã hủy (Cancelled)</option>
+        <select name="status" aria-label="Lọc trạng thái eBay">
+            <option value="">Tất cả 5 trạng thái eBay</option>
+            <option value="AWAITING_PAYMENT" selected="@(currentStatus == "AWAITING_PAYMENT")">Chờ thanh toán (AWAITING_PAYMENT)</option>
+            <option value="AWAITING_SHIPMENT" selected="@(currentStatus == "AWAITING_SHIPMENT")">Chờ giao hàng (AWAITING_SHIPMENT)</option>
+            <option value="SHIPPED" selected="@(currentStatus == "SHIPPED")">Đã gửi hàng (SHIPPED)</option>
+            <option value="DELIVERED" selected="@(currentStatus == "DELIVERED")">Đã giao hàng (DELIVERED)</option>
+            <option value="CANCELLED" selected="@(currentStatus == "CANCELLED")">Đã hủy (CANCELLED)</option>
         </select>
         <button class="btn btn-secondary-soft" type="submit">Lọc đơn hàng</button>
         @if (!string.IsNullOrWhiteSpace(currentStatus))
@@ -75,7 +73,7 @@
     {
         <div class="product-empty my-5 text-center">
             <h2>Không có đơn hàng nào</h2>
-            <p>Hiện chưa có đơn hàng nào chứa sản phẩm thuộc cửa hàng của bạn trong danh mục này.</p>
+            <p>Hiện chưa có đơn hàng thuộc cửa hàng của bạn phù hợp bộ lọc này.</p>
         </div>
     }
     else
@@ -86,8 +84,10 @@
                     <tr>
                         <th>Mã đơn (#)</th>
                         <th>Ngày đặt hàng</th>
-                        <th>Doanh thu (Phần Seller)</th>
-                        <th>Trạng thái</th>
+                        <th>Tổng tiền hàng</th>
+                        <th>Phí sàn (FVF 10%)</th>
+                        <th>Thực nhận (Payout)</th>
+                        <th>Trạng thái eBay</th>
                         <th class="text-end">Thao tác</th>
                     </tr>
                 </thead>
@@ -97,10 +97,14 @@
                         <tr>
                             <td><strong>#@order.Id</strong></td>
                             <td>@order.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
-                            <td class="text-success font-weight-bold">@order.TotalPrice.ToString("N0") VNĐ</td>
-                            <td><span class="badge @StatusBadgeClass(order.Status)">@StatusLabel(order.Status)</span></td>
+                            <td class="fw-bold">$@order.TotalPrice.ToString("N2")</td>
+                            <td class="text-danger">-$@order.FinalValueFee.ToString("N2")</td>
+                            <td class="text-success fw-bold">$@order.NetPayoutAmount.ToString("N2")</td>
+                            <td>
+                                <span class="badge @StatusBadgeClass(order.Status)">@StatusLabel(order.Status)</span>
+                            </td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@order.Id">Chi tiết &amp; Xử lý →</a>
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@order.Id">Chi tiết &amp; Xử lý</a>
                             </td>
                         </tr>
                     }
