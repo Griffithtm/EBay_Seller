@@ -1,16 +1,18 @@
-﻿name: CloneEbay CI/CD Pipeline
+name: CloneEbay CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
       - dev
+      - final_dev
       - role_6
       - 'feature/**'
   pull_request:
     branches:
       - main
       - dev
+      - final_dev
 
 jobs:
   # ==========================================
