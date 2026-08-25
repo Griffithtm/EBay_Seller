@@ -79,7 +79,8 @@
                                 </strong>
                             </td>
                             <td class="text-right action-cells">
-                                @if (dispute.Status != "Resolved")
+                                <a asp-action="Detail" asp-route-id="@dispute.Id" class="btn btn-outline-info btn-sm me-1">💬 Chi tiết & Chat</a>
+                                @if (dispute.Status != "Resolved" && dispute.Status != "Closed")
                                 {
                                     <form asp-action="Resolve" method="post" class="d-inline-flex" style="gap: 8px;">
                                         <input type="hidden" name="id" value="@dispute.Id" />

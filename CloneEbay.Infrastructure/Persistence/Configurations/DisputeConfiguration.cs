@@ -16,6 +16,8 @@ public sealed class DisputeConfiguration : IEntityTypeConfiguration<Dispute>
         builder.Property(d => d.Description).HasColumnName("description").HasMaxLength(2000).IsRequired();
         builder.Property(d => d.Status).HasColumnName("status").HasMaxLength(20).IsRequired();
         builder.Property(d => d.Resolution).HasColumnName("resolution").HasMaxLength(2000);
+        builder.Property(d => d.CreatedAt).HasColumnName("createdAt");
+        builder.Property(d => d.UpdatedAt).HasColumnName("updatedAt");
 
         builder.HasOne(d => d.Order)
             .WithMany()
@@ -26,6 +28,16 @@ public sealed class DisputeConfiguration : IEntityTypeConfiguration<Dispute>
             .WithMany(u => u.Disputes)
             .HasForeignKey(d => d.RaisedBy)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(d => d.Messages)
+            .WithOne(m => m.Dispute)
+            .HasForeignKey(m => m.DisputeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(d => d.Evidences)
+            .WithOne(e => e.Dispute)
+            .HasForeignKey(e => e.DisputeId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(d => d.Status);
         builder.HasIndex(d => d.OrderId);

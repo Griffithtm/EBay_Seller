@@ -1,0 +1,43 @@
+@{
+    ViewData["Title"] = "Gửi Yêu cầu Đổi trả";
+    var orderId = ViewBag.OrderId as int?;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><a asp-action="Returns">Đổi trả</a><span>›</span><strong>Tạo mới</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">CREATE RETURN REQUEST</span>
+        <h1>Yêu cầu Đổi trả sản phẩm</h1>
+        <p>Gửi yêu cầu trả lại sản phẩm hư hỏng, vỡ, hỏng hóc hoặc không vừa ý cho Người bán.</p>
+    </div>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-1 mt-4 max-w-2xl">
+    <div class="card shadow-sm border rounded-3 p-4">
+        <form asp-action="CreateReturn" method="post">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Mã Đơn hàng (#) <span class="text-danger">*</span></label>
+                <input type="number" name="orderId" value="@(orderId?.ToString() ?? "")" class="form-control" placeholder="Ví dụ: 101" required />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Phương án mong muốn</label>
+                <select name="preferredResolution" class="form-select">
+                    <option value="Refund">Hoàn lại tiền (Refund)</option>
+                    <option value="Replacement">Đổi sản phẩm mới (Replacement)</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Lý do Đổi trả <span class="text-danger">*</span></label>
+                <textarea name="reason" class="form-control" rows="4" placeholder="Mô tả lý do đổi trả (Ví dụ: Sản phẩm bị nứt vỡ khi mở hộp, giao nhầm màu sắc/kích thước...)" required></textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary px-4 fw-bold">Gửi yêu cầu Đổi trả</button>
+                <a asp-action="Returns" class="btn btn-outline-secondary px-4">Hủy bỏ</a>
+            </div>
+        </form>
+    </div>
+</section>

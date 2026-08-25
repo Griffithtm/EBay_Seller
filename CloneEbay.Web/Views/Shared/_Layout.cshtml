@@ -42,14 +42,15 @@
                         <li class="nav-item"><a class="nav-link @(currentPath == "/" ? "is-active" : string.Empty)" asp-controller="Home" asp-action="Index">Tổng quan</a></li>
                         @if (signedIn)
                         {
-                            <li class="nav-item"><a class="nav-link @Active("/seller")" asp-controller="Seller" asp-action="Index">Xác minh Seller</a></li>
+                            <li class="nav-item"><a class="nav-link @Active("/buyer/disputes")" asp-controller="Buyer" asp-action="Disputes">Khiếu nại của tôi</a></li>
+                            <li class="nav-item"><a class="nav-link @Active("/buyer/returns")" asp-controller="Buyer" asp-action="Returns">Đổi trả của tôi</a></li>
                             @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                             {
                                 <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
                                 <li class="nav-item"><a class="nav-link @Active("/seller/reviews")" asp-controller="Reviews" asp-action="Index">Đánh giá</a></li>
-                                <li class="nav-item"><a class="nav-link @Active("/seller/returns")" asp-controller="Returns" asp-action="Index">Đổi trả</a></li>
-                                <li class="nav-item"><a class="nav-link @Active("/seller/disputes")" asp-controller="Disputes" asp-action="Index">Tranh chấp</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/seller/returns")" asp-controller="Returns" asp-action="Index">Đổi trả (Seller)</a></li>
+                                <li class="nav-item"><a class="nav-link @Active("/seller/disputes")" asp-controller="Disputes" asp-action="Index">Tranh chấp (Seller)</a></li>
                             }
                             @if (User.IsInRole("Admin"))
                             {

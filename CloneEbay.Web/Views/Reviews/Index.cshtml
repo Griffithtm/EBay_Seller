@@ -103,6 +103,22 @@
                                 }
                             </td>
                             <td class="text-right action-cells">
+                                @if (review.RevisionStatus == "Pending")
+                                {
+                                    <span class="badge bg-warning text-dark mb-1 d-block">Đang chờ người mua sửa</span>
+                                }
+                                else if (review.RevisionStatus == "Approved")
+                                {
+                                    <span class="badge bg-success mb-1 d-block">Đã sửa đổi</span>
+                                }
+                                else if (review.Rating <= 3)
+                                {
+                                    <form asp-action="RequestRevision" method="post" class="d-inline-block mb-1">
+                                        <input type="hidden" name="id" value="@review.Id" />
+                                        <button type="submit" class="btn btn-outline-warning btn-sm" onclick="return confirm('Bạn muốn gửi yêu cầu người mua xem xét sửa lại đánh giá này?')">Yêu cầu sửa</button>
+                                    </form>
+                                }
+
                                 @if (review.Response == null)
                                 {
                                     <form asp-action="Reply" method="post" class="d-inline-flex" style="gap: 8px;">

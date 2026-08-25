@@ -21,7 +21,10 @@ public sealed class CloneEbayDbContext(DbContextOptions<CloneEbayDbContext> opti
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<ReturnRequest> ReturnRequests => Set<ReturnRequest>();
+    public DbSet<ReturnPolicy> ReturnPolicies => Set<ReturnPolicy>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<DisputeMessage> DisputeMessages => Set<DisputeMessage>();
+    public DbSet<DisputeEvidence> DisputeEvidences => Set<DisputeEvidence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -30,6 +30,74 @@ public sealed class ReviewService(
                 "You have already replied to this review. Replies cannot be changed.");
 
         review.Response = response;
+        review.RepliedAt = DateTime.UtcNow;
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return Map(review);
+    }
+
+    public async Task<ReviewResponse> RequestReviewRevisionAsync(int reviewId, int sellerUserId, CancellationToken ct = default)
+    {
+        var review = await reviewRepository.GetByIdAsync(reviewId, ct)
+            ?? throw new AppProblemException(404, "REVIEW_NOT_FOUND", "Review not found.");
+
+        if (review.Product.SellerId != sellerUserId)
+            throw new AppProblemException(403, "FORBIDDEN_NOT_OWNER", "You do not own the product for this review.");
+
+        if (review.RevisionStatus == ReviewRevisionStatus.Pending)
+            throw new AppProblemException(409, "REVISION_ALREADY_REQUESTED", "Revision request is already pending.");
+
+        review.RevisionStatus = ReviewRevisionStatus.Pending;
+        review.RevisionRequestedAt = DateTime.UtcNow;
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return Map(review);
+    }
+
+    public async Task<ReviewResponse> ApproveReviewRevisionAsync(int reviewId, int buyerUserId, string? newComment, int? newRating, CancellationToken ct = default)
+    {
+        var review = await reviewRepository.GetByIdAsync(reviewId, ct)
+            ?? throw new AppProblemException(404, "REVIEW_NOT_FOUND", "Review not found.");
+
+        if (review.ReviewerId != buyerUserId)
+            throw new AppProblemException(403, "FORBIDDEN_NOT_REVIEWER", "You are not the reviewer of this item.");
+
+        if (review.RevisionStatus != ReviewRevisionStatus.Pending)
+            throw new AppProblemException(400, "INVALID_REVISION_STATUS", "No pending revision request found.");
+
+        if (newRating.HasValue)
+        {
+            if (newRating.Value < 1 || newRating.Value > 5)
+                throw new AppProblemException(400, "INVALID_RATING", "Rating must be between 1 and 5.");
+            review.Rating = newRating.Value;
+            review.RatingType = ReviewRatingType.FromRating(newRating.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(newComment))
+        {
+            review.Comment = newComment.Trim();
+        }
+
+        review.RevisionStatus = ReviewRevisionStatus.Approved;
+        await unitOfWork.SaveChangesAsync(ct);
+
+        await RecalculateFeedbackAsync(review.Product.SellerId, ct);
+
+        return Map(review);
+    }
+
+    public async Task<ReviewResponse> RejectReviewRevisionAsync(int reviewId, int buyerUserId, CancellationToken ct = default)
+    {
+        var review = await reviewRepository.GetByIdAsync(reviewId, ct)
+            ?? throw new AppProblemException(404, "REVIEW_NOT_FOUND", "Review not found.");
+
+        if (review.ReviewerId != buyerUserId)
+            throw new AppProblemException(403, "FORBIDDEN_NOT_REVIEWER", "You are not the reviewer of this item.");
+
+        if (review.RevisionStatus != ReviewRevisionStatus.Pending)
+            throw new AppProblemException(400, "INVALID_REVISION_STATUS", "No pending revision request found.");
+
+        review.RevisionStatus = ReviewRevisionStatus.Rejected;
         await unitOfWork.SaveChangesAsync(ct);
 
         return Map(review);
@@ -89,8 +157,15 @@ public sealed class ReviewService(
         r.Product?.Title ?? string.Empty,
         r.ReviewerId,
         r.Reviewer?.Username ?? string.Empty,
+        r.RecipientId,
+        r.ReviewerRole ?? ReviewParticipantRole.Buyer,
+        r.RecipientRole ?? ReviewParticipantRole.Seller,
         r.Rating,
+        r.RatingType ?? ReviewRatingType.FromRating(r.Rating),
         r.Comment,
         r.Response,
+        r.RepliedAt,
+        r.RevisionStatus ?? ReviewRevisionStatus.None,
+        r.RevisionRequestedAt,
         r.CreatedAt);
 }

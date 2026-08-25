@@ -236,20 +236,53 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<ReviewResponseDto>> ReplyToReviewAsync(int reviewId, string response, CancellationToken ct = default) =>
         PostAsync<ReviewResponseDto>($"api/reviews/{reviewId}/reply", new { Response = response }, true, ct);
 
+    public Task<ApiCallResult<ReviewResponseDto>> RequestReviewRevisionAsync(int reviewId, CancellationToken ct = default) =>
+        PostAsync<ReviewResponseDto>($"api/reviews/{reviewId}/request-revision", new { }, true, ct);
+
     public Task<ApiCallResult<FeedbackResponseDto>> GetFeedbackAsync(int sellerId, CancellationToken ct = default) =>
         GetAsync<FeedbackResponseDto>($"api/feedback/{sellerId}", false, ct);
 
     public Task<ApiCallResult<PagedResultDto<ReturnRequestResponseDto>>> GetReturnsAsync(string? status, DateTime? fromDate = null, DateTime? toDate = null, string? searchTerm = null, int page = 1, CancellationToken ct = default) =>
         GetAsync<PagedResultDto<ReturnRequestResponseDto>>($"api/returns?status={status}&fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}&searchTerm={Uri.EscapeDataString(searchTerm ?? string.Empty)}&page={page}", true, ct);
 
-    public Task<ApiCallResult<ReturnRequestResponseDto>> UpdateReturnStatusAsync(int returnId, string status, CancellationToken ct = default) =>
-        PutAsync<ReturnRequestResponseDto>($"api/returns/{returnId}/status", new { Status = status }, true, ct);
+    public Task<ApiCallResult<ReturnRequestResponseDto>> UpdateReturnStatusAsync(int returnId, string status, string? sellerNote = null, decimal? restockingFee = null, decimal? refundAmount = null, CancellationToken ct = default) =>
+        PutAsync<ReturnRequestResponseDto>($"api/returns/{returnId}/status", new { Status = status, SellerNote = sellerNote, RestockingFee = restockingFee, RefundAmount = refundAmount }, true, ct);
+
+    public Task<ApiCallResult<ReturnRequestResponseDto>> ProvideReturnShippingAsync(int returnId, string returnCarrier, string trackingNumber, CancellationToken ct = default) =>
+        PutAsync<ReturnRequestResponseDto>($"api/returns/{returnId}/shipping", new { ReturnCarrier = returnCarrier, TrackingNumber = trackingNumber }, true, ct);
+
+    public Task<ApiCallResult<ReturnRequestResponseDto>> SendReplacementAsync(int returnId, string carrier, string trackingNumber, string? sellerNote = null, CancellationToken ct = default) =>
+        PostAsync<ReturnRequestResponseDto>($"api/returns/{returnId}/replacement", new { Carrier = carrier, TrackingNumber = trackingNumber, SellerNote = sellerNote }, true, ct);
+
+    public Task<ApiCallResult<ReturnPolicyResponseDto>> GetReturnPolicyAsync(int storeId, CancellationToken ct = default) =>
+        GetAsync<ReturnPolicyResponseDto>($"api/policies/stores/{storeId}/return-policy", true, ct);
+
+    public Task<ApiCallResult<ReturnPolicyResponseDto>> CreateOrUpdateReturnPolicyAsync(int storeId, bool acceptReturns, int returnPeriodDays, string returnShippingPaidBy, string? description, CancellationToken ct = default) =>
+        PutAsync<ReturnPolicyResponseDto>($"api/policies/stores/{storeId}/return-policy", new { AcceptReturns = acceptReturns, ReturnPeriodDays = returnPeriodDays, ReturnShippingPaidBy = returnShippingPaidBy, Description = description }, true, ct);
 
     public Task<ApiCallResult<PagedResultDto<DisputeResponseDto>>> GetDisputesAsync(string? status, DateTime? fromDate = null, DateTime? toDate = null, string? searchTerm = null, int page = 1, CancellationToken ct = default) =>
         GetAsync<PagedResultDto<DisputeResponseDto>>($"api/disputes?status={status}&fromDate={fromDate:yyyy-MM-dd}&toDate={toDate:yyyy-MM-dd}&searchTerm={Uri.EscapeDataString(searchTerm ?? string.Empty)}&page={page}", true, ct);
 
+    public Task<ApiCallResult<DisputeResponseDto>> GetDisputeByIdAsync(int disputeId, CancellationToken ct = default) =>
+        GetAsync<DisputeResponseDto>($"api/disputes/{disputeId}", true, ct);
+
+    public Task<ApiCallResult<DisputeResponseDto>> RespondToDisputeAsync(int disputeId, string message, CancellationToken ct = default) =>
+        PostAsync<DisputeResponseDto>($"api/disputes/{disputeId}/respond", new { Message = message }, true, ct);
+
+    public Task<ApiCallResult<DisputeResponseDto>> EscalateDisputeAsync(int disputeId, CancellationToken ct = default) =>
+        PostAsync<DisputeResponseDto>($"api/disputes/{disputeId}/escalate", new { }, true, ct);
+
     public Task<ApiCallResult<DisputeResponseDto>> ResolveDisputeAsync(int disputeId, string resolution, CancellationToken ct = default) =>
         PutAsync<DisputeResponseDto>($"api/disputes/{disputeId}/resolve", new { Resolution = resolution }, true, ct);
+
+    public Task<ApiCallResult<DisputeResponseDto>> CreateDisputeAsync(int orderId, string description, CancellationToken ct = default) =>
+        PostAsync<DisputeResponseDto>("api/disputes", new { OrderId = orderId, Description = description }, true, ct);
+
+    public Task<ApiCallResult<ReturnRequestResponseDto>> CreateReturnAsync(int orderId, string reason, string preferredResolution = "Refund", CancellationToken ct = default) =>
+        PostAsync<ReturnRequestResponseDto>("api/returns", new { OrderId = orderId, Reason = reason, PreferredResolution = preferredResolution }, true, ct);
+
+    public Task<ApiCallResult<DisputeResponseDto>> CloseDisputeAsync(int disputeId, CancellationToken ct = default) =>
+        PostAsync<DisputeResponseDto>($"api/disputes/{disputeId}/close", new { }, true, ct);
 
     public Task<ApiCallResult<BuyerSummaryResponseDto>> GetBuyerSummaryAsync(int buyerId, CancellationToken ct = default) =>
         GetAsync<BuyerSummaryResponseDto>($"api/seller/buyer-summary/{buyerId}", true, ct);
@@ -257,7 +290,3 @@ public sealed class SellerApiClient(
     private HttpContext GetHttpContext() =>
         httpContextAccessor.HttpContext ?? throw new InvalidOperationException("HTTP context is unavailable.");
 }
-
-
-
-

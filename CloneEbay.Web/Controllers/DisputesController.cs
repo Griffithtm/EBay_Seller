@@ -26,6 +26,53 @@ public class DisputesController(SellerApiClient api) : Controller
         return View(result.Data);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> Detail(int id)
+    {
+        var result = await api.GetDisputeByIdAsync(id);
+        if (!result.Success || result.Data is null)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Không tìm thấy tranh chấp.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(result.Data);
+    }
+
+    [HttpPost("respond")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Respond(int id, string message)
+    {
+        var result = await api.RespondToDisputeAsync(id, message);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["Success"] = "Đã gửi tin nhắn phản hồi thành công.";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    [HttpPost("escalate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Escalate(int id)
+    {
+        var result = await api.EscalateDisputeAsync(id);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["Success"] = "Đã leo thang tranh chấp lên Admin xử lý.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost("resolve")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Resolve(int id, string resolution)
@@ -63,7 +110,9 @@ public class DisputesController(SellerApiClient api) : Controller
             var statusVi = item.Status switch {
                 "Open" => "Đang mở",
                 "UnderReview" => "Đang xem xét",
+                "Escalated" => "Đã leo thang Admin",
                 "Resolved" => "Đã giải quyết",
+                "Closed" => "Đã đóng",
                 _ => item.Status
             };
             builder.AppendLine($"{item.Id},#{item.OrderId},\"{item.RaiserUsername}\",\"{desc}\",\"{statusVi}\",\"{res}\"");
@@ -73,4 +122,3 @@ public class DisputesController(SellerApiClient api) : Controller
         return File(bytes, "text/csv", $"danh-sach-tranh-chap-{DateTime.Now:yyyyMMdd}.csv");
     }
 }
-

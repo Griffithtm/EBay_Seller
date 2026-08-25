@@ -1,0 +1,137 @@
+@model PagedResultDto<ReturnRequestResponseDto>
+@{
+    ViewData["Title"] = "Yêu cầu Đổi trả của tôi";
+    var statusFilter = ViewBag.StatusFilter as string;
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><strong>Đổi trả của tôi</strong></div>
+
+<section class="catalog-hero reveal">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <span class="section-kicker">MY RETURNS</span>
+            <h1>Quản lý Yêu cầu Đổi trả</h1>
+            <p>Theo dõi tiến độ đổi trả hàng và cập nhật mã vận đơn gửi hàng về cho Seller.</p>
+        </div>
+        <div>
+            <a asp-action="CreateReturn" class="btn btn-primary btn-lg fw-bold">➕ Gửi yêu cầu Đổi trả</a>
+        </div>
+    </div>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-1 mt-4">
+    <form method="get" class="d-flex align-items-center gap-2 mb-4 p-3 bg-light rounded-3 border">
+        <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" placeholder="Mã đơn (#1) / lý do..." class="form-control" style="max-width: 250px;" />
+        <select name="status" aria-label="Lọc trạng thái" class="form-select" style="max-width: 180px;">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Requested" selected="@(statusFilter == "Requested")">Đã yêu cầu</option>
+            <option value="Accepted" selected="@(statusFilter == "Accepted")">Đã chấp nhận</option>
+            <option value="InTransitBackToSeller" selected="@(statusFilter == "InTransitBackToSeller")">Đang gửi trả</option>
+            <option value="RefundedByReturn" selected="@(statusFilter == "RefundedByReturn")">Đã hoàn tiền</option>
+            <option value="ReplacementSent" selected="@(statusFilter == "ReplacementSent")">Đã nhận SP thay thế</option>
+            <option value="Closed" selected="@(statusFilter == "Closed")">Đã đóng</option>
+        </select>
+        <button type="submit" class="btn btn-primary px-4">Lọc</button>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border">
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày tạo</th>
+                    <th>Mã Đơn hàng</th>
+                    <th>Lý do Đổi trả</th>
+                    <th>Hình thức mong muốn</th>
+                    <th>Vận chuyển trả hàng</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <span class="text-muted">Bạn chưa có yêu cầu đổi trả nào.</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var req in Model.Items)
+                    {
+                        <tr>
+                            <td>@req.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>#@req.OrderId</td>
+                            <td>@req.Reason</td>
+                            <td><span class="badge bg-info text-dark">@req.PreferredResolution</span></td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(req.TrackingNumber))
+                                {
+                                    <div><strong>@req.ReturnCarrier</strong></div>
+                                    <small class="text-muted">#@req.TrackingNumber</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Chưa cung cấp</span>
+                                }
+                            </td>
+                            <td>
+                                <strong>
+                                    @(req.Status switch {
+                                        "Requested" => "Đang yêu cầu",
+                                        "Accepted" => "Được chấp nhận (Chờ gửi hàng)",
+                                        "AwaitingBuyerReturn" => "Chờ gửi hàng về",
+                                        "InTransitBackToSeller" => "Đang gửi trả hàng",
+                                        "DeliveredToSeller" => "Người bán đã nhận hàng",
+                                        "Declined" => "Đã từ chối",
+                                        "RefundedByReturn" => "Đã hoàn tiền",
+                                        "ReplacementSent" => "Đã gửi SP thay thế",
+                                        "Closed" => "Đã đóng",
+                                        _ => req.Status
+                                    })
+                                </strong>
+                            </td>
+                            <td class="text-right action-cells">
+                                @if (req.Status == "Accepted" || req.Status == "AwaitingBuyerReturn")
+                                {
+                                    <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#shippingModal-@req.Id">
+                                        📦 Điền mã vận đơn gửi hàng
+                                    </button>
+
+                                    <div class="modal fade" id="shippingModal-@req.Id" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content text-start">
+                                                <form asp-action="ProvideShipping" method="post">
+                                                    <input type="hidden" name="id" value="@req.Id" />
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-header-title">Cập nhật thông tin gửi hàng trả về</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Đơn vị vận chuyển</label>
+                                                            <input type="text" name="returnCarrier" class="form-control" placeholder="Ví dụ: Giao Hàng Nhanh / Viettel Post" required />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Mã vận đơn / Tracking Number</label>
+                                                            <input type="text" name="trackingNumber" class="form-control" placeholder="Ví dụ: GHN12345678" required />
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                                        <button type="submit" class="btn btn-success">Lưu & Gửi tin</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

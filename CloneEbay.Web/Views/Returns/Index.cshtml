@@ -61,15 +61,25 @@
                             <td>@req.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
                             <td>#@req.OrderId</td>
                             <td><a href="javascript:void(0)" onclick="openBuyerModal(@req.BuyerId, 'returns')" class="fw-bold text-primary text-decoration-underline" title="Nhấn xem hồ sơ & lịch sử đơn hàng">@req.BuyerUsername</a></td>
-                            <td>@req.Reason</td>
+                            <td>
+                                <div>@req.Reason</div>
+                                @if (!string.IsNullOrEmpty(req.TrackingNumber))
+                                {
+                                    <small class="text-muted d-block">🚚 Vận chuyển: <strong>@req.ReturnCarrier</strong> - #@req.TrackingNumber</small>
+                                }
+                            </td>
                             <td>
                                 <strong>
                                     @(req.Status switch {
                                         "Requested" => "Đang yêu cầu",
                                         "Accepted" => "Đã chấp nhận",
+                                        "AwaitingBuyerReturn" => "Chờ gửi hàng về",
+                                        "InTransitBackToSeller" => "Hàng đang gửi về",
+                                        "DeliveredToSeller" => "Đã nhận được hàng",
                                         "Declined" => "Đã từ chối",
                                         "RefundOffered" => "Đề xuất hoàn tiền",
                                         "RefundedByReturn" => "Đã hoàn tiền",
+                                        "ReplacementSent" => "Đã gửi SP thay thế",
                                         "Closed" => "Đã đóng",
                                         _ => req.Status
                                     })
@@ -83,8 +93,10 @@
                                         <select name="status" class="form-control form-control-sm" style="min-width: 150px;" required>
                                             <option value="">Chuyển trạng thái...</option>
                                             <option value="Accepted">Chấp nhận</option>
+                                            <option value="AwaitingBuyerReturn">Chờ gửi hàng về</option>
                                             <option value="RefundOffered">Đề xuất hoàn tiền</option>
                                             <option value="RefundedByReturn">Đã hoàn tiền & nhận hàng</option>
+                                            <option value="ReplacementSent">Đã gửi SP thay thế</option>
                                             <option value="Declined">Từ chối (chỉ áp dụng đổi ý)</option>
                                             <option value="Closed">Đóng yêu cầu</option>
                                         </select>

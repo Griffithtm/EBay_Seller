@@ -53,6 +53,23 @@ public class ReviewsController(SellerApiClient api) : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost("request-revision")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RequestRevision(int id)
+    {
+        var result = await api.RequestReviewRevisionAsync(id);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+        }
+        else
+        {
+            TempData["Success"] = "Đã gửi yêu cầu người mua sửa đổi đánh giá thành công.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpGet("export-csv")]
     public async Task<IActionResult> ExportCsv(bool? hasReply, DateTime? fromDate, DateTime? toDate, string? searchTerm)
     {
@@ -76,4 +93,3 @@ public class ReviewsController(SellerApiClient api) : Controller
         return File(bytes, "text/csv", $"danh-sach-danh-gia-{DateTime.Now:yyyyMMdd}.csv");
     }
 }
-

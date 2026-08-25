@@ -8,9 +8,16 @@ public sealed record ReviewResponse(
     string ProductTitle,
     int ReviewerId,
     string ReviewerUsername,
+    int? RecipientId,
+    string ReviewerRole,
+    string RecipientRole,
     int Rating,
+    string RatingType,
     string Comment,
     string? Response,
+    DateTime? RepliedAt,
+    string RevisionStatus,
+    DateTime? RevisionRequestedAt,
     DateTime CreatedAt);
 
 public sealed record FeedbackResponse(
@@ -23,6 +30,8 @@ public sealed record ReviewListQuery(
     int? ProductId,
     int? SellerId,
     bool? HasReply,
+    string? RatingType = null,
+    string? RevisionStatus = null,
     DateTime? FromDate = null,
     DateTime? ToDate = null,
     string? SearchTerm = null,
@@ -30,6 +39,10 @@ public sealed record ReviewListQuery(
     int PageSize = 7);
 
 public sealed record ReplyToReviewRequest(string Response);
+
+public sealed record UpdateReviewRevisionRequest(
+    string? NewComment,
+    int? NewRating);
 
 public sealed record BuyerItemSummary(
     int Id,

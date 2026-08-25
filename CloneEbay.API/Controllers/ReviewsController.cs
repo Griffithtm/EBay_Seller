@@ -17,12 +17,15 @@ public class ReviewsController(IReviewService reviewService) : ControllerBase
     public async Task<ActionResult<ApiEnvelope<PagedResult<ReviewResponse>>>> GetReviews(
         [FromQuery] int? productId,
         [FromQuery] int? sellerId,
-        [FromQuery] bool? hasReply, DateTime? fromDate, DateTime? toDate, string? searchTerm,
+        [FromQuery] bool? hasReply,
+        [FromQuery] string? ratingType,
+        [FromQuery] string? revisionStatus,
+        DateTime? fromDate, DateTime? toDate, string? searchTerm,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 7,
         CancellationToken cancellationToken = default)
     {
-        var query = new ReviewListQuery(productId, sellerId, hasReply, fromDate, toDate, searchTerm, page, pageSize);
+        var query = new ReviewListQuery(productId, sellerId, hasReply, ratingType, revisionStatus, fromDate, toDate, searchTerm, page, pageSize);
         var result = await reviewService.GetReviewsAsync(query, cancellationToken);
         return Ok(ApiEnvelope<PagedResult<ReviewResponse>>.Ok(result, HttpContext.TraceIdentifier));
     }
@@ -35,8 +38,38 @@ public class ReviewsController(IReviewService reviewService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await reviewService.ReplyToReviewAsync(id, User.GetRequiredUserId(), request.Response, cancellationToken);
-        // Fire and forget or await? Awaiting for simplicity to ensure consistency
         await reviewService.RecalculateFeedbackAsync(User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<ReviewResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/request-revision")]
+    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
+    public async Task<ActionResult<ApiEnvelope<ReviewResponse>>> RequestReviewRevision(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await reviewService.RequestReviewRevisionAsync(id, User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<ReviewResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/approve-revision")]
+    [Authorize]
+    public async Task<ActionResult<ApiEnvelope<ReviewResponse>>> ApproveReviewRevision(
+        int id,
+        [FromBody] UpdateReviewRevisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await reviewService.ApproveReviewRevisionAsync(id, User.GetRequiredUserId(), request.NewComment, request.NewRating, cancellationToken);
+        return Ok(ApiEnvelope<ReviewResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:int}/reject-revision")]
+    [Authorize]
+    public async Task<ActionResult<ApiEnvelope<ReviewResponse>>> RejectReviewRevision(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await reviewService.RejectReviewRevisionAsync(id, User.GetRequiredUserId(), cancellationToken);
         return Ok(ApiEnvelope<ReviewResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 }
@@ -55,4 +88,3 @@ public class FeedbackController(IReviewService reviewService) : ControllerBase
         return Ok(ApiEnvelope<FeedbackResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 }
-

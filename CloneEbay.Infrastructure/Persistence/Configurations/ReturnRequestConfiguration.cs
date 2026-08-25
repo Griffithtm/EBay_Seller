@@ -14,8 +14,17 @@ public sealed class ReturnRequestConfiguration : IEntityTypeConfiguration<Return
         builder.Property(r => r.OrderId).HasColumnName("orderId");
         builder.Property(r => r.UserId).HasColumnName("userId");
         builder.Property(r => r.Reason).HasColumnName("reason").HasMaxLength(2000).IsRequired();
+        builder.Property(r => r.PreferredResolution).HasColumnName("preferredResolution").HasMaxLength(50);
         builder.Property(r => r.Status).HasColumnName("status").HasMaxLength(30).IsRequired();
+        builder.Property(r => r.ReturnCarrier).HasColumnName("returnCarrier").HasMaxLength(100);
+        builder.Property(r => r.TrackingNumber).HasColumnName("trackingNumber").HasMaxLength(100);
+        builder.Property(r => r.BuyerShippedAt).HasColumnName("buyerShippedAt");
+        builder.Property(r => r.DeliveredAt).HasColumnName("deliveredAt");
+        builder.Property(r => r.RestockingFee).HasColumnName("restockingFee").HasColumnType("decimal(18,2)");
+        builder.Property(r => r.RefundAmount).HasColumnName("refundAmount").HasColumnType("decimal(18,2)");
+        builder.Property(r => r.SellerNote).HasColumnName("sellerNote").HasMaxLength(2000);
         builder.Property(r => r.CreatedAt).HasColumnName("createdAt");
+        builder.Property(r => r.UpdatedAt).HasColumnName("updatedAt");
 
         builder.HasOne(r => r.Order)
             .WithMany()
