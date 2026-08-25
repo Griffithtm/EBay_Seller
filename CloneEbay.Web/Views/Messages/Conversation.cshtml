@@ -3,7 +3,7 @@
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
     ViewData["Title"] = "Chat với " + Model.OtherUsername;
-    var apiUrl = Configuration["Api:PublicBaseUrl"];
+    var apiUrl = Configuration["Api:PublicBaseUrl"] ?? string.Empty;
     var accessToken = HttpContextAccessor.HttpContext?.Request.Cookies["cloneebay.api.access"];
 }
 
@@ -178,7 +178,8 @@
                                 }
                                 @if (!string.IsNullOrEmpty(msg.AttachmentUrl))
                                 {
-                                    var attUrl = msg.AttachmentUrl.StartsWith("http") ? msg.AttachmentUrl : $"{apiUrl.TrimEnd('/')}/{msg.AttachmentUrl.TrimStart('/')}";
+                                    var attachmentUrl = msg.AttachmentUrl!;
+                                    var attUrl = attachmentUrl.StartsWith("http") ? attachmentUrl : $"{apiUrl.TrimEnd('/')}/{attachmentUrl.TrimStart('/')}";
                                     <img src="@attUrl" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />
                                 }
                                 <span class="chat-bubble-text">@msg.Content</span>
@@ -241,9 +242,18 @@
             const imagePreview = document.getElementById('imagePreview');
             const btnRemoveImage = document.getElementById('btnRemoveImage');
             
-            const otherUsername = '@Model.OtherUsername';
-            const accessToken = '@accessToken';
+            const otherUsername = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.OtherUsername));
+            const accessToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accessToken ?? string.Empty));
+            const apiBaseUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiUrl));
             
+            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+
             let pendingAttachmentUrl = null;
 
             // Function to add bubble to UI
@@ -253,7 +263,7 @@
                 
                 let avatarHtml = '';
                 if (isReceived) {
-                    avatarHtml = `<img src="https://ui-avatars.com/api/?name=${otherUsername}&background=random" class="avatar-sm">`;
+                    avatarHtml = `<img src="https://ui-avatars.com/api/?name=${encodeURIComponent(otherUsername)}&background=random" class="avatar-sm">`;
                 }
                 
                 let checkHtml = isReceived ? '' : `<i class="bi bi-check2-all text-primary ms-1" style="font-size: 1.1em;"></i>`;
@@ -262,16 +272,16 @@
                 
                 let attachmentHtml = '';
                 if (attachmentUrl) {
-                    const fullUrl = attachmentUrl.startsWith('http') ? attachmentUrl : `@apiUrl.TrimEnd('/')/${attachmentUrl.replace(/^\//, '')}`;
-                    attachmentHtml = `<img src="${fullUrl}" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />`;
+                    const fullUrl = attachmentUrl.startsWith('http') ? attachmentUrl : `${apiBaseUrl.replace(/\/$/, '')}/${attachmentUrl.replace(/^\//, '')}`;
+                    attachmentHtml = `<img src="${escapeHtml(fullUrl)}" class="img-fluid rounded mb-2" style="max-height: 200px; display: block;" />`;
                 }
 
                 row.innerHTML = `
                     ${avatarHtml}
                     <div class="d-flex flex-column ${alignClass} w-100">
-                        <div class="chat-bubble ${bubbleClass}">${attachmentHtml}<span class="chat-bubble-text">${content}</span></div>
+                        <div class="chat-bubble ${bubbleClass}">${attachmentHtml}<span class="chat-bubble-text">${escapeHtml(content)}</span></div>
                         <div class="chat-time">
-                            ${timeStr} ${checkHtml}
+                            ${escapeHtml(timeStr)} ${checkHtml}
                         </div>
                     </div>`;
                 chatHistory.prepend(row);
@@ -279,7 +289,7 @@
 
             // SignalR Connection
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl(`@apiUrl/hubs/messages?access_token=${accessToken}`)
+                .withUrl(`${apiBaseUrl.replace(/\/$/, '')}/hubs/messages?access_token=${encodeURIComponent(accessToken)}`)
                 .withAutomaticReconnect()
                 .build();
 
@@ -354,7 +364,7 @@
                     if (res.ok) {
                         const data = await res.json();
                         pendingAttachmentUrl = data.url;
-                        const fullUrl = data.url.startsWith('http') ? data.url : `@apiUrl.TrimEnd('/')/${data.url.replace(/^\//, '')}`;
+                        const fullUrl = data.url.startsWith('http') ? data.url : `${apiBaseUrl.replace(/\/$/, '')}/${data.url.replace(/^\//, '')}`;
                         imagePreview.src = fullUrl;
                         imagePreviewContainer.classList.remove('d-none');
                     } else {

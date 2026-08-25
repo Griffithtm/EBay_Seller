@@ -208,6 +208,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const d = new Date(isoString);
         return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
     };
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
 
     // Open widget
     trigger.addEventListener('click', () => {
@@ -254,21 +261,26 @@ document.addEventListener('DOMContentLoaded', function () {
                         const lastMsg = conv.lastMessage || conv.LastMessage;
                         const time = formatTime(conv.lastMessageAt || conv.LastMessageAt);
                         const uId = conv.withUserId || conv.WithUserId;
+                        const safeName = escapeHtml(name);
+                        const avatarName = encodeURIComponent(name ?? '');
+                        const safeLastMessage = escapeHtml(lastMsg || '[Hình ảnh]');
+                        const safeTime = escapeHtml(time);
+                        const safeUnreadCount = Number.parseInt(unreadCount, 10) || 0;
                         
                         const item = document.createElement('div');
                         item.className = `list-group-item cw-conv-item p-2 d-flex align-items-center ${isUnread ? 'bg-light' : ''}`;
                         item.onclick = () => openChat(uId, name);
                         
                         item.innerHTML = `
-                            <img src="https://ui-avatars.com/api/?name=${name}&background=random" class="rounded-circle me-2" style="width: 40px; height: 40px;">
+                            <img src="https://ui-avatars.com/api/?name=${avatarName}&background=random" class="rounded-circle me-2" style="width: 40px; height: 40px;">
                             <div class="flex-grow-1 overflow-hidden">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 text-truncate ${isUnread ? 'fw-bold' : ''}" style="font-size: 0.9rem;">${name}</h6>
-                                    <small class="text-muted" style="font-size: 0.7rem;">${time}</small>
+                                    <h6 class="mb-0 text-truncate ${isUnread ? 'fw-bold' : ''}" style="font-size: 0.9rem;">${safeName}</h6>
+                                    <small class="text-muted" style="font-size: 0.7rem;">${safeTime}</small>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mt-1">
-                                    <p class="mb-0 small text-truncate text-muted ${isUnread ? 'fw-bold text-dark' : ''}" style="font-size: 0.8rem;">${lastMsg || '[Hình ảnh]'}</p>
-                                    ${isUnread ? `<span class="badge bg-danger rounded-pill" style="font-size: 0.6rem;">${unreadCount}</span>` : ''}
+                                    <p class="mb-0 small text-truncate text-muted ${isUnread ? 'fw-bold text-dark' : ''}" style="font-size: 0.8rem;">${safeLastMessage}</p>
+                                    ${isUnread ? `<span class="badge bg-danger rounded-pill" style="font-size: 0.6rem;">${safeUnreadCount}</span>` : ''}
                                 </div>
                             </div>
                         `;
@@ -287,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function openChat(userId, username) {
         currentChatUserId = userId;
         chatName.textContent = username;
-        chatAvatar.src = `https://ui-avatars.com/api/?name=${username}&background=random`;
+        chatAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username ?? '')}&background=random`;
         chatHistory.innerHTML = '<div class="cw-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
         
         panelList.classList.add('d-none');
@@ -325,13 +337,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (attachmentUrl) {
             const apiUrl = window.__apiUrl || 'https://localhost:7001';
             const fullUrl = attachmentUrl.startsWith('http') ? attachmentUrl : `${apiUrl.replace(/\/$/, '')}/${attachmentUrl.replace(/^\//, '')}`;
-            attachmentHtml = `<img src="${fullUrl}" class="img-fluid rounded mb-1" style="max-height: 150px; display: block;" />`;
+            attachmentHtml = `<img src="${escapeHtml(fullUrl)}" class="img-fluid rounded mb-1" style="max-height: 150px; display: block;" />`;
         }
         
         row.innerHTML = `
             <div class="d-flex flex-column ${isSent ? 'align-items-end' : 'align-items-start'} w-100">
-                <div class="cw-bubble ${isSent ? 'cw-sent' : 'cw-received'}">${attachmentHtml}${content ? `<span>${content}</span>` : ''}</div>
-                <div class="cw-time">${time}</div>
+                <div class="cw-bubble ${isSent ? 'cw-sent' : 'cw-received'}">${attachmentHtml}${content ? `<span>${escapeHtml(content)}</span>` : ''}</div>
+                <div class="cw-time">${escapeHtml(time)}</div>
             </div>
         `;
         chatHistory.appendChild(row);
