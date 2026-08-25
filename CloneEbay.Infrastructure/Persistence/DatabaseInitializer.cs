@@ -33,6 +33,14 @@ public static class DatabaseInitializer
             await SeedDemoProductsAsync(dbContext, now);
         }
 
+        try
+        {
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'[dbo].[ReturnRequest]', N'U') IS NOT NULL ALTER TABLE [dbo].[ReturnRequest] ALTER COLUMN [status] NVARCHAR(50) NOT NULL;");
+        }
+        catch { }
+
+        await SeedCustomPurchaseId5FromId4Async(dbContext, now);
+
         await dbContext.SaveChangesAsync();
     }
 
@@ -319,6 +327,117 @@ public static class DatabaseInitializer
                 }
             };
             dbContext.Orders.Add(order2);
+        }
+    }
+
+    private static async Task SeedCustomPurchaseId5FromId4Async(CloneEbayDbContext dbContext, DateTime now)
+    {
+        var seller4 = await dbContext.Users.Include(u => u.Store).FirstOrDefaultAsync(u => u.Id == 4);
+        var buyer5 = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == 5);
+
+        if (seller4 is null || buyer5 is null) return;
+
+        seller4.Role = UserRole.Seller;
+        if (seller4.Store is null)
+        {
+            seller4.Store = new Store
+            {
+                SellerId = seller4.Id,
+                StoreName = "Kkk Official Store",
+                Description = "Cửa hàng chính hãng kkk",
+                SellerType = SellerType.Individual,
+                LegalName = "kkk Store",
+                ContactPhone = "0988888888",
+                VerificationStatus = VerificationStatus.Approved,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+            dbContext.Stores.Add(seller4.Store);
+        }
+        else
+        {
+            seller4.Store.VerificationStatus = VerificationStatus.Approved;
+        }
+
+        var category = await dbContext.Categories.FirstOrDefaultAsync();
+        if (category is null) return;
+
+        var product = await dbContext.Products.FirstOrDefaultAsync(p => p.SellerId == seller4.Id);
+        if (product is null)
+        {
+            product = new Product
+            {
+                SellerId = seller4.Id,
+                CategoryId = category.Id,
+                Title = "iPhone 15 Pro Max 256GB Titan Tự Nhiên",
+                Description = "Máy mới 100% nguyên seal, bảo hành chính hãng 12 tháng.",
+                Price = 29990000m,
+                ImagesJson = "[]",
+                Status = ProductStatus.Active,
+                CreatedAtUtc = now.AddDays(-3),
+                UpdatedAtUtc = now,
+                Inventory = new Inventory { Quantity = 10, LastUpdatedUtc = now }
+            };
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var existingOrder = await dbContext.Orders
+            .FirstOrDefaultAsync(o => o.BuyerId == buyer5.Id && o.Items.Any(i => i.ProductId == product.Id));
+
+        if (existingOrder is null)
+        {
+            var address = await dbContext.Addresses.FirstOrDefaultAsync(a => a.UserId == buyer5.Id);
+            if (address is null)
+            {
+                address = new Address
+                {
+                    UserId = buyer5.Id,
+                    FullName = buyer5.Username,
+                    Phone = "0912345678",
+                    Street = "456 Đường Lê Lợi",
+                    City = "Hà Nội",
+                    State = "Quận Hoàn Kiếm",
+                    Country = "Vietnam",
+                    IsDefault = true
+                };
+                dbContext.Addresses.Add(address);
+                await dbContext.SaveChangesAsync();
+            }
+
+            var order = new Order
+            {
+                BuyerId = buyer5.Id,
+                AddressId = address.Id,
+                OrderDateUtc = now.AddHours(-2),
+                TotalPrice = product.Price,
+                Status = "Confirmed",
+                Items = new List<OrderItem>
+                {
+                    new OrderItem
+                    {
+                        ProductId = product.Id,
+                        Quantity = 1,
+                        UnitPrice = product.Price
+                    }
+                },
+                Payment = new Payment
+                {
+                    UserId = buyer5.Id,
+                    Amount = product.Price,
+                    Method = "VNPay",
+                    Status = "Completed",
+                    PaidAtUtc = now.AddHours(-2)
+                },
+                ShippingInfo = new ShippingInfo
+                {
+                    Carrier = "Giao Hàng Nhanh",
+                    TrackingNumber = "GHN-ID5-ID4-2026",
+                    Status = "Delivered",
+                    EstimatedArrivalUtc = now.AddHours(-1)
+                }
+            };
+            dbContext.Orders.Add(order);
         }
     }
 

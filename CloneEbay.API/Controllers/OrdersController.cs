@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CloneEbay.API.Controllers;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
+[Authorize]
 [Route("api/orders")]
 public sealed class OrdersController(IOrderService orderService) : ControllerBase
 {
@@ -22,8 +22,8 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.GetSellerOrdersAsync(currentSellerId, status, page, pageSize, cancellationToken);
+        var currentUserId = User.GetRequiredUserId();
+        var result = await orderService.GetUserOrdersAsync(currentUserId, status, page, pageSize, cancellationToken);
         return Ok(ApiEnvelope<PagedResult<OrderSummaryDto>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
@@ -32,8 +32,8 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         int id,
         CancellationToken cancellationToken = default)
     {
-        var currentSellerId = User.GetRequiredUserId();
-        var result = await orderService.GetSellerOrderDetailAsync(id, currentSellerId, cancellationToken);
+        var currentUserId = User.GetRequiredUserId();
+        var result = await orderService.GetUserOrderDetailAsync(id, currentUserId, cancellationToken);
         return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 

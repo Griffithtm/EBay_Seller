@@ -11,6 +11,18 @@ public interface IOrderService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResult<OrderSummaryDto>> GetUserOrdersAsync(
+        int userId,
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderDetailResponse> GetUserOrderDetailAsync(
+        int orderId,
+        int userId,
+        CancellationToken cancellationToken = default);
+
     Task<OrderDetailResponse> GetSellerOrderDetailAsync(
         int orderId,
         int sellerId,

@@ -9,33 +9,45 @@
     <div>
         <span class="section-kicker">DISPUTE DETAILS</span>
         <h1>Khiếu nại cho đơn hàng #@Model.OrderId</h1>
-        <p>Ngày tạo: @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") | Trạng thái: <strong class="text-primary">@Model.Status</strong></p>
+        <p>Ngày tạo: @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") | Trạng thái: <strong class="text-primary" id="statusHeader">@Model.Status</strong></p>
     </div>
 </section>
 
 <section class="catalog-workspace reveal reveal-delay-1 mt-4">
-    <div class="row g-4">
+    <div class="row g-4" id="disputeDetailContainer">
         <div class="col-md-8">
             <div class="card mb-4 border">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Nội dung Khiếu nại của bạn</h5>
+                    <span class="badge @(Model.Status switch { "Resolved" => "bg-success", "Escalated" => "bg-danger", "UnderReview" => "bg-info", _ => "bg-primary" })">
+                        @(Model.Status switch {
+                            "Open" => "Đang mở",
+                            "UnderReview" => "Đang xem xét",
+                            "Escalated" => "Admin đang xử lý",
+                            "Resolved" => "Đã giải quyết",
+                            "Closed" => "Đã đóng",
+                            _ => Model.Status
+                        })
+                    </span>
                 </div>
                 <div class="card-body">
                     <p class="card-text">@Model.Description</p>
                     @if (Model.Resolution != null)
                     {
-                        <div class="alert alert-success mt-3 mb-0">
-                            <strong>Kết quả xử lý từ Người bán / Admin:</strong> @Model.Resolution
+                        <div class="alert alert-success mt-3 mb-0 border-start border-success border-4">
+                            <h6 class="alert-heading fw-bold mb-1">✔ Kết quả xử lý từ Người bán / Admin:</h6>
+                            <p class="mb-0">@Model.Resolution</p>
                         </div>
                     }
                 </div>
             </div>
 
             <div class="card mb-4 border">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Trao đổi trực tiếp với Người bán</h5>
+                    <span class="badge bg-secondary">⚡ Real-time (Auto-sync 3s)</span>
                 </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body" id="chatBox" style="max-height: 400px; overflow-y: auto;">
                     @if (Model.Messages.Count == 0)
                     {
                         <p class="text-muted text-center py-3">Chưa có tin nhắn trao đổi nào.</p>
@@ -56,10 +68,10 @@
                 @if (Model.Status != "Resolved" && Model.Status != "Closed")
                 {
                     <div class="card-footer bg-white">
-                        <form asp-action="RespondDispute" method="post">
+                        <form asp-action="RespondDispute" asp-route-id="@Model.Id" method="post">
                             <input type="hidden" name="id" value="@Model.Id" />
                             <div class="input-group">
-                                <input type="text" name="message" class="form-control" placeholder="Viết phản hồi cho người bán..." required />
+                                <input type="text" name="message" id="messageInput" class="form-control" placeholder="Viết phản hồi cho người bán..." required />
                                 <button type="submit" class="btn btn-primary">Gửi</button>
                             </div>
                         </form>
@@ -70,27 +82,144 @@
 
         <div class="col-md-4">
             <div class="card mb-4 border">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Bằng chứng & Ảnh đính kèm</h5>
+                    <span class="badge bg-secondary">⚡ Real-time</span>
                 </div>
                 <div class="card-body">
-                    @if (Model.Evidences.Count == 0)
+                    <div id="evidenceBox">
+                        @if (Model.Evidences.Count == 0)
+                        {
+                            <p class="text-muted small mb-0">Chưa có bằng chứng nào được tải lên.</p>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-3 mb-3">
+                                @foreach (var ev in Model.Evidences)
+                                {
+                                    var ext = System.IO.Path.GetExtension(ev.FileName ?? "").ToLowerInvariant();
+                                    var isImg = ext is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif";
+
+                                    <div class="p-2 border rounded bg-light">
+                                        @if (isImg)
+                                        {
+                                            <a href="@ev.FilePath" target="_blank" title="Nhấn xem phóng to ảnh">
+                                                <img src="@ev.FilePath" onerror="if(!this.dataset.failed){this.dataset.failed=1;this.src='https://localhost:7001'+'@ev.FilePath';}" class="img-thumbnail rounded mb-2 w-100" style="max-height: 160px; object-fit: cover;" alt="@ev.FileName" />
+                                            </a>
+                                        }
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <a href="@ev.FilePath" target="_blank" class="fw-bold text-truncate small text-decoration-none" style="max-width: 150px;">
+                                                @(isImg ? "🖼️" : "📄") @ev.FileName
+                                            </a>
+                                            <small class="badge bg-white text-dark border">@ev.UploaderUsername</small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.Status != "Resolved" && Model.Status != "Closed")
                     {
-                        <p class="text-muted small">Chưa có bằng chứng nào.</p>
-                    }
-                    else
-                    {
-                        <ul class="list-group list-group-flush">
-                            @foreach (var ev in Model.Evidences)
-                            {
-                                <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
-                                    <a href="@ev.FilePath" target="_blank" class="fw-bold text-truncate" style="max-width: 200px;">📷 @ev.FileName</a>
-                                </li>
-                            }
-                        </ul>
+                        <form asp-action="UploadEvidence" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="mt-2 border-top pt-3">
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <label class="form-label small fw-bold">Tải lên hình ảnh / file bằng chứng:</label>
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="file" name="file" id="evidenceFileInput" class="form-control" accept="image/*,application/pdf" onchange="previewEvidenceImage(this)" required />
+                                <button type="submit" class="btn btn-outline-primary fw-bold">📎 Tải file</button>
+                            </div>
+
+                            <!-- Live Image Preview Container -->
+                            <div id="previewContainer" class="d-none mt-2 p-2 border rounded text-center bg-white shadow-sm">
+                                <img id="evidenceImagePreview" class="img-fluid rounded mb-1" style="max-height: 130px; object-fit: contain;" />
+                                <small id="evidenceFileName" class="d-block text-primary small fw-bold text-truncate"></small>
+                            </div>
+
+                            <small class="text-muted d-block mt-1" style="font-size: 11px;">Hỗ trợ định dạng ảnh (JPG, PNG, WEBP) hoặc PDF.</small>
+                        </form>
                     }
                 </div>
             </div>
         </div>
     </div>
 </section>
+
+@section Scripts {
+    <script>
+        let isUserInteracting = false;
+        const container = document.getElementById('disputeDetailContainer');
+
+        function checkFileSelected() {
+            const fileInput = document.getElementById('evidenceFileInput');
+            return fileInput && fileInput.files && fileInput.files.length > 0;
+        }
+
+        if (container) {
+            container.addEventListener('focusin', () => isUserInteracting = true);
+            container.addEventListener('focusout', () => {
+                if (!checkFileSelected()) isUserInteracting = false;
+            });
+            container.addEventListener('mouseenter', () => isUserInteracting = true);
+            container.addEventListener('mouseleave', () => {
+                if (!checkFileSelected()) isUserInteracting = false;
+            });
+        }
+
+        function previewEvidenceImage(input) {
+            isUserInteracting = true; // PAUSE AUTO-SYNC IMMEDIATELY!
+            const previewContainer = document.getElementById('previewContainer');
+            const imgPreview = document.getElementById('evidenceImagePreview');
+            const fileName = document.getElementById('evidenceFileName');
+
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                fileName.innerText = "📁 Đã chọn: " + file.name;
+                previewContainer.classList.remove('d-none');
+
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        imgPreview.src = e.target.result;
+                        imgPreview.classList.remove('d-none');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imgPreview.classList.add('d-none');
+                }
+            }
+        }
+
+        const chatBox = document.getElementById('chatBox');
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+        setInterval(() => {
+            if (isUserInteracting || checkFileSelected() || (document.activeElement && container && container.contains(document.activeElement))) {
+                return;
+            }
+
+            fetch(window.location.href)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const newContainer = doc.getElementById('disputeDetailContainer');
+                    const oldContainer = document.getElementById('disputeDetailContainer');
+
+                    if (newContainer && oldContainer && oldContainer.innerHTML !== newContainer.innerHTML) {
+                        const msgInput = document.getElementById('messageInput');
+                        const typingVal = msgInput ? msgInput.value : '';
+
+                        oldContainer.innerHTML = newContainer.innerHTML;
+
+                        const newMsgInput = document.getElementById('messageInput');
+                        if (newMsgInput && typingVal) newMsgInput.value = typingVal;
+
+                        const updatedChat = document.getElementById('chatBox');
+                        if (updatedChat) updatedChat.scrollTop = updatedChat.scrollHeight;
+                    }
+                })
+                .catch(() => {});
+        }, 3000);
+    </script>
+}

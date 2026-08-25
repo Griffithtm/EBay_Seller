@@ -28,7 +28,7 @@ public static class ReturnRequestStatus
     public const string Requested = "Requested";
     public const string Accepted = "Accepted";
     public const string AwaitingBuyerReturn = "AwaitingBuyerReturn";
-    public const string InTransitBackToSeller = "InTransitBackToSeller";
+    public const string InTransitBackToSeller = "InTransitToSeller";
     public const string DeliveredToSeller = "DeliveredToSeller";
     public const string RefundOffered = "RefundOffered";
     public const string RefundedByReturn = "RefundedByReturn";

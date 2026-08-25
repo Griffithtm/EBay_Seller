@@ -6,6 +6,11 @@
 
 <div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><strong>Khiếu nại của tôi</strong></div>
 
+<div id="notificationToast" class="alert alert-info alert-dismissible fade show d-none position-fixed top-0 end-0 m-3 shadow-lg" style="z-index: 9999; max-width: 350px;" role="alert">
+    <strong>🔔 Cập nhật mới:</strong> <span id="toastMsg">Có cập nhật trạng thái khiếu nại!</span>
+    <button type="button" class="btn-close" onclick="document.getElementById('notificationToast').classList.add('d-none')"></button>
+</div>
+
 <section class="catalog-hero reveal">
     <div class="d-flex justify-content-between align-items-center">
         <div>
@@ -33,7 +38,7 @@
         <button type="submit" class="btn btn-primary px-4">Lọc</button>
     </form>
 
-    <div class="table-responsive">
+    <div class="table-responsive" id="tableContainer">
         <table class="table table-hover align-middle border">
             <thead class="table-light">
                 <tr>
@@ -98,3 +103,23 @@
         </table>
     </div>
 </section>
+
+@section Scripts {
+    <script>
+        setInterval(() => {
+            fetch(window.location.href)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContainer = doc.getElementById('tableContainer');
+                    const oldContainer = document.getElementById('tableContainer');
+
+                    if (newContainer && oldContainer && oldContainer.innerHTML !== newContainer.innerHTML) {
+                        oldContainer.innerHTML = newContainer.innerHTML;
+                    }
+                })
+                .catch(() => {});
+        }, 2000);
+    </script>
+}

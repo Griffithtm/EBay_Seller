@@ -7,7 +7,7 @@ namespace CloneEbay.Web.Controllers;
 
 [Authorize]
 [Route("buyer")]
-public class BuyerController(SellerApiClient api) : Controller
+public class BuyerController(SellerApiClient api, IWebHostEnvironment env) : Controller
 {
     // --- BUYER DISPUTES ---
 
@@ -29,9 +29,16 @@ public class BuyerController(SellerApiClient api) : Controller
     }
 
     [HttpGet("disputes/create")]
-    public IActionResult CreateDispute(int? orderId)
+    public async Task<IActionResult> CreateDispute(int? orderId)
     {
+        var ordersResult = await api.GetOrdersAsync(page: 1, pageSize: 50);
+        ViewBag.Orders = ordersResult.Data?.Items ?? new List<OrderSummaryDto>();
         ViewBag.OrderId = orderId;
+        if (orderId.HasValue && orderId.Value > 0)
+        {
+            var detailResult = await api.GetOrderDetailAsync(orderId.Value);
+            ViewBag.SelectedOrder = detailResult.Data;
+        }
         return View("Disputes/Create");
     }
 
@@ -41,7 +48,7 @@ public class BuyerController(SellerApiClient api) : Controller
     {
         if (orderId <= 0 || string.IsNullOrWhiteSpace(description))
         {
-            TempData["Error"] = "Vui lòng nhập Mã đơn hàng và lý do tranh chấp.";
+            TempData["Error"] = "Vui lòng chọn Đơn hàng và nhập mô tả lý do khiếu nại.";
             return View("Disputes/Create");
         }
 
@@ -52,7 +59,7 @@ public class BuyerController(SellerApiClient api) : Controller
             return View("Disputes/Create");
         }
 
-        TempData["Success"] = "Đã gửi khiếu nại/tranh chấp thành công.";
+        TempData["Success"] = "Đã gửi khiếu nại thành công.";
         return RedirectToAction(nameof(Disputes));
     }
 
@@ -70,6 +77,7 @@ public class BuyerController(SellerApiClient api) : Controller
     }
 
     [HttpPost("disputes/{id:int}/respond")]
+    [HttpPost("disputes/respond")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RespondDispute(int id, string message)
     {
@@ -81,6 +89,49 @@ public class BuyerController(SellerApiClient api) : Controller
         else
         {
             TempData["Success"] = "Đã gửi tin nhắn phản hồi thành công.";
+        }
+
+        return RedirectToAction(nameof(DisputeDetail), new { id });
+    }
+
+    [HttpPost("disputes/{id:int}/evidence")]
+    [HttpPost("disputes/evidence")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadEvidence(int id, IFormFile file)
+    {
+        if (id <= 0 && int.TryParse(Request.Form["id"], out var parsedId))
+        {
+            id = parsedId;
+        }
+
+        if (id <= 0 || file is null || file.Length == 0)
+        {
+            TempData["Error"] = "Vui lòng chọn file đính kèm hợp lệ.";
+            return RedirectToAction(nameof(Disputes));
+        }
+
+        var result = await api.UploadDisputeEvidenceAsync(id, file);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+        }
+        else
+        {
+            try
+            {
+                var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+                var uploadsDir = Path.Combine(webRoot, "uploads", "disputes");
+                if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+                if (result.Data?.Evidences != null && result.Data.Evidences.Count > 0)
+                {
+                    var lastEv = result.Data.Evidences.Last();
+                    var localPath = Path.Combine(uploadsDir, lastEv.FileName);
+                    using var stream = new FileStream(localPath, FileMode.Create);
+                    await file.CopyToAsync(stream);
+                }
+            }
+            catch { }
+            TempData["Success"] = "Đã tải lên bằng chứng thành công!";
         }
 
         return RedirectToAction(nameof(DisputeDetail), new { id });
@@ -124,9 +175,16 @@ public class BuyerController(SellerApiClient api) : Controller
     }
 
     [HttpGet("returns/create")]
-    public IActionResult CreateReturn(int? orderId)
+    public async Task<IActionResult> CreateReturn(int? orderId)
     {
+        var ordersResult = await api.GetOrdersAsync(page: 1, pageSize: 50);
+        ViewBag.Orders = ordersResult.Data?.Items ?? new List<OrderSummaryDto>();
         ViewBag.OrderId = orderId;
+        if (orderId.HasValue && orderId.Value > 0)
+        {
+            var detailResult = await api.GetOrderDetailAsync(orderId.Value);
+            ViewBag.SelectedOrder = detailResult.Data;
+        }
         return View("Returns/Create");
     }
 
@@ -152,10 +210,16 @@ public class BuyerController(SellerApiClient api) : Controller
     }
 
     [HttpPost("returns/{id:int}/shipping")]
+    [HttpPost("returns/shipping")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ProvideShipping(int id, string returnCarrier, string trackingNumber)
     {
-        if (string.IsNullOrWhiteSpace(returnCarrier) || string.IsNullOrWhiteSpace(trackingNumber))
+        if (id <= 0 && int.TryParse(Request.Form["id"], out var parsedId))
+        {
+            id = parsedId;
+        }
+
+        if (id <= 0 || string.IsNullOrWhiteSpace(returnCarrier) || string.IsNullOrWhiteSpace(trackingNumber))
         {
             TempData["Error"] = "Vui lòng điền đơn vị vận chuyển và mã vận đơn.";
             return RedirectToAction(nameof(Returns));
@@ -172,5 +236,19 @@ public class BuyerController(SellerApiClient api) : Controller
         }
 
         return RedirectToAction(nameof(Returns));
+    }
+
+    [HttpGet("purchases")]
+    public async Task<IActionResult> Purchases(string? status, int page = 1)
+    {
+        var result = await api.GetOrdersAsync(status, page, pageSize: 20);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+            return RedirectToAction("Index", "Home");
+        }
+
+        ViewBag.CurrentStatus = status;
+        return View("Purchases/Index", result.Data);
     }
 }

@@ -6,6 +6,11 @@
 
 <div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Tranh chấp</strong></div>
 
+<div id="notificationToast" class="alert alert-warning alert-dismissible fade show d-none position-fixed top-0 end-0 m-3 shadow-lg" style="z-index: 9999; max-width: 350px;" role="alert">
+    <strong>🔔 Thông báo mới:</strong> <span id="toastMsg">Có tranh chấp mới vừa được tạo!</span>
+    <button type="button" class="btn-close" onclick="document.getElementById('notificationToast').classList.add('d-none')"></button>
+</div>
+
 <section class="catalog-hero reveal">
     <div>
         <span class="section-kicker">DISPUTE RESOLUTION</span>
@@ -29,7 +34,7 @@
         <a asp-action="ExportCsv" asp-route-status="@statusFilter" asp-route-fromDate="@(ViewBag.FromDate?.ToString("yyyy-MM-dd"))" asp-route-toDate="@(ViewBag.ToDate?.ToString("yyyy-MM-dd"))" asp-route-searchTerm="@ViewBag.SearchTerm" class="btn btn-outline-success ms-auto">📊 Xuất Excel (CSV)</a>
     </form>
 
-    <div class="table-responsive">
+    <div class="table-responsive" id="tableContainer">
         <table class="table table-hover align-middle border">
             <thead class="table-light">
                 <tr>
@@ -110,3 +115,40 @@
         </div>
     }
 </section>
+
+@section Scripts {
+    <script>
+        let currentRowsCount = document.querySelectorAll('#tableContainer tbody tr').length;
+
+        setInterval(() => {
+            fetch(window.location.href)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContainer = doc.getElementById('tableContainer');
+                    const oldContainer = document.getElementById('tableContainer');
+
+                    if (newContainer && oldContainer && oldContainer.innerHTML !== newContainer.innerHTML) {
+                        const newRowsCount = doc.querySelectorAll('#tableContainer tbody tr').length;
+                        if (newRowsCount > currentRowsCount) {
+                            showNotificationToast("⚡ Có Tranh chấp mới vừa được gửi từ Người mua!");
+                        }
+                        currentRowsCount = newRowsCount;
+                        oldContainer.innerHTML = newContainer.innerHTML;
+                    }
+                })
+                .catch(() => {});
+        }, 2000);
+
+        function showNotificationToast(msg) {
+            let toast = document.getElementById('notificationToast');
+            let toastMsg = document.getElementById('toastMsg');
+            if (toast && toastMsg) {
+                toastMsg.innerText = msg;
+                toast.classList.remove('d-none');
+                setTimeout(() => toast.classList.add('d-none'), 5000);
+            }
+        }
+    </script>
+}

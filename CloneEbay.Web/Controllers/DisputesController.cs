@@ -7,7 +7,7 @@ namespace CloneEbay.Web.Controllers;
 
 [Authorize(Policy = "VerifiedSeller")]
 [Route("seller/disputes")]
-public class DisputesController(SellerApiClient api) : Controller
+public class DisputesController(SellerApiClient api, IWebHostEnvironment env) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(string? status, DateTime? fromDate, DateTime? toDate, string? searchTerm, int page = 1)
@@ -51,6 +51,43 @@ public class DisputesController(SellerApiClient api) : Controller
         else
         {
             TempData["Success"] = "Đã gửi tin nhắn phản hồi thành công.";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    [HttpPost("evidence")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadEvidence(int id, IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            TempData["Error"] = "Vui lòng chọn file đính kèm.";
+            return RedirectToAction(nameof(Detail), new { id });
+        }
+
+        var result = await api.UploadDisputeEvidenceAsync(id, file);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+        }
+        else
+        {
+            try
+            {
+                var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+                var uploadsDir = Path.Combine(webRoot, "uploads", "disputes");
+                if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+                if (result.Data?.Evidences != null && result.Data.Evidences.Count > 0)
+                {
+                    var lastEv = result.Data.Evidences.Last();
+                    var localPath = Path.Combine(uploadsDir, lastEv.FileName);
+                    using var stream = new FileStream(localPath, FileMode.Create);
+                    await file.CopyToAsync(stream);
+                }
+            }
+            catch { }
+            TempData["Success"] = "Đã tải lên bằng chứng thành công!";
         }
 
         return RedirectToAction(nameof(Detail), new { id });

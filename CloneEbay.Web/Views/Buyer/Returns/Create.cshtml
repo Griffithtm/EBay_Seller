@@ -1,6 +1,8 @@
 @{
     ViewData["Title"] = "Gửi Yêu cầu Đổi trả";
     var orderId = ViewBag.OrderId as int?;
+    var orders = ViewBag.Orders as List<OrderSummaryDto> ?? new List<OrderSummaryDto>();
+    var selectedOrder = ViewBag.SelectedOrder as OrderDetailDto;
 }
 
 <div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><a asp-action="Returns">Đổi trả</a><span>›</span><strong>Tạo mới</strong></div>
@@ -9,16 +11,48 @@
     <div>
         <span class="section-kicker">CREATE RETURN REQUEST</span>
         <h1>Yêu cầu Đổi trả sản phẩm</h1>
-        <p>Gửi yêu cầu trả lại sản phẩm hư hỏng, vỡ, hỏng hóc hoặc không vừa ý cho Người bán.</p>
+        <p>Chọn đơn hàng mua để gửi yêu cầu trả sản phẩm hư hỏng, vỡ, hỏng hóc hoặc không vừa ý cho Người bán.</p>
     </div>
 </section>
 
 <section class="catalog-workspace reveal reveal-delay-1 mt-4 max-w-2xl">
+    @if (selectedOrder != null)
+    {
+        var totalOrderPrice = selectedOrder.OrderItems?.Sum(i => i.Quantity * i.UnitPrice) ?? 0m;
+        <div class="card bg-light border-info mb-4 p-3 rounded-3">
+            <h6 class="fw-bold text-info-emphasis mb-2">📦 Đơn hàng đang chọn đổi trả: Đơn hàng #@selectedOrder.Id</h6>
+            <div class="small text-muted">
+                <div><strong>Trạng thái:</strong> @selectedOrder.Status</div>
+                <div><strong>Tổng tiền:</strong> @totalOrderPrice.ToString("N0") VNĐ</div>
+                <div><strong>Sản phẩm trong đơn:</strong></div>
+                <ul class="mb-0 mt-1">
+                    @foreach (var item in selectedOrder.OrderItems ?? new List<OrderItemDto>())
+                    {
+                        <li>@item.Title (x@item.Quantity) - @item.UnitPrice.ToString("N0") VNĐ</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
     <div class="card shadow-sm border rounded-3 p-4">
         <form asp-action="CreateReturn" method="post">
             <div class="mb-3">
-                <label class="form-label fw-bold">Mã Đơn hàng (#) <span class="text-danger">*</span></label>
-                <input type="number" name="orderId" value="@(orderId?.ToString() ?? "")" class="form-control" placeholder="Ví dụ: 101" required />
+                <label class="form-label fw-bold">Chọn Đơn hàng cần Đổi trả <span class="text-danger">*</span></label>
+                @if (orders.Count > 0)
+                {
+                    <select name="orderId" class="form-select mb-2" required onchange="if(this.value) window.location.href='?orderId=' + this.value;">
+                        <option value="">-- Chọn đơn hàng đã mua từ danh sách --</option>
+                        @foreach (var o in orders)
+                        {
+                            <option value="@o.Id" selected="@(orderId == o.Id)">Đơn hàng #@o.Id - @o.OrderDate.ToLocalTime().ToString("dd/MM/yyyy") (@o.TotalPrice.ToString("N0") VNĐ)</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input type="number" name="orderId" value="@(orderId?.ToString() ?? "")" class="form-control" placeholder="Nhập Mã đơn hàng (#)..." required />
+                }
             </div>
 
             <div class="mb-3">

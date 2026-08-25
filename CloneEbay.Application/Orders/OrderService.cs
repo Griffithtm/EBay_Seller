@@ -39,6 +39,76 @@ public sealed class OrderService(
             pagedOrders.TotalItems);
     }
 
+    public async Task<PagedResult<OrderSummaryDto>> GetUserOrdersAsync(
+        int userId,
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var pagedOrders = await orderRepository.GetUserOrdersAsync(userId, status, page, pageSize, cancellationToken);
+
+        var items = pagedOrders.Items.Select(order =>
+            new OrderSummaryDto(
+                order.Id,
+                order.OrderDateUtc,
+                order.TotalPrice,
+                order.Status)).ToList();
+
+        return new PagedResult<OrderSummaryDto>(
+            items,
+            pagedOrders.Page,
+            pagedOrders.PageSize,
+            pagedOrders.TotalItems);
+    }
+
+    public async Task<OrderDetailResponse> GetUserOrderDetailAsync(
+        int orderId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetUserOrderByIdAsync(orderId, userId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not belong to this user.");
+        }
+
+        var orderItems = order.Items
+            .Select(item => new OrderItemDto(
+                item.ProductId,
+                item.Product.Title,
+                item.Quantity,
+                item.UnitPrice))
+            .ToList();
+
+        AddressDto? addressDto = order.Address is null ? null : new AddressDto(
+            order.Address.Id,
+            order.Address.FullName,
+            order.Address.Phone,
+            order.Address.Street,
+            order.Address.City,
+            order.Address.State,
+            order.Address.Country);
+
+        PaymentSummaryDto? paymentDto = order.Payment is null ? null : new PaymentSummaryDto(
+            order.Payment.Method,
+            order.Payment.Status);
+
+        ShippingInfoSummaryDto? shippingDto = order.ShippingInfo is null ? null : new ShippingInfoSummaryDto(
+            order.ShippingInfo.Carrier,
+            order.ShippingInfo.TrackingNumber,
+            order.ShippingInfo.Status,
+            order.ShippingInfo.EstimatedArrivalUtc);
+
+        return new OrderDetailResponse(
+            order.Id,
+            order.Status,
+            orderItems,
+            addressDto,
+            paymentDto,
+            shippingDto);
+    }
+
     public async Task<OrderDetailResponse> GetSellerOrderDetailAsync(
         int orderId,
         int sellerId,

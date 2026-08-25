@@ -46,6 +46,7 @@
                         <li class="nav-item"><a class="nav-link @(currentPath == "/" ? "is-active" : string.Empty)" asp-controller="Home" asp-action="Index">Tổng quan</a></li>
                         @if (signedIn)
                         {
+                            <li class="nav-item"><a class="nav-link @Active("/buyer/purchases")" asp-controller="Buyer" asp-action="Purchases">Đơn mua của tôi</a></li>
                             <li class="nav-item"><a class="nav-link @Active("/buyer/disputes")" asp-controller="Buyer" asp-action="Disputes">Khiếu nại của tôi</a></li>
                             <li class="nav-item"><a class="nav-link @Active("/buyer/returns")" asp-controller="Buyer" asp-action="Returns">Đổi trả của tôi</a></li>
                             @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))

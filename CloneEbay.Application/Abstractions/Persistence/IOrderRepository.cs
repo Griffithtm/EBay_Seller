@@ -13,9 +13,21 @@ public interface IOrderRepository
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResult<Order>> GetUserOrdersAsync(
+        int userId,
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<Order?> GetSellerOrderByIdAsync(
         int orderId,
         int sellerId,
+        CancellationToken cancellationToken = default);
+
+    Task<Order?> GetUserOrderByIdAsync(
+        int orderId,
+        int userId,
         CancellationToken cancellationToken = default);
 
     Task AddShippingInfoAsync(ShippingInfo shippingInfo, CancellationToken cancellationToken = default);

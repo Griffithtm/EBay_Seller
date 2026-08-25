@@ -6,6 +6,11 @@
 
 <div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><strong>Đổi trả của tôi</strong></div>
 
+<div id="notificationToast" class="alert alert-info alert-dismissible fade show d-none position-fixed top-0 end-0 m-3 shadow-lg" style="z-index: 9999; max-width: 350px;" role="alert">
+    <strong>🔔 Cập nhật mới:</strong> <span id="toastMsg">Có cập nhật mới về yêu cầu đổi trả!</span>
+    <button type="button" class="btn-close" onclick="document.getElementById('notificationToast').classList.add('d-none')"></button>
+</div>
+
 <section class="catalog-hero reveal">
     <div class="d-flex justify-content-between align-items-center">
         <div>
@@ -34,7 +39,7 @@
         <button type="submit" class="btn btn-primary px-4">Lọc</button>
     </form>
 
-    <div class="table-responsive">
+    <div class="table-responsive" id="tableContainer">
         <table class="table table-hover align-middle border">
             <thead class="table-light">
                 <tr>
@@ -95,37 +100,9 @@
                             <td class="text-right action-cells">
                                 @if (req.Status == "Accepted" || req.Status == "AwaitingBuyerReturn")
                                 {
-                                    <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#shippingModal-@req.Id">
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="openShippingModal(@req.Id, '@req.ReturnCarrier', '@req.TrackingNumber')">
                                         📦 Điền mã vận đơn gửi hàng
                                     </button>
-
-                                    <div class="modal fade" id="shippingModal-@req.Id" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content text-start">
-                                                <form asp-action="ProvideShipping" method="post">
-                                                    <input type="hidden" name="id" value="@req.Id" />
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-header-title">Cập nhật thông tin gửi hàng trả về</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold">Đơn vị vận chuyển</label>
-                                                            <input type="text" name="returnCarrier" class="form-control" placeholder="Ví dụ: Giao Hàng Nhanh / Viettel Post" required />
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold">Mã vận đơn / Tracking Number</label>
-                                                            <input type="text" name="trackingNumber" class="form-control" placeholder="Ví dụ: GHN12345678" required />
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                                        <button type="submit" class="btn btn-success">Lưu & Gửi tin</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
                                 }
                             </td>
                         </tr>
@@ -135,3 +112,63 @@
         </table>
     </div>
 </section>
+
+<!-- Single Shared Modal Placed Outside Stacking Context to Fix Z-Index / Unclickable Inputs Bug -->
+<div class="modal fade" id="shippingModal" tabindex="-1" aria-labelledby="shippingModalTitle" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-start shadow">
+            <form asp-action="ProvideShipping" method="post">
+                <input type="hidden" name="id" id="modalReturnId" value="" />
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="shippingModalTitle">Cập nhật thông tin gửi hàng trả về</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Đơn vị vận chuyển</label>
+                        <input type="text" name="returnCarrier" id="modalReturnCarrier" class="form-control" placeholder="Ví dụ: Giao Hàng Nhanh / Viettel Post" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mã vận đơn / Tracking Number</label>
+                        <input type="text" name="trackingNumber" id="modalTrackingNumber" class="form-control" placeholder="Ví dụ: GHN12345678" required />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success px-4">Lưu & Gửi tin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openShippingModal(id, carrier, tracking) {
+            document.getElementById('modalReturnId').value = id;
+            document.getElementById('modalReturnCarrier').value = carrier || '';
+            document.getElementById('modalTrackingNumber').value = tracking || '';
+            var modalEl = document.getElementById('shippingModal');
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+
+        setInterval(() => {
+            if (!document.querySelector('.modal.show')) {
+                fetch(window.location.href)
+                    .then(res => res.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newContainer = doc.getElementById('tableContainer');
+                        const oldContainer = document.getElementById('tableContainer');
+
+                        if (newContainer && oldContainer && oldContainer.innerHTML !== newContainer.innerHTML) {
+                            oldContainer.innerHTML = newContainer.innerHTML;
+                        }
+                    })
+                    .catch(() => {});
+            }
+        }, 2000);
+    </script>
+}

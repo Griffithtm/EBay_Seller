@@ -36,6 +36,34 @@ public sealed class OrderRepository(CloneEbayDbContext dbContext) : IOrderReposi
         return new PagedResult<Order>(items, page, pageSize, totalItems);
     }
 
+    public async Task<PagedResult<Order>> GetUserOrdersAsync(
+        int userId,
+        string? status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Orders
+            .AsNoTracking()
+            .Where(order => order.BuyerId == userId || order.Items.Any(item => item.Product.SellerId == userId));
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(order => order.Status == status);
+        }
+
+        var totalItems = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Include(order => order.Items)
+            .ThenInclude(item => item.Product)
+            .OrderByDescending(order => order.OrderDateUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Order>(items, page, pageSize, totalItems);
+    }
+
     public async Task<Order?> GetSellerOrderByIdAsync(
         int orderId,
         int sellerId,
@@ -50,6 +78,23 @@ public sealed class OrderRepository(CloneEbayDbContext dbContext) : IOrderReposi
             .Include(order => order.ShippingInfo)
             .SingleOrDefaultAsync(
                 order => order.Id == orderId && order.Items.Any(item => item.Product.SellerId == sellerId),
+                cancellationToken);
+    }
+
+    public async Task<Order?> GetUserOrderByIdAsync(
+        int orderId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Orders
+            .Include(order => order.Items)
+            .ThenInclude(item => item.Product)
+            .ThenInclude(product => product.Inventory)
+            .Include(order => order.Address)
+            .Include(order => order.Payment)
+            .Include(order => order.ShippingInfo)
+            .SingleOrDefaultAsync(
+                order => order.Id == orderId && (order.BuyerId == userId || order.Items.Any(item => item.Product.SellerId == userId)),
                 cancellationToken);
     }
 

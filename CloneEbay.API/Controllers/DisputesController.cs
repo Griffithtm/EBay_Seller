@@ -63,7 +63,12 @@ public class DisputesController(IDisputeService disputeService, IWebHostEnvironm
         if (file == null || file.Length == 0)
             return BadRequest(ApiEnvelope<object>.Failure("NO_FILE", "File is empty.", HttpContext.TraceIdentifier));
 
-        var uploadsDir = Path.Combine(env.WebRootPath, "uploads", "disputes");
+        var webRoot = env.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            webRoot = Path.Combine(env.ContentRootPath, "wwwroot");
+        }
+        var uploadsDir = Path.Combine(webRoot, "uploads", "disputes");
         if (!Directory.Exists(uploadsDir))
             Directory.CreateDirectory(uploadsDir);
 

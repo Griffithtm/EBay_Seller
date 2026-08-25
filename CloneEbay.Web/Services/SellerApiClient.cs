@@ -416,6 +416,24 @@ public sealed class SellerApiClient(
             ct);
     }
 
+    public Task<ApiCallResult<DisputeResponseDto>> UploadDisputeEvidenceAsync(int disputeId, IFormFile file, CancellationToken ct = default)
+    {
+        return SendAsync<DisputeResponseDto>(
+            HttpMethod.Post,
+            $"api/disputes/{disputeId}/evidence",
+            () =>
+            {
+                var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(file.OpenReadStream());
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType ?? "application/octet-stream");
+                content.Add(fileContent, "file", file.FileName);
+                return content;
+            },
+            true,
+            true,
+            ct);
+    }
+
     private HttpContext GetHttpContext() =>
         httpContextAccessor.HttpContext ?? throw new InvalidOperationException("HTTP context is unavailable.");
 }

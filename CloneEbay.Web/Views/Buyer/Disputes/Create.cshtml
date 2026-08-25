@@ -1,6 +1,8 @@
 @{
     ViewData["Title"] = "Tạo Khiếu nại / Tranh chấp";
     var orderId = ViewBag.OrderId as int?;
+    var orders = ViewBag.Orders as List<OrderSummaryDto> ?? new List<OrderSummaryDto>();
+    var selectedOrder = ViewBag.SelectedOrder as OrderDetailDto;
 }
 
 <div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><a asp-action="Disputes">Khiếu nại</a><span>›</span><strong>Tạo mới</strong></div>
@@ -9,21 +11,53 @@
     <div>
         <span class="section-kicker">CREATE DISPUTE</span>
         <h1>Gửi khiếu nại đơn hàng</h1>
-        <p>Vui lòng mô tả rõ sự cố bạn gặp phải (hàng hư hỏng, không giống mô tả, giao thiếu...).</p>
+        <p>Vui lòng chọn đơn hàng hoặc sản phẩm gặp sự cố để gửi khiếu nại tới Người bán & Admin.</p>
     </div>
 </section>
 
 <section class="catalog-workspace reveal reveal-delay-1 mt-4 max-w-2xl">
+    @if (selectedOrder != null)
+    {
+        var totalOrderPrice = selectedOrder.OrderItems?.Sum(i => i.Quantity * i.UnitPrice) ?? 0m;
+        <div class="card bg-light border-primary mb-4 p-3 rounded-3">
+            <h6 class="fw-bold text-primary mb-2">📦 Đơn hàng đang được chọn: Đơn hàng #@selectedOrder.Id</h6>
+            <div class="small text-muted">
+                <div><strong>Trạng thái:</strong> @selectedOrder.Status</div>
+                <div><strong>Tổng tiền:</strong> @totalOrderPrice.ToString("N0") VNĐ</div>
+                <div><strong>Sản phẩm trong đơn:</strong></div>
+                <ul class="mb-0 mt-1">
+                    @foreach (var item in selectedOrder.OrderItems ?? new List<OrderItemDto>())
+                    {
+                        <li>@item.Title (x@item.Quantity) - @item.UnitPrice.ToString("N0") VNĐ</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
     <div class="card shadow-sm border rounded-3 p-4">
         <form asp-action="CreateDispute" method="post">
             <div class="mb-3">
-                <label class="form-label fw-bold">Mã Đơn hàng (#) <span class="text-danger">*</span></label>
-                <input type="number" name="orderId" value="@(orderId?.ToString() ?? "")" class="form-control" placeholder="Ví dụ: 101" required />
+                <label class="form-label fw-bold">Chọn Đơn hàng của bạn <span class="text-danger">*</span></label>
+                @if (orders.Count > 0)
+                {
+                    <select name="orderId" class="form-select mb-2" required onchange="if(this.value) window.location.href='?orderId=' + this.value;">
+                        <option value="">-- Chọn đơn hàng từ danh sách --</option>
+                        @foreach (var o in orders)
+                        {
+                            <option value="@o.Id" selected="@(orderId == o.Id)">Đơn hàng #@o.Id - @o.OrderDate.ToLocalTime().ToString("dd/MM/yyyy") (@o.TotalPrice.ToString("N0") VNĐ)</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input type="number" name="orderId" value="@(orderId?.ToString() ?? "")" class="form-control" placeholder="Nhập Mã đơn hàng (#)..." required />
+                }
             </div>
 
             <div class="mb-3">
                 <label class="form-label fw-bold">Mô tả lý do khiếu nại <span class="text-danger">*</span></label>
-                <textarea name="description" class="form-control" rows="5" placeholder="Mô tả chi tiết nội dung sự cố bạn gặp phải với sản phẩm/đơn hàng này..." required></textarea>
+                <textarea name="description" class="form-control" rows="5" placeholder="Mô tả chi tiết sự cố bạn gặp phải với sản phẩm/đơn hàng này (hàng nứt vỡ, không đúng mô tả, thiếu phụ kiện...)" required></textarea>
             </div>
 
             <div class="d-flex gap-2">

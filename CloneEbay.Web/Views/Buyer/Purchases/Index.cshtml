@@ -1,0 +1,62 @@
+@model PagedResultDto<OrderSummaryDto>
+@{
+    ViewData["Title"] = "Đơn hàng đã mua của tôi";
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>›</span><strong>Đơn hàng của tôi</strong></div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">MY PURCHASE HISTORY</span>
+        <h1>Lịch sử Đơn hàng đã mua</h1>
+        <p>Danh sách các đơn hàng bạn đã mua trên sàn. Bạn có thể yêu cầu đổi trả hoặc báo cáo tranh chấp trực tiếp cho từng đơn hàng tại đây.</p>
+    </div>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-1 mt-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle border">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã Đơn hàng</th>
+                    <th>Ngày mua</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái</th>
+                    <th class="text-right">Thao tác giải quyết sự cố</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <span class="text-muted">Bạn chưa có đơn hàng nào trong lịch sử mua sắm.</span>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var order in Model.Items)
+                    {
+                        <tr>
+                            <td><strong class="text-primary">#@order.Id</strong></td>
+                            <td>@order.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="fw-bold">@order.TotalPrice.ToString("N0") VNĐ</td>
+                            <td>
+                                <span class="badge bg-success">@order.Status</span>
+                            </td>
+                            <td class="text-right action-cells">
+                                <a asp-action="CreateReturn" asp-route-orderId="@order.Id" class="btn btn-outline-primary btn-sm me-1">
+                                    📦 Yêu cầu Đổi trả
+                                </a>
+                                <a asp-action="CreateDispute" asp-route-orderId="@order.Id" class="btn btn-outline-warning btn-sm">
+                                    ⚠️ Báo cáo Tranh chấp
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</section>

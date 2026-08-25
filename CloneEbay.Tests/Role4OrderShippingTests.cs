@@ -307,6 +307,19 @@ public sealed class Role4OrderShippingTests
             return Task.FromResult(order);
         }
 
+        public Task<PagedResult<Order>> GetUserOrdersAsync(int userId, string? status, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var query = _orders.Where(o => o.BuyerId == userId || o.Items.Any(i => i.Product.SellerId == userId));
+            if (!string.IsNullOrWhiteSpace(status)) query = query.Where(o => o.Status == status);
+            return Task.FromResult(new PagedResult<Order>(query.Skip((page - 1) * pageSize).Take(pageSize).ToList(), page, pageSize, query.Count()));
+        }
+
+        public Task<Order?> GetUserOrderByIdAsync(int orderId, int userId, CancellationToken cancellationToken = default)
+        {
+            var order = _orders.FirstOrDefault(o => o.Id == orderId && (o.BuyerId == userId || o.Items.Any(i => i.Product.SellerId == userId)));
+            return Task.FromResult(order);
+        }
+
         public Task AddShippingInfoAsync(ShippingInfo shippingInfo, CancellationToken cancellationToken = default)
         {
             var order = _orders.FirstOrDefault(o => o.Id == shippingInfo.OrderId);
