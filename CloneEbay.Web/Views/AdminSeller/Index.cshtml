@@ -88,6 +88,22 @@
                     else
                     {
                         <a class="btn btn-secondary-soft" asp-controller="Store" asp-action="Public" asp-route-sellerId="@application.SellerId" target="_blank" rel="noopener">Xem cửa hàng <span aria-hidden="true">↗</span></a>
+
+                        @if (application.Status == "Approved")
+                        {
+                            <details class="reject-panel">
+                                <summary class="btn btn-secondary-soft">Đặt cấp độ tài khoản</summary>
+                                <form asp-action="SetPerformanceLevel" asp-route-sellerId="@application.SellerId" asp-route-status="@activeStatus" method="post" data-loading-form data-confirm="Đặt thủ công cấp độ cho seller #@application.SellerId? Lần đánh giá tự động tiếp theo sẽ ghi đè lại theo dữ liệu thật.">
+                                    <label for="level-@application.SellerId">Cấp độ (ghi đè thủ công — chỉ dùng cho ngoại lệ)</label>
+                                    <select id="level-@application.SellerId" name="level" class="form-select" required>
+                                        <option value="BelowStandard">Below Standard</option>
+                                        <option value="AboveStandard">Above Standard</option>
+                                        <option value="TopRated">Top Rated</option>
+                                    </select>
+                                    <div><button class="btn btn-secondary-soft" type="button" data-close-details>Hủy</button><button class="btn btn-primary" type="submit" data-loading-text="Đang cập nhật...">Xác nhận đặt cấp độ</button></div>
+                                </form>
+                            </details>
+                        }
                     }
                 </article>
             }

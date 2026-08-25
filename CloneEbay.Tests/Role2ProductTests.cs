@@ -2,6 +2,7 @@ using CloneEbay.Application.Abstractions.Persistence;
 using CloneEbay.Application.Abstractions.Time;
 using CloneEbay.Application.Common;
 using CloneEbay.Application.Products;
+using CloneEbay.Application.Sellers;
 using CloneEbay.Domain.Entities;
 using CloneEbay.Domain.Enums;
 
@@ -16,7 +17,7 @@ public sealed class Role2ProductTests
         product.Bids.Add(new Bid { Id = 1, ProductId = 10, BidderId = 21, Amount = 500, BidTimeUtc = Utc(10, 5) });
         product.Bids.Add(new Bid { Id = 2, ProductId = 10, BidderId = 22, Amount = 500, BidTimeUtc = Utc(10, 3) });
         var repository = new FakeProducts(product);
-        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock());
+        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock(), new FakeSellerPerformanceService());
 
         var result = await service.CloseAuctionAsync(10, 4, false);
 
@@ -38,7 +39,7 @@ public sealed class Role2ProductTests
         var product = AuctionProduct();
         product.Bids.Add(new Bid { Id = 1, ProductId = 10, BidderId = 21, Amount = 600, BidTimeUtc = Utc(10, 2) });
         var repository = new FakeProducts(product);
-        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock());
+        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock(), new FakeSellerPerformanceService());
 
         var first = await service.CloseAuctionAsync(10, 4, false);
         var second = await service.CloseAuctionAsync(10, 4, false);
@@ -52,7 +53,7 @@ public sealed class Role2ProductTests
     {
         var product = AuctionProduct();
         var repository = new FakeProducts(product);
-        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock());
+        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock(), new FakeSellerPerformanceService());
 
         var result = await service.CloseAuctionAsync(10, 4, false);
 
@@ -67,7 +68,7 @@ public sealed class Role2ProductTests
     {
         var product = AuctionProduct();
         var repository = new FakeProducts(product) { ProductHasOrders = true };
-        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock());
+        var service = new ProductService(repository, new FakeUnitOfWork(), new FixedClock(), new FakeSellerPerformanceService());
 
         var problem = await Assert.ThrowsAsync<AppProblemException>(() => service.DeleteAsync(10, 4));
 
@@ -81,7 +82,7 @@ public sealed class Role2ProductTests
     {
         var product = AuctionProduct(endTime: Utc(13, 0));
         product.Bids.Add(new Bid { Id = 1, ProductId = 10, BidderId = 21, Amount = 500, BidTimeUtc = Utc(10, 2) });
-        var service = new ProductService(new FakeProducts(product), new FakeUnitOfWork(), new FixedClock());
+        var service = new ProductService(new FakeProducts(product), new FakeUnitOfWork(), new FixedClock(), new FakeSellerPerformanceService());
 
         var problem = await Assert.ThrowsAsync<AppProblemException>(() =>
             service.PlaceBidAsync(10, 23, new PlaceBidRequest(500)));
@@ -146,5 +147,22 @@ public sealed class Role2ProductTests
         }
         public Task<IReadOnlyList<int>> GetExpiredAuctionIdsAsync(DateTime utcNow, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<int>>([]);
+    }
+
+    /// <summary>No-op stub: these tests never call CreateAsync, so the selling-limit gate is never exercised.</summary>
+    private sealed class FakeSellerPerformanceService : ISellerPerformanceService
+    {
+        public Task<SellerPerformanceResponse> GetAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task<SellerPerformanceWarningResponse> GetEarlyWarningAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task EvaluateSellerAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task<int> EvaluateDueSellersAsync(CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task EnsureCanListAsync(int sellerId, decimal newListingEstimatedValue, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+        public Task<SellerPerformanceResponse> OverrideLevelAsync(int sellerId, string level, int adminUserId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
     }
 }

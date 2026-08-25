@@ -23,7 +23,12 @@ public interface IDashboardRepository
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
-    Task<SellerPerformanceDto> GetPerformanceAsync(
+    /// <summary>
+    /// Raw, period-scoped fulfilment figures (week/month, as selected on the dashboard) —
+    /// distinct from the persisted 12-month SellerPerformance level, which
+    /// <see cref="Dashboard.DashboardService"/> layers on top separately.
+    /// </summary>
+    Task<(int TotalOrders, decimal LateShipmentRate, decimal DisputeRate, decimal PositiveFeedbackRate)> GetPerformanceAsync(
         int sellerId,
         DateTime fromUtc,
         DateTime toUtc,

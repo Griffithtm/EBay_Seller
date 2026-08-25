@@ -16,6 +16,7 @@ public sealed class ShippingInfoConfiguration : IEntityTypeConfiguration<Shippin
         builder.Property(info => info.TrackingNumber).HasColumnName("trackingNumber").HasMaxLength(100);
         builder.Property(info => info.Status).HasColumnName("status").HasMaxLength(50);
         builder.Property(info => info.EstimatedArrivalUtc).HasColumnName("estimatedArrival");
+        builder.Property(info => info.ShippedAtUtc).HasColumnName("shippedAtUtc");
 
         builder.HasOne(info => info.Order)
             .WithOne(order => order.ShippingInfo)

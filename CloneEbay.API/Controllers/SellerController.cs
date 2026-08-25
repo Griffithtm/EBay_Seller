@@ -11,8 +11,24 @@ namespace CloneEbay.API.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/seller")]
-public sealed class SellerController(ISellerService sellerService) : ControllerBase
+public sealed class SellerController(ISellerService sellerService, ISellerPerformanceService performanceService) : ControllerBase
 {
+    [HttpGet("performance")]
+    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
+    public async Task<ActionResult<ApiEnvelope<SellerPerformanceResponse>>> Performance(CancellationToken cancellationToken)
+    {
+        var result = await performanceService.GetAsync(User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<SellerPerformanceResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("performance/warnings")]
+    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
+    public async Task<ActionResult<ApiEnvelope<SellerPerformanceWarningResponse>>> PerformanceWarnings(CancellationToken cancellationToken)
+    {
+        var result = await performanceService.GetEarlyWarningAsync(User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<SellerPerformanceWarningResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("apply")]
     public async Task<ActionResult<ApiEnvelope<SellerVerificationResponse>>> Apply(
         SellerApplyRequest request,

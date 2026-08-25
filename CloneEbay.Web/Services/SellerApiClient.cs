@@ -365,6 +365,15 @@ public sealed class SellerApiClient(
     public Task<ApiCallResult<BuyerSummaryResponseDto>> GetBuyerSummaryAsync(int buyerId, CancellationToken ct = default) =>
         GetAsync<BuyerSummaryResponseDto>($"api/seller/buyer-summary/{buyerId}", true, ct);
 
+    public Task<ApiCallResult<SellerPerformanceLevelDto>> GetSellerPerformanceAsync(CancellationToken ct = default) =>
+        GetAsync<SellerPerformanceLevelDto>("api/seller/performance", true, ct);
+
+    public Task<ApiCallResult<SellerPerformanceWarningDto>> GetSellerPerformanceWarningsAsync(CancellationToken ct = default) =>
+        GetAsync<SellerPerformanceWarningDto>("api/seller/performance/warnings", true, ct);
+
+    public Task<ApiCallResult<SellerPerformanceLevelDto>> SetSellerPerformanceLevelAsync(int sellerId, string level, CancellationToken ct = default) =>
+        PutAsync<SellerPerformanceLevelDto>($"api/admin/seller/{sellerId}/performance-level", new { level }, cancellationToken: ct);
+
     public Task<ApiCallResult<Dictionary<string, string>>> UploadMessageAttachmentAsync(IFormFile file, CancellationToken ct = default)
     {
         return SendAsync<Dictionary<string, string>>(

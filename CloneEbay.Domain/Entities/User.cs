@@ -18,6 +18,7 @@ public sealed class User : BaseEntity
     public DateTime UpdatedAtUtc { get; set; }
 
     public Store? Store { get; set; }
+    public SellerPerformance? Performance { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Product> Products { get; set; } = new List<Product>();
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();

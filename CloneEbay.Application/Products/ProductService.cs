@@ -2,6 +2,7 @@ using System.Text.Json;
 using CloneEbay.Application.Abstractions.Persistence;
 using CloneEbay.Application.Abstractions.Time;
 using CloneEbay.Application.Common;
+using CloneEbay.Application.Sellers;
 using CloneEbay.Domain.Entities;
 using CloneEbay.Domain.Enums;
 
@@ -10,7 +11,8 @@ namespace CloneEbay.Application.Products;
 public sealed class ProductService(
     IProductRepository products,
     IUnitOfWork unitOfWork,
-    IClock clock) : IProductService
+    IClock clock,
+    ISellerPerformanceService sellerPerformance) : IProductService
 {
     public async Task<IReadOnlyList<CategoryResponse>> GetCategoriesAsync(CancellationToken cancellationToken = default) =>
         (await products.GetCategoriesAsync(cancellationToken))
@@ -80,6 +82,11 @@ public sealed class ProductService(
         {
             throw Problem(422, "CATEGORY_NOT_FOUND", "Selected category does not exist.");
         }
+
+        // Seller performance selling-limit gate: throws AppProblemException(403) if the
+        // seller's tier has no room left for one more active listing of this value.
+        var estimatedValue = request.IsAuction ? request.Price : request.Price * request.Quantity;
+        await sellerPerformance.EnsureCanListAsync(sellerId, estimatedValue, cancellationToken);
 
         var product = new Product
         {

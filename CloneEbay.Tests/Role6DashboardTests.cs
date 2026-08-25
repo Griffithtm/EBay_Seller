@@ -1,6 +1,7 @@
 ﻿using CloneEbay.Application.Abstractions.Persistence;
 using CloneEbay.Application.Abstractions.Time;
 using CloneEbay.Application.Dashboard;
+using CloneEbay.Application.Sellers;
 
 namespace CloneEbay.Tests;
 
@@ -15,7 +16,7 @@ public sealed class Role6DashboardTests
         };
         var fakeCache = new FakeDashboardCache();
         var clock = new FixedClock(new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc));
-        var service = new DashboardService(fakeRepo, fakeCache, clock);
+        var service = new DashboardService(fakeRepo, fakeCache, clock, new FakeSellerPerformanceService());
 
         var result = await service.GetSummaryAsync(sellerId: 3, period: "week");
 
@@ -45,7 +46,7 @@ public sealed class Role6DashboardTests
         };
         var fakeCache = new FakeDashboardCache();
         var clock = new FixedClock(new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc));
-        var service = new DashboardService(fakeRepo, fakeCache, clock);
+        var service = new DashboardService(fakeRepo, fakeCache, clock, new FakeSellerPerformanceService());
 
         var result = await service.GetTopProductsAsync(sellerId: 3, period: "week", limit: 2);
 
@@ -67,7 +68,7 @@ public sealed class Role6DashboardTests
         };
         var fakeCache = new FakeDashboardCache();
         var clock = new FixedClock(new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc));
-        var service = new DashboardService(fakeRepo, fakeCache, clock);
+        var service = new DashboardService(fakeRepo, fakeCache, clock, new FakeSellerPerformanceService());
 
         var result = await service.GetRevenueChartAsync(sellerId: 3, period: "week");
 
@@ -96,7 +97,7 @@ public sealed class Role6DashboardTests
         };
         var fakeCache = new FakeDashboardCache();
         var clock = new FixedClock(new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc));
-        var service = new DashboardService(fakeRepo, fakeCache, clock);
+        var service = new DashboardService(fakeRepo, fakeCache, clock, new FakeSellerPerformanceService());
 
         var result = await service.GetRevenueChartAsync(sellerId: 3, period: "month");
 
@@ -107,23 +108,23 @@ public sealed class Role6DashboardTests
     }
 
     [Fact]
-    public async Task Get_performance_returns_valid_indicators()
+    public async Task Get_performance_combines_period_figures_with_the_real_persisted_level()
     {
         var fakeRepo = new FakeDashboardRepository
         {
-            PerformanceResult = new SellerPerformanceDto("week", 15, 0m, 0m, "TopRated", 100m)
+            PerformanceResult = (15, 5m, 2m, 97.5m)
         };
         var fakeCache = new FakeDashboardCache();
         var clock = new FixedClock(new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc));
-        var service = new DashboardService(fakeRepo, fakeCache, clock);
+        var service = new DashboardService(fakeRepo, fakeCache, clock, new FakeSellerPerformanceService { Level = "TopRated" });
 
         var result = await service.GetPerformanceAsync(sellerId: 3, period: "week");
 
         Assert.Equal(15, result.TotalOrders);
         Assert.Equal("TopRated", result.SellerLevel);
-        Assert.Equal(0m, result.LateShipmentRate);
-        Assert.Equal(0m, result.DisputeRate);
-        Assert.Equal(100m, result.PositiveFeedbackRate);
+        Assert.Equal(5m, result.LateShipmentRate);
+        Assert.Equal(2m, result.DisputeRate);
+        Assert.Equal(97.5m, result.PositiveFeedbackRate);
     }
 
     private sealed class FakeDashboardRepository : IDashboardRepository
@@ -131,7 +132,7 @@ public sealed class Role6DashboardTests
         public (decimal TotalRevenue, int TotalOrders, decimal AverageOrderValue) SummaryResult { get; set; }
         public List<TopProductDto> TopProducts { get; set; } = [];
         public List<DailyOrderAggregateDto> DailyAggregates { get; set; } = [];
-        public SellerPerformanceDto PerformanceResult { get; set; } = new("week", 0, 0m, 0m, "AboveStandard", 100m);
+        public (int TotalOrders, decimal LateShipmentRate, decimal DisputeRate, decimal PositiveFeedbackRate) PerformanceResult { get; set; } = (0, 0m, 0m, 100m);
         public int SummaryCallCount { get; private set; }
 
         public Task<(decimal TotalRevenue, int TotalOrders, decimal AverageOrderValue)> GetSummaryAsync(
@@ -159,12 +160,31 @@ public sealed class Role6DashboardTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DailyOrderAggregateDto>>(DailyAggregates);
 
-        public Task<SellerPerformanceDto> GetPerformanceAsync(
+        public Task<(int TotalOrders, decimal LateShipmentRate, decimal DisputeRate, decimal PositiveFeedbackRate)> GetPerformanceAsync(
             int sellerId,
             DateTime fromUtc,
             DateTime toUtc,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(PerformanceResult);
+    }
+
+    /// <summary>Returns a fixed, pre-configured level; the other members are unused by DashboardService.</summary>
+    private sealed class FakeSellerPerformanceService : ISellerPerformanceService
+    {
+        public string Level { get; set; } = "AboveStandard";
+
+        public Task<SellerPerformanceResponse> GetAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SellerPerformanceResponse(sellerId, Level, 0m, 0m, 100m, 0m, 0, 0m, 100, 5000m, 0, 0m, null, DateTime.UtcNow, null, null));
+        public Task<SellerPerformanceWarningResponse> GetEarlyWarningAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task EvaluateSellerAsync(int sellerId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task<int> EvaluateDueSellersAsync(CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task EnsureCanListAsync(int sellerId, decimal newListingEstimatedValue, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+        public Task<SellerPerformanceResponse> OverrideLevelAsync(int sellerId, string level, int adminUserId, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
     }
 
     private sealed class FakeDashboardCache : IDashboardCacheService

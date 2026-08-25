@@ -183,6 +183,9 @@ public sealed class OrderService(
             string.Equals(targetShippingStatus, "InTransit", StringComparison.OrdinalIgnoreCase))
         {
             order.Status = "Shipped";
+            // First time the order actually leaves the seller — feeds the LateShipmentRate /
+            // TrackingUploadedOnTimeRate seller-performance metrics; never overwritten afterwards.
+            order.ShippingInfo.ShippedAtUtc ??= clock.UtcNow;
         }
         else if (string.Equals(targetShippingStatus, "Delivered", StringComparison.OrdinalIgnoreCase))
         {
