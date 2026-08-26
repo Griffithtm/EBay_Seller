@@ -114,74 +114,46 @@
         transition: width 0.4s ease;
     }
 
-    /* Elegant Carrier Timeline */
-    .carrier-timeline {
-        position: relative;
-        padding: 8px 0;
+    /* Shopee / eBay Real-Time Milestones Timeline */
+    .shopee-tracking-timeline {
+        border-left: 2px solid #e2e8f0;
+        margin-left: 10px;
     }
-    .carrier-event {
-        display: flex;
-        align-items: flex-start;
+    .tracking-log-item {
         position: relative;
-        padding-bottom: 22px;
+        padding-bottom: 24px;
+        padding-left: 20px;
     }
-    .carrier-event:last-child {
+    .tracking-log-item:last-child {
         padding-bottom: 0;
     }
-    .carrier-event::before {
-        content: "";
+    .tracking-dot {
         position: absolute;
-        left: 17px;
-        top: 36px;
-        bottom: 0;
-        width: 2px;
-        background: #e2e8f0;
-    }
-    .carrier-event:last-child::before {
-        display: none;
-    }
-    .carrier-event.active::before {
-        background: #10b981;
-    }
-    .event-node {
-        width: 36px;
-        height: 36px;
+        left: -31px;
+        top: 2px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.95rem;
-        flex-shrink: 0;
-        z-index: 2;
-        background: #f1f5f9;
-        color: #94a3b8;
-        border: 2px solid #e2e8f0;
+        font-size: 0.75rem;
+        box-shadow: 0 0 0 4px #ffffff;
     }
-    .carrier-event.completed .event-node {
-        background: #dcfce7;
-        color: #16a34a;
-        border-color: #86efac;
-    }
-    .carrier-event.current .event-node {
-        background: #e0f2fe;
-        color: #0284c7;
-        border-color: #7dd3fc;
-        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
-    }
-    .event-content {
-        margin-left: 16px;
-        flex-grow: 1;
-        padding-top: 6px;
-    }
-    .event-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 2px;
-    }
-    .event-subtitle {
+    .tracking-time {
         font-size: 0.8rem;
-        color: #64748b;
+        margin-bottom: 3px;
+    }
+    .tracking-content {
+        line-height: 1.4;
+    }
+    .blink-dot {
+        animation: pulseTracking 1.5s infinite;
+    }
+    @@keyframes pulseTracking {
+        0% { box-shadow: 0 0 0 0 rgba(0, 100, 210, 0.5); }
+        70% { box-shadow: 0 0 0 8px rgba(0, 100, 210, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 100, 210, 0); }
     }
 </style>
 
@@ -195,7 +167,7 @@
     <div>
         <h2 class="fw-bold mb-0 text-dark">
             Đơn hàng #@Model.Id 
-            <span class="badge @StatusBadgeClass(Model.Status) fs-6 align-middle ms-2">@StatusLabel(Model.Status)</span>
+            <span id="orderMainStatusBadge" class="badge @StatusBadgeClass(Model.Status) fs-6 align-middle ms-2">@StatusLabel(Model.Status)</span>
         </h2>
     </div>
     <a class="btn btn-outline-secondary btn-sm px-3" asp-action="Index">← Danh sách Đơn hàng</a>
@@ -216,56 +188,142 @@
     </div>
 }
 
-<!-- TRACKING PROGRESS STEPPER (5 GIAI ĐOẠN) -->
-<div class="card shadow-sm border-0 rounded-4 mb-4 p-4 reveal" style="background: #ffffff;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <span class="fw-bold text-dark"><i class="bi bi-truck me-2 text-primary"></i>eBay Tracking Status</span>
-        <span class="badge @(isDelivered ? "bg-success text-white" : isShipped ? "bg-info text-dark" : isPreparing ? "bg-primary text-white" : "bg-warning text-dark") px-3 py-1">
-            @StatusLabel(Model.Status)
-        </span>
+@if (Model.Status == "CANCELLED")
+{
+    <!-- TRẠNG THÁI ĐƠN HÀNG ĐÃ HỦY -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 p-4 reveal" style="background: #fff5f5; border-left: 4px solid #ef4444 !important;">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; min-width: 48px;">
+                    <i class="bi bi-x-circle-fill fs-3"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold text-danger mb-1">ĐƠN HÀNG ĐÃ BỊ HỦY BỎ (CANCELLED)</h5>
+                    <p class="text-muted small mb-0">Tiến trình vận chuyển đã dừng hoàn toàn. Không thể thực hiện thêm bất kỳ thao tác tracking nào cho đơn hàng này.</p>
+                </div>
+            </div>
+            <span class="badge bg-danger px-3 py-2 fs-6">CANCELLED</span>
+        </div>
     </div>
+}
+else
+{
+    <!-- TRACKING PROGRESS STEPPER (5 GIAI ĐOẠN) -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 p-4 reveal" style="background: #ffffff;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-dark fs-6"><i class="bi bi-truck me-2 text-primary"></i>eBay Tracking Status</span>
+                <span id="trackingHeaderBadge" class="badge @(isDelivered ? "bg-success text-white" : isShipped ? "bg-info text-dark" : isPreparing ? "bg-primary text-white" : "bg-warning text-dark") px-3 py-1">
+                    @StatusLabel(Model.Status)
+                </span>
+            </div>
+        </div>
 
-    <div class="position-relative my-3">
-        <div class="stepper-line">
-            <div class="stepper-line-progress" style="width: @progressPercent%"></div>
+        <div class="position-relative my-3">
+            <div class="stepper-line">
+                <div id="stepperLineProgress" class="stepper-line-progress" style="width: @progressPercent%"></div>
+            </div>
+            <div class="tracking-stepper">
+                <!-- 1. Đã tạo đơn -->
+                <div id="stepItem1" class="stepper-item completed">
+                    <div class="stepper-circle"><i class="bi bi-check-lg"></i></div>
+                    <div class="stepper-label">1. Đã tạo đơn</div>
+                </div>
+                <!-- 2. Đã thanh toán -->
+                <div id="stepItem2" class="stepper-item @(currentStep >= 2 ? "completed" : "active")">
+                    <div class="stepper-circle">
+                        @if (currentStep >= 2) { <i class="bi bi-check-lg"></i> } else { <span>2</span> }
+                    </div>
+                    <div class="stepper-label">2. Đã thanh toán</div>
+                </div>
+                <!-- 3. Đang chuẩn bị hàng -->
+                <div id="stepItem3" class="stepper-item @(currentStep > 3 ? "completed" : currentStep == 3 ? "active" : "")">
+                    <div class="stepper-circle">
+                        @if (currentStep > 3) { <i class="bi bi-check-lg"></i> } else if (currentStep == 3) { <i class="bi bi-box-seam"></i> } else { <span>3</span> }
+                    </div>
+                    <div class="stepper-label">3. Chuẩn bị hàng</div>
+                </div>
+                <!-- 4. Đang vận chuyển -->
+                <div id="stepItem4" class="stepper-item @(currentStep > 4 ? "completed" : currentStep == 4 ? "active" : "")">
+                    <div class="stepper-circle">
+                        @if (currentStep > 4) { <i class="bi bi-check-lg"></i> } else if (currentStep == 4) { <i class="bi bi-truck"></i> } else { <span>4</span> }
+                    </div>
+                    <div class="stepper-label">4. Đang vận chuyển</div>
+                </div>
+                <!-- 5. Đã nhận hàng -->
+                <div id="stepItem5" class="stepper-item @(currentStep == 5 ? "completed" : "")">
+                    <div class="stepper-circle">
+                        @if (currentStep == 5) { <i class="bi bi-check-lg"></i> } else { <span>5</span> }
+                    </div>
+                    <div class="stepper-label">5. Đã nhận hàng</div>
+                </div>
+            </div>
         </div>
-        <div class="tracking-stepper">
-            <!-- 1. Đã tạo đơn -->
-            <div class="stepper-item completed">
-                <div class="stepper-circle"><i class="bi bi-check-lg"></i></div>
-                <div class="stepper-label">Đã tạo đơn</div>
-            </div>
-            <!-- 2. Đã thanh toán -->
-            <div class="stepper-item @(currentStep >= 2 ? "completed" : "active")">
-                <div class="stepper-circle">
-                    @if (currentStep >= 2) { <i class="bi bi-check-lg"></i> } else { <span>2</span> }
+
+        <!-- BỘ ĐIỀU KHIỂN TIẾN TRÌNH TRACKING -->
+        <div id="trackingActionToolbar" class="mt-4 pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-2 bg-light p-3 rounded-3">
+            @if (Model.Status == "AWAITING_PAYMENT")
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark border px-3 py-2 fw-bold shadow-sm">
+                        <i class="bi bi-hourglass-split me-1"></i> Bước tiếp theo:
+                    </span>
+                    <span class="text-dark fw-semibold small">Chờ người mua thanh toán tiền hàng hoặc xác nhận thanh toán</span>
                 </div>
-                <div class="stepper-label">Đã thanh toán</div>
-            </div>
-            <!-- 3. Đang chuẩn bị hàng -->
-            <div class="stepper-item @(currentStep > 3 ? "completed" : currentStep == 3 ? "active" : "")">
-                <div class="stepper-circle">
-                    @if (currentStep > 3) { <i class="bi bi-check-lg"></i> } else if (currentStep == 3) { <i class="bi bi-box-seam"></i> } else { <span>3</span> }
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-primary fw-bold px-3 shadow-sm" onclick="progressTrackingTo('AWAITING_SHIPMENT')">
+                        💳 Xác nhận Đã thanh toán &rarr; Chờ gửi hàng
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('Bạn có chắc muốn hủy đơn?')) progressTrackingTo('CANCELLED');">
+                        ❌ Hủy đơn
+                    </button>
                 </div>
-                <div class="stepper-label">Đang chuẩn bị hàng</div>
-            </div>
-            <!-- 4. Đang vận chuyển -->
-            <div class="stepper-item @(currentStep > 4 ? "completed" : currentStep == 4 ? "active" : "")">
-                <div class="stepper-circle">
-                    @if (currentStep > 4) { <i class="bi bi-check-lg"></i> } else if (currentStep == 4) { <i class="bi bi-truck"></i> } else { <span>4</span> }
+            }
+            else if (Model.Status == "AWAITING_SHIPMENT")
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white px-3 py-2 fw-bold shadow-sm">
+                        <i class="bi bi-box-seam me-1"></i> Bước tiếp theo:
+                    </span>
+                    <span class="text-dark fw-semibold small">Người bán đóng gói xong &rarr; Bàn giao kiện hàng cho bưu tá / ĐVVC</span>
                 </div>
-                <div class="stepper-label">Đang vận chuyển</div>
-            </div>
-            <!-- 5. Đã nhận hàng -->
-            <div class="stepper-item @(currentStep == 5 ? "completed" : "")">
-                <div class="stepper-circle">
-                    @if (currentStep == 5) { <i class="bi bi-check-lg"></i> } else { <span>5</span> }
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-primary fw-bold px-3 shadow-sm" onclick="progressTrackingTo('SHIPPED')">
+                        🚚 Bàn giao cho ĐVVC &rarr; Đang giao hàng
+                    </button>
                 </div>
-                <div class="stepper-label">Đã nhận hàng</div>
-            </div>
+            }
+            else if (Model.Status == "SHIPPED")
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info text-dark px-3 py-2 fw-bold shadow-sm">
+                        <i class="bi bi-truck me-1"></i> Bước tiếp theo:
+                    </span>
+                    <span class="text-dark fw-semibold small">Shipper đang phát hàng &rarr; Xác nhận khi khách đã nhận bưu phẩm</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="progressTrackingTo('DELIVERED')">
+                        ✅ Xác nhận Khách đã nhận hàng &rarr; Hoàn thành (eMBG Hold)
+                    </button>
+                </div>
+            }
+            else if (Model.Status == "DELIVERED")
+            {
+                <div class="d-flex align-items-center gap-2 w-100 justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success text-white px-3 py-2 fw-bold shadow-sm">
+                            <i class="bi bi-check-circle-fill me-1"></i> Giao hàng hoàn tất
+                        </span>
+                        <span class="text-success fw-bold small">Đơn hàng đã được giao thành công đến tay người mua.</span>
+                    </div>
+                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2">
+                        <i class="bi bi-shield-check text-warning me-1"></i> Payout: On Hold (eMBG Hold)
+                    </span>
+                </div>
+            }
         </div>
     </div>
-</div>
+}
 
 <div class="row g-4 reveal">
     <!-- Cột trái: Sản phẩm & Lộ trình vận chuyển -->
@@ -311,7 +369,7 @@
                             <td colspan="3" class="text-end text-success fw-bold ps-4">Thực nhận Payout:</td>
                             <td class="text-end pe-4 text-success fw-bold fs-5">
                                 @Model.NetPayoutAmount.ToString("N0") VNĐ
-                                <small class="d-block text-muted fw-normal fs-6">Giải ngân: <span class="badge @(Model.PayoutStatus == "Released" ? "bg-success" : Model.PayoutStatus?.Contains("Hold") == true ? "bg-warning text-dark" : "bg-info text-dark")">@Model.PayoutStatus</span></small>
+                                <small class="d-block text-muted fw-normal fs-6">Giải ngân: <span id="payoutStatusDisplay" class="badge @(Model.PayoutStatus == "Released" ? "bg-success" : Model.PayoutStatus?.Contains("Hold") == true ? "bg-warning text-dark" : "bg-info text-dark")">@Model.PayoutStatus</span></small>
                             </td>
                         </tr>
                     </tfoot>
@@ -319,94 +377,156 @@
             </div>
         </div>
 
-        <!-- Lộ trình vận chuyển -->
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-header bg-light py-3 border-0">
-                <h6 class="card-title mb-0 fw-bold"><i class="bi bi-geo-alt-fill text-primary me-2"></i>Lộ trình Vận chuyển</h6>
+        <!-- Lộ trình vận chuyển chi tiết (Shopee / eBay Style Tracking) -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4 overflow-hidden">
+            <div class="card-header bg-light py-3 border-0 d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0 fw-bold text-dark">
+                    <i class="bi bi-geo-alt-fill text-danger me-2"></i>Thông tin &amp; Hành trình vận chuyển (Live Tracking)
+                </h6>
+                @if (Model.Shipping is not null && !string.IsNullOrWhiteSpace(Model.Shipping.TrackingNumber))
+                {
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="copyTrackingCode('@Model.Shipping.TrackingNumber')">
+                        <i class="bi bi-clipboard me-1"></i> Sao chép mã vận đơn
+                    </button>
+                }
             </div>
             <div class="card-body p-4">
                 @if (Model.Status == "CANCELLED")
                 {
-                    <div class="alert alert-danger mb-0 rounded-3">
-                        <i class="bi bi-x-circle me-2"></i>Đơn hàng đã hủy.
-                    </div>
-                }
-                else if (Model.Status == "AWAITING_PAYMENT")
-                {
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-warning fw-bold"><i class="bi bi-hourglass-split me-2"></i>Chờ người mua hoàn tất thanh toán</div>
-                        <div class="d-flex gap-2">
-                            @if (Model.Payment?.Method?.Contains("VNPay", StringComparison.OrdinalIgnoreCase) == true)
-                            {
-                                <a href="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html" target="_blank" class="btn btn-primary btn-sm fw-bold px-3" style="background:#005baa;border-color:#005baa;">
-                                    <i class="bi bi-wallet2 me-1"></i>Mở VNPay Sandbox
-                                </a>
-                                <a asp-action="VNPayReturn" asp-route-id="@Model.Id" asp-route-vnp_ResponseCode="00" class="btn btn-success btn-sm fw-bold px-3">
-                                    <i class="bi bi-check-circle me-1"></i>Xác nhận VNPay
-                                </a>
-                            }
-                            else if (Model.Payment?.Method?.Contains("PayPal", StringComparison.OrdinalIgnoreCase) == true)
-                            {
-                                <a asp-action="PayPalGateway" asp-route-id="@Model.Id" class="btn btn-warning btn-sm fw-bold px-3 text-dark" style="background:#ffc439;border-color:#ffc439;">
-                                    <i class="bi bi-paypal me-1"></i>Thanh toán PayPal
-                                </a>
-                            }
-                            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Bạn có chắc muốn hủy đơn hàng này?');">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-danger btn-sm">Hủy</button>
-                            </form>
+                    <div id="cancelledAlertBox" class="alert alert-danger mb-0 rounded-3 d-flex align-items-center gap-3">
+                        <i class="bi bi-x-circle-fill fs-3 text-danger"></i>
+                        <div>
+                            <strong class="d-block text-danger">Đơn hàng đã hủy</strong>
+                            <small class="text-muted">Lộ trình vận chuyển đã dừng lại do đơn hàng bị hủy bỏ.</small>
                         </div>
                     </div>
                 }
                 else
                 {
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                    <!-- Shopee-style Tracking Summary Banner -->
+                    var carrierName = Model.Shipping?.Carrier ?? "VNPost EMS";
+                    var trackingNum = Model.Shipping?.TrackingNumber ?? $"EBAY-VN-{Model.Id}";
+                    var destCity = Model.Address?.City ?? "Hà Nội";
+                    var destDistrict = Model.Address?.State ?? "Quận Cầu Giấy";
+
+                    var baseTime = Model.Payment?.PaidAt ?? DateTime.UtcNow.AddMinutes(-40);
+                    var t0 = baseTime.AddMinutes(-20).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t1 = baseTime.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t2 = baseTime.AddMinutes(5).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t3 = baseTime.AddMinutes(15).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t4 = baseTime.AddMinutes(30).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t5 = baseTime.AddMinutes(45).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                    var t6 = baseTime.AddMinutes(60).ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+
+                    <div class="p-3 mb-4 rounded-3 border bg-light d-flex flex-wrap justify-content-between align-items-center gap-3">
                         <div>
-                            <span class="fw-bold text-dark"><i class="bi bi-box-seam me-2 text-primary"></i>Mã vận đơn: <code class="text-primary fs-6">@(Model.Shipping?.TrackingNumber ?? $"EBAY-{Model.Id}")</code></span>
-                            <div class="text-muted small mt-1">Hãng vận chuyển: <strong>@(Model.Shipping?.Carrier ?? "VIETTELPOST")</strong></div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary px-3 py-1 fw-bold fs-6">@carrierName</span>
+                                <span class="fw-bold text-dark fs-6">Mã vận đơn: <code class="text-primary fs-6" id="trackingCodeText">@trackingNum</code></span>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                <i class="bi bi-clock-history me-1"></i> Cập nhật hành trình thời gian thực · Giao hàng tiêu chuẩn eBay
+                            </div>
                         </div>
-                        <span class="badge @(Model.Status == "DELIVERED" ? "bg-success" : Model.Status == "SHIPPED" ? "bg-info text-dark" : "bg-primary text-white") px-3 py-2">
-                            @StatusLabel(Model.Status)
-                        </span>
+                        <div class="text-end">
+                            <span id="carrierSummaryBadge" class="badge @StatusBadgeClass(Model.Status) px-3 py-2 fs-6">
+                                @StatusLabel(Model.Status)
+                            </span>
+                        </div>
                     </div>
 
-                    <!-- ELEGANT TIMELINE -->
-                    <div class="carrier-timeline my-3">
-                        <div class="carrier-event completed active">
-                            <div class="event-node"><i class="bi bi-check-lg"></i></div>
-                            <div class="event-content">
-                                <div class="event-title">Xác nhận đơn hàng &amp; Thanh toán</div>
-                                <div class="event-subtitle">Đơn hàng hợp lệ, kho đã trừ tồn kho</div>
+                    <!-- Shopee / Lazada Detailed Milestones Timeline -->
+                    <div id="shopeeTrackingTimeline" class="shopee-tracking-timeline position-relative ps-4 py-2">
+                        <!-- Mốc 7: Giao hàng thành công (Delivered) -->
+                        <div id="milestone7" class="tracking-log-item @(Model.Status == "DELIVERED" ? "active completed" : "d-none")">
+                            <div class="tracking-dot bg-success"><i class="bi bi-check-lg text-white"></i></div>
+                            <div class="tracking-time text-success fw-bold">@t6</div>
+                            <div class="tracking-content">
+                                <strong class="text-success fs-6">Giao hàng thành công</strong>
+                                <p class="text-dark small mb-1">
+                                    Đơn hàng đã được giao thành công đến Người nhận <strong>@(Model.Address?.FullName ?? "Khách hàng")</strong>. Người nhận đã ký xác nhận bưu phẩm.
+                                </p>
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning small">
+                                    <i class="bi bi-shield-check text-warning me-1"></i> eBay Money Back Guarantee: Payout đang tạm giữ bảo đảm giao dịch (eMBG Hold)
+                                </span>
                             </div>
                         </div>
-                        <div class="carrier-event @(currentStep >= 3 ? "completed active" : "")">
-                            <div class="event-node">
-                                @if (currentStep > 3) { <i class="bi bi-check-lg"></i> } else if (currentStep == 3) { <i class="bi bi-box-seam"></i> } else { <span>3</span> }
+
+                        <!-- Mốc 6: Đang giao hàng (Shipper đang giao) -->
+                        <div id="milestone6" class="tracking-log-item @(Model.Status == "SHIPPED" ? "active current-step" : Model.Status == "DELIVERED" ? "completed" : "d-none")">
+                            <div class="tracking-dot @(Model.Status == "SHIPPED" ? "bg-primary blink-dot" : "bg-secondary")">
+                                <i class="bi bi-person-walking text-white"></i>
                             </div>
-                            <div class="event-content">
-                                <div class="event-title">Đang chuẩn bị hàng tại kho</div>
-                                <div class="event-subtitle">Người bán đang kiểm tra &amp; đóng gói sản phẩm</div>
-                            </div>
-                        </div>
-                        <div class="carrier-event @(currentStep >= 4 ? "completed active" : "")">
-                            <div class="event-node">
-                                @if (currentStep > 4) { <i class="bi bi-check-lg"></i> } else if (currentStep == 4) { <i class="bi bi-truck"></i> } else { <span>4</span> }
-                            </div>
-                            <div class="event-content">
-                                <div class="event-title">Đang vận chuyển &amp; Giao hàng</div>
-                                <div class="event-subtitle">@(Model.Address?.Street), @(Model.Address?.City)</div>
+                            <div class="tracking-time fw-bold @(Model.Status == "SHIPPED" ? "text-primary" : "text-muted")">@t5</div>
+                            <div class="tracking-content">
+                                <strong class="@(Model.Status == "SHIPPED" ? "text-primary fs-6" : "text-dark")">Đang giao hàng</strong>
+                                <p class="text-secondary small mb-0">
+                                    Nhân viên giao hàng <strong>(Shipper @carrierName)</strong> đang trên đường giao hàng đến địa chỉ <em>@(Model.Address?.Street), @destDistrict, @destCity</em>. Vui lòng chú ý điện thoại để nhận hàng.
+                                </p>
                             </div>
                         </div>
-                        @if (Model.Status == "DELIVERED")
-                        {
-                            <div class="carrier-event completed">
-                                <div class="event-node"><i class="bi bi-house-check-fill"></i></div>
-                                <div class="event-content">
-                                    <div class="event-title text-success">Giao hàng thành công - Khách đã nhận hàng</div>
-                                    <div class="event-subtitle">Đang tạm giữ bảo đảm giao dịch (eMBG Hold)</div>
-                                </div>
+
+                        <!-- Mốc 5: Đã đến bưu cục phát -->
+                        <div id="milestone5" class="tracking-log-item @(Model.Status == "SHIPPED" || Model.Status == "DELIVERED" ? "completed" : "d-none")">
+                            <div class="tracking-dot bg-secondary"><i class="bi bi-building text-white"></i></div>
+                            <div class="tracking-time text-muted">@t4</div>
+                            <div class="tracking-content">
+                                <strong class="text-dark">Đã đến bưu cục phát</strong>
+                                <p class="text-secondary small mb-0">
+                                    Đơn hàng đã nhập kho phát <strong>Hub @destDistrict - @destCity</strong>, bưu tá đang tiến hành phân tuyến phát hàng.
+                                </p>
                             </div>
-                        }
+                        </div>
+
+                        <!-- Mốc 4: Đang vận chuyển trung chuyển -->
+                        <div id="milestone4" class="tracking-log-item @(Model.Status == "SHIPPED" || Model.Status == "DELIVERED" ? "completed" : "d-none")">
+                            <div class="tracking-dot bg-secondary"><i class="bi bi-truck text-white"></i></div>
+                            <div class="tracking-time text-muted">@t3</div>
+                            <div class="tracking-content">
+                                <strong class="text-dark">Đang vận chuyển liên tỉnh</strong>
+                                <p class="text-secondary small mb-0">
+                                    Kiện hàng đã rời <strong>Trung tâm khai thác &amp; Phân loại @carrierName Hub miền Bắc</strong>, đang trên đường trung chuyển đến bưu cục nhận.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Mốc 3: Bưu cục đã nhận hàng từ người bán -->
+                        <div id="milestone3" class="tracking-log-item @(Model.Status == "SHIPPED" || Model.Status == "DELIVERED" ? "completed" : "d-none")">
+                            <div class="tracking-dot bg-secondary"><i class="bi bi-box-seam text-white"></i></div>
+                            <div class="tracking-time text-muted">@t2</div>
+                            <div class="tracking-content">
+                                <strong class="text-dark">Đã bàn giao cho đơn vị vận chuyển</strong>
+                                <p class="text-secondary small mb-0">
+                                    Bưu tá đơn vị <strong>@carrierName</strong> đã tiếp nhận kiện hàng từ Người bán tại kho gửi hàng. Mã vận đơn <code>@trackingNum</code> đã kích hoạt tracking.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Mốc 2: Người bán chuẩn bị hàng -->
+                        <div id="milestone2" class="tracking-log-item @(Model.Status == "AWAITING_SHIPMENT" ? "active current-step" : "completed")">
+                            <div class="tracking-dot @(Model.Status == "AWAITING_SHIPMENT" ? "bg-primary blink-dot" : "bg-secondary")">
+                                <i class="bi bi-boxes text-white"></i>
+                            </div>
+                            <div class="tracking-time fw-bold @(Model.Status == "AWAITING_SHIPMENT" ? "text-primary" : "text-muted")">@t1</div>
+                            <div class="tracking-content">
+                                <strong class="@(Model.Status == "AWAITING_SHIPMENT" ? "text-primary fs-6" : "text-dark")">Người bán đang chuẩn bị hàng</strong>
+                                <p class="text-secondary small mb-0">
+                                    Người bán đã in phiếu xuất kho &amp; tem vận đơn, đang đóng gói sản phẩm để chờ bưu tá @carrierName đến lấy hàng.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Mốc 1: Đặt hàng & Thanh toán thành công -->
+                        <div id="milestone1" class="tracking-log-item completed">
+                            <div class="tracking-dot bg-secondary"><i class="bi bi-cart-check text-white"></i></div>
+                            <div class="tracking-time text-muted">@t0</div>
+                            <div class="tracking-content">
+                                <strong class="text-dark">Đơn hàng đã được đặt thành công</strong>
+                                <p class="text-secondary small mb-0">
+                                    Người mua <strong>@(Model.Address?.FullName ?? "Khách hàng")</strong> đã đặt hàng và xác nhận thanh toán qua @(Model.Payment?.Method ?? "Cổng thanh toán"). Hệ thống đã trừ tồn kho kho hàng.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 }
             </div>
@@ -452,7 +572,7 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted small">Trạng thái:</span>
-                        <span class="badge @(Model.Payment.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">
+                        <span id="paymentStatusBadge" class="badge @(Model.Payment.Status == "Completed" ? "bg-success" : "bg-warning text-dark")">
                             @Model.Payment.Status
                         </span>
                     </div>
@@ -488,7 +608,7 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted small">Trạng thái:</span>
-                        <span class="badge bg-info text-dark">@Model.Shipping.Status</span>
+                        <span id="shippingStatusBadge" class="badge bg-info text-dark">@Model.Shipping.Status</span>
                     </div>
                 }
                 else
@@ -500,14 +620,336 @@
     </div>
 </div>
 
+<form id="antiForgeryForm" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
 @section Scripts {
-    @if (Model.Status == "AWAITING_SHIPMENT" || Model.Status == "SHIPPED")
-    {
-        <script>
-            // Silent background UI reload when background worker updates the order
-            setTimeout(function () {
-                window.location.reload();
-            }, 120000);
-        </script>
-    }
+    <script>
+        let autoProgressInterval = null;
+        let currentLiveStatus = '@Model.Status';
+
+        function copyTrackingCode(code) {
+            if (!code) return;
+            navigator.clipboard.writeText(code).then(() => {
+                showTrackingToast('Đã sao chép mã vận đơn: ' + code);
+            }).catch(() => {
+                prompt('Mã vận đơn của bạn:', code);
+            });
+        }
+
+        function showTrackingToast(msg) {
+            let toast = document.getElementById('trackingToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'trackingToast';
+                toast.className = 'position-fixed bottom-0 end-0 p-3';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = `
+                    <div class="toast align-items-center text-white bg-dark border-0 show shadow-lg rounded-3" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex p-2">
+                            <div class="toast-body d-flex align-items-center gap-2">
+                                <i class="bi bi-check2-circle fs-4 text-success"></i>
+                                <span id="trackingToastMsg" class="fw-semibold">${msg}</span>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('#trackingToast').classList.add('d-none')"></button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(toast);
+            } else {
+                document.getElementById('trackingToastMsg').textContent = msg;
+                toast.classList.remove('d-none');
+            }
+            setTimeout(() => { if (toast) toast.classList.add('d-none'); }, 4500);
+        }
+
+        // --- PURE CLIENT-SIDE LIVE DOM ENGINE (NO PAGE RELOAD) ---
+        function applyLiveTrackingState(status, payoutStatus) {
+            console.log("[Live Tracking Engine] Auto State Progression:", status, payoutStatus);
+            currentLiveStatus = status;
+
+            // 1. Update Badges
+            const headerBadge = document.getElementById('trackingHeaderBadge');
+            const mainBadge = document.getElementById('orderMainStatusBadge');
+            const carrierBadge = document.getElementById('carrierSummaryBadge');
+            const payoutBadge = document.getElementById('payoutStatusDisplay');
+            const shippingBadge = document.getElementById('shippingStatusBadge');
+            const paymentBadge = document.getElementById('paymentStatusBadge');
+            const autoProgressBadge = document.getElementById('autoProgressStatusBadge');
+
+            const statusClass = {
+                'AWAITING_PAYMENT': 'bg-warning text-dark',
+                'AWAITING_SHIPMENT': 'bg-primary text-white',
+                'SHIPPED': 'bg-info text-dark',
+                'DELIVERED': 'bg-success text-white',
+                'CANCELLED': 'bg-danger text-white'
+            }[status] || 'bg-secondary text-white';
+
+            const statusLabel = {
+                'AWAITING_PAYMENT': 'AWAITING PAYMENT',
+                'AWAITING_SHIPMENT': 'AWAITING SHIPMENT',
+                'SHIPPED': 'SHIPPED',
+                'DELIVERED': 'DELIVERED',
+                'CANCELLED': 'CANCELLED'
+            }[status] || status;
+
+            if (headerBadge) {
+                headerBadge.className = `badge ${statusClass} px-3 py-1`;
+                headerBadge.textContent = statusLabel;
+            }
+            if (mainBadge) {
+                mainBadge.className = `badge ${statusClass} fs-6 align-middle ms-2`;
+                mainBadge.textContent = statusLabel;
+            }
+            if (carrierBadge) {
+                carrierBadge.className = `badge ${statusClass} px-3 py-2 fs-6`;
+                carrierBadge.textContent = statusLabel;
+            }
+            if (payoutBadge) {
+                const payoutText = payoutStatus || (status === 'DELIVERED' ? 'On Hold (eMBG Hold)' : 'Pending');
+                payoutBadge.textContent = payoutText;
+                payoutBadge.className = `badge ${payoutText === 'Released' ? 'bg-success' : payoutText.includes('Hold') ? 'bg-warning text-dark' : 'bg-info text-dark'}`;
+            }
+            if (shippingBadge) {
+                shippingBadge.textContent = status === 'AWAITING_PAYMENT' ? 'PENDING' : status === 'AWAITING_SHIPMENT' ? 'PREPARING' : status;
+            }
+            if (paymentBadge && status !== 'AWAITING_PAYMENT') {
+                paymentBadge.textContent = 'Completed';
+                paymentBadge.className = 'badge bg-success';
+            }
+
+            if (autoProgressBadge) {
+                if (status === 'DELIVERED') {
+                    autoProgressBadge.className = "badge bg-success text-white px-3 py-1";
+                    autoProgressBadge.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Đã hoàn thành 5/5 mốc';
+                } else if (status === 'CANCELLED') {
+                    autoProgressBadge.className = "badge bg-danger text-white px-3 py-1";
+                    autoProgressBadge.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Đã hủy đơn';
+                } else {
+                    autoProgressBadge.className = "badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-1";
+                    autoProgressBadge.innerHTML = '<i class="spinner-grow spinner-grow-sm text-primary me-1"></i> Đang tự động xử lý hành trình...';
+                }
+            }
+
+            // 2. Update Stepper line & circles with icons
+            const lineProgress = document.getElementById('stepperLineProgress');
+            const progress = { 'AWAITING_PAYMENT': 0, 'AWAITING_SHIPMENT': 50, 'SHIPPED': 75, 'DELIVERED': 100, 'CANCELLED': 0 }[status] || 0;
+            if (lineProgress) lineProgress.style.width = progress + '%';
+
+            const s1 = document.getElementById('stepItem1');
+            const s2 = document.getElementById('stepItem2');
+            const s3 = document.getElementById('stepItem3');
+            const s4 = document.getElementById('stepItem4');
+            const s5 = document.getElementById('stepItem5');
+
+            if (s1) {
+                s1.className = 'stepper-item completed';
+                s1.querySelector('.stepper-circle').innerHTML = '<i class="bi bi-check-lg"></i>';
+            }
+            if (s2) {
+                const isComp = status !== 'AWAITING_PAYMENT';
+                s2.className = 'stepper-item ' + (isComp ? 'completed' : 'active');
+                s2.querySelector('.stepper-circle').innerHTML = isComp ? '<i class="bi bi-check-lg"></i>' : '<span>2</span>';
+            }
+            if (s3) {
+                const isComp = (status === 'SHIPPED' || status === 'DELIVERED');
+                const isAct = (status === 'AWAITING_SHIPMENT');
+                s3.className = 'stepper-item ' + (isComp ? 'completed' : isAct ? 'active' : '');
+                s3.querySelector('.stepper-circle').innerHTML = isComp ? '<i class="bi bi-check-lg"></i>' : isAct ? '<i class="bi bi-box-seam"></i>' : '<span>3</span>';
+            }
+            if (s4) {
+                const isComp = (status === 'DELIVERED');
+                const isAct = (status === 'SHIPPED');
+                s4.className = 'stepper-item ' + (isComp ? 'completed' : isAct ? 'active' : '');
+                s4.querySelector('.stepper-circle').innerHTML = isComp ? '<i class="bi bi-check-lg"></i>' : isAct ? '<i class="bi bi-truck"></i>' : '<span>4</span>';
+            }
+            if (s5) {
+                const isComp = (status === 'DELIVERED');
+                s5.className = 'stepper-item ' + (isComp ? 'completed' : '');
+                s5.querySelector('.stepper-circle').innerHTML = isComp ? '<i class="bi bi-check-lg"></i>' : '<span>5</span>';
+            }
+
+            // 3. Update Milestones Timeline
+            const m7 = document.getElementById('milestone7');
+            const m6 = document.getElementById('milestone6');
+            const m5 = document.getElementById('milestone5');
+            const m4 = document.getElementById('milestone4');
+            const m3 = document.getElementById('milestone3');
+            const m2 = document.getElementById('milestone2');
+            const m1 = document.getElementById('milestone1');
+
+            if (status === 'DELIVERED') {
+                if (m7) m7.className = 'tracking-log-item active completed';
+                if (m6) m6.className = 'tracking-log-item completed';
+                if (m5) m5.className = 'tracking-log-item completed';
+                if (m4) m4.className = 'tracking-log-item completed';
+                if (m3) m3.className = 'tracking-log-item completed';
+                if (m2) m2.className = 'tracking-log-item completed';
+            } else if (status === 'SHIPPED') {
+                if (m7) m7.className = 'tracking-log-item d-none';
+                if (m6) m6.className = 'tracking-log-item active current-step';
+                if (m5) m5.className = 'tracking-log-item completed';
+                if (m4) m4.className = 'tracking-log-item completed';
+                if (m3) m3.className = 'tracking-log-item completed';
+                if (m2) m2.className = 'tracking-log-item completed';
+            } else if (status === 'AWAITING_SHIPMENT') {
+                if (m7) m7.className = 'tracking-log-item d-none';
+                if (m6) m6.className = 'tracking-log-item d-none';
+                if (m5) m5.className = 'tracking-log-item d-none';
+                if (m4) m4.className = 'tracking-log-item d-none';
+                if (m3) m3.className = 'tracking-log-item d-none';
+                if (m2) m2.className = 'tracking-log-item active current-step';
+            }
+
+            // 4. Update Forward-Only Action Toolbar
+            const toolbar = document.getElementById('trackingActionToolbar');
+            if (toolbar) {
+                if (status === 'AWAITING_PAYMENT') {
+                    toolbar.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark border px-3 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-hourglass-split me-1"></i> Bước tiếp theo:
+                            </span>
+                            <span class="text-dark fw-semibold small">Chờ người mua thanh toán tiền hàng hoặc xác nhận thanh toán</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-primary fw-bold px-3 shadow-sm" onclick="progressTrackingTo('AWAITING_SHIPMENT')">
+                                💳 Xác nhận Đã thanh toán &rarr; Chờ gửi hàng
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="if(confirm('Bạn có chắc muốn hủy đơn?')) progressTrackingTo('CANCELLED');">
+                                ❌ Hủy đơn
+                            </button>
+                        </div>`;
+                } else if (status === 'AWAITING_SHIPMENT') {
+                    toolbar.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary text-white px-3 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-box-seam me-1"></i> Bước tiếp theo:
+                            </span>
+                            <span class="text-dark fw-semibold small">Người bán đóng gói xong &rarr; Bàn giao kiện hàng cho bưu tá / ĐVVC</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-primary fw-bold px-3 shadow-sm" onclick="progressTrackingTo('SHIPPED')">
+                                🚚 Bàn giao cho ĐVVC &rarr; Đang giao hàng
+                            </button>
+                        </div>`;
+                } else if (status === 'SHIPPED') {
+                    toolbar.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info text-dark px-3 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-truck me-1"></i> Bước tiếp theo:
+                            </span>
+                            <span class="text-dark fw-semibold small">Shipper đang phát hàng &rarr; Xác nhận khi khách đã nhận bưu phẩm</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="progressTrackingTo('DELIVERED')">
+                                ✅ Xác nhận Khách đã nhận hàng &rarr; Hoàn thành (eMBG Hold)
+                            </button>
+                        </div>`;
+                } else if (status === 'DELIVERED') {
+                    toolbar.innerHTML = `
+                        <div class="d-flex align-items-center gap-2 w-100 justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success text-white px-3 py-2 fw-bold shadow-sm">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Giao hàng hoàn tất
+                                </span>
+                                <span class="text-success fw-bold small">Đơn hàng đã được giao thành công đến tay người mua.</span>
+                            </div>
+                            <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 py-2">
+                                <i class="bi bi-shield-check text-warning me-1"></i> Payout: On Hold (eMBG Hold)
+                            </span>
+                        </div>`;
+                } else if (status === 'CANCELLED') {
+                    toolbar.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger text-white px-3 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-x-circle-fill me-1"></i> Đã hủy
+                            </span>
+                            <span class="text-danger fw-semibold small">Đơn hàng đã bị hủy bỏ, lộ trình vận chuyển đã dừng lại.</span>
+                        </div>`;
+                }
+            }
+        }
+
+        // --- SILENT BACKGROUND PERSISTENCE & INSTANT DOM UPDATE ---
+        async function progressTrackingTo(targetStatus) {
+            if (currentLiveStatus === 'CANCELLED') {
+                console.log("[Tracker] Cannot progress cancelled order.");
+                return;
+            }
+
+            if (targetStatus === 'CANCELLED') {
+                if (autoProgressInterval) {
+                    clearInterval(autoProgressInterval);
+                    autoProgressInterval = null;
+                }
+            }
+
+            const friendlyName = {
+                'AWAITING_PAYMENT': '1. Đã tạo đơn (Chờ thanh toán)',
+                'AWAITING_SHIPMENT': '3. Chuẩn bị hàng (Đang đóng gói)',
+                'SHIPPED': '4. Đang vận chuyển (Bàn giao shipper)',
+                'DELIVERED': '5. Đã nhận hàng (Giao thành công)',
+                'CANCELLED': 'Đã hủy đơn'
+            }[targetStatus] || targetStatus;
+
+            // 1. Instant Zero-Latency UI Transition (0ms)
+            const payout = targetStatus === 'DELIVERED' ? 'On Hold (eMBG Hold)' : 'Pending';
+            applyLiveTrackingState(targetStatus, payout);
+
+            // 2. Silent Background Database Update
+            const tokenInput = document.querySelector('#antiForgeryForm input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : '';
+
+            const formData = new FormData();
+            formData.append('targetStatus', targetStatus);
+            if (token) formData.append('__RequestVerificationToken', token);
+
+            try {
+                const response = await fetch('@Url.Action("UpdateTrackingStatus", "Orders", new { id = Model.Id })', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    console.warn("Background update notice:", result.message);
+                }
+            } catch (err) {
+                console.error("Tracking background save error:", err);
+            }
+        }
+
+        // --- AUTOMATIC UNATTENDED TRACKING PROGRESSION (TỰ ĐỘNG CHẠY KHI ĐỂ YÊN TRANG WEB) ---
+        document.addEventListener('DOMContentLoaded', function () {
+            // Check if current order is eligible to auto-advance
+            if (currentLiveStatus === 'DELIVERED' || currentLiveStatus === 'CANCELLED') {
+                console.log("[Auto Tracker] Order is in final state (" + currentLiveStatus + "), auto progress is inactive.");
+                return;
+            }
+
+            console.log("[Auto Tracker] Started automatic unattended tracking progression. Current state:", currentLiveStatus);
+
+            autoProgressInterval = setInterval(() => {
+                if (currentLiveStatus === 'AWAITING_PAYMENT') {
+                    // Step 1 -> Step 2,3
+                    progressTrackingTo('AWAITING_SHIPMENT');
+                } else if (currentLiveStatus === 'AWAITING_SHIPMENT') {
+                    // Step 3 (Chuẩn bị hàng) -> Step 4 (Đang vận chuyển)
+                    progressTrackingTo('SHIPPED');
+                } else if (currentLiveStatus === 'SHIPPED') {
+                    // Step 4 (Đang vận chuyển) -> Step 5 (Đã nhận hàng - DELIVERED)
+                    progressTrackingTo('DELIVERED');
+                    clearInterval(autoProgressInterval);
+                    autoProgressInterval = null;
+                } else {
+                    clearInterval(autoProgressInterval);
+                    autoProgressInterval = null;
+                }
+            }, 4500); // Advances automatically every 4.5 seconds
+        });
+    </script>
 }

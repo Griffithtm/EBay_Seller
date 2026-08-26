@@ -200,6 +200,41 @@ public sealed class OrdersController(SellerApiClient apiClient) : Controller
         return RedirectToAction(nameof(Detail), new { id });
     }
 
+    [HttpPost("{id:int}/update-tracking-status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateTrackingStatus(int id, string targetStatus, CancellationToken cancellationToken = default)
+    {
+        var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" || Request.Headers.Accept.ToString().Contains("application/json");
+        var result = await apiClient.UpdateTrackingStatusAsync(id, targetStatus, cancellationToken);
+        if (!result.Success)
+        {
+            if (isAjax)
+            {
+                return Json(new { success = false, message = result.ErrorMessage });
+            }
+            TempData["ErrorMessage"] = result.ErrorMessage;
+        }
+        else
+        {
+            var statusFriendly = targetStatus switch
+            {
+                "AWAITING_PAYMENT" => "1. Chờ thanh toán (Awaiting Payment)",
+                "AWAITING_SHIPMENT" => "2. Chờ chuẩn bị hàng (Awaiting Shipment)",
+                "SHIPPED" => "3. Đang giao hàng / Vận chuyển (Shipped)",
+                "DELIVERED" => "4. Giao hàng thành công (Delivered - eMBG Hold)",
+                "CANCELLED" => "5. Đã hủy đơn (Cancelled)",
+                _ => targetStatus
+            };
+            if (isAjax)
+            {
+                return Json(new { success = true, message = $"Đã chuyển trạng thái sang [{statusFriendly}]!", data = result.Data });
+            }
+            TempData["SuccessMessage"] = $"Đã chuyển đổi trạng thái tracking đơn hàng #{id} sang [{statusFriendly}]!";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
     [HttpPost("{id:int}/cancel")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id, CancellationToken cancellationToken = default)

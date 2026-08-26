@@ -131,6 +131,17 @@ public sealed class OrdersController(IOrderService orderService) : ControllerBas
         return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("{id:int}/tracking-status")]
+    public async Task<ActionResult<ApiEnvelope<OrderDetailResponse>>> UpdateTrackingStatus(
+        int id,
+        [FromBody] UpdateTrackingStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var currentSellerId = User.GetRequiredUserId();
+        var result = await orderService.UpdateTrackingStatusAsync(id, currentSellerId, request.TargetStatus, cancellationToken);
+        return Ok(ApiEnvelope<OrderDetailResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("payouts")]
     public async Task<ActionResult<ApiEnvelope<IReadOnlyCollection<SellerPayoutSummaryDto>>>> GetSellerPayouts(
         CancellationToken cancellationToken = default)

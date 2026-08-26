@@ -71,6 +71,12 @@ public interface IOrderService
         int sellerId,
         CancellationToken cancellationToken = default);
 
+    Task<OrderDetailResponse> UpdateTrackingStatusAsync(
+        int orderId,
+        int sellerId,
+        string targetStatus,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<SellerPayoutSummaryDto>> GetSellerPayoutsAsync(
         int sellerId,
         CancellationToken cancellationToken = default);

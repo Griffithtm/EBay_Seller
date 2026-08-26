@@ -56,13 +56,9 @@ public sealed record OrderDetailResponse(
     PaymentSummaryDto? Payment,
     ShippingInfoSummaryDto? Shipping);
 
-public sealed record SellerPayoutSummaryDto(
-    int OrderId,
-    DateTime OrderDate,
-    decimal TotalPrice,
-    decimal FinalValueFee,
-    decimal NetPayoutAmount,
-    string PayoutStatus);
+public sealed record UpdateTrackingStatusRequest(
+    [Required] string TargetStatus);
+
 
 public sealed record OrderStatusResponse(
     int Id,
@@ -117,3 +113,12 @@ public sealed record CreateOrderRequest(
     string? ZipCode,
     string? PaymentMethod,
     [Required] IReadOnlyList<CreateOrderItemRequest> Items);
+
+public sealed record SellerPayoutSummaryDto(
+    int OrderId,
+    DateTime OrderDate,
+    decimal TotalPrice,
+    decimal FinalValueFee,
+    decimal NetPayoutAmount,
+    string PayoutStatus);
+

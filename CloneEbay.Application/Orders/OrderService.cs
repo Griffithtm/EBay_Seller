@@ -696,6 +696,123 @@ public sealed class OrderService(
         return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
     }
 
+    public async Task<OrderDetailResponse> UpdateTrackingStatusAsync(
+        int orderId,
+        int sellerId,
+        string targetStatus,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetSellerOrderByIdAsync(orderId, sellerId, cancellationToken);
+        if (order is null)
+        {
+            throw new AppProblemException(404, "ORDER_NOT_FOUND", "Order was not found or does not contain items for this seller.");
+        }
+
+        var normalizedStatus = targetStatus?.Trim().ToUpperInvariant() switch
+        {
+            "AWAITING_PAYMENT" => "AWAITING_PAYMENT",
+            "AWAITING_SHIPMENT" => "AWAITING_SHIPMENT",
+            "SHIPPED" => "SHIPPED",
+            "DELIVERED" => "DELIVERED",
+            "CANCELLED" => "CANCELLED",
+            _ => "AWAITING_SHIPMENT"
+        };
+
+        int GetStatusRank(string s) => s?.ToUpperInvariant() switch
+        {
+            "AWAITING_PAYMENT" => 1,
+            "AWAITING_SHIPMENT" => 2,
+            "SHIPPED" => 3,
+            "DELIVERED" => 4,
+            "CANCELLED" => 99,
+            _ => 0
+        };
+
+        var currentRank = GetStatusRank(order.Status);
+        var targetRank = GetStatusRank(normalizedStatus);
+
+        if (normalizedStatus != "CANCELLED" && targetRank < currentRank)
+        {
+            throw new AppProblemException(400, "INVALID_STATUS_TRANSITION", $"Không thể lùi trạng thái đơn hàng từ [{order.Status}] về [{normalizedStatus}]. Tracking chỉ cho phép tiến theo lộ trình vận chuyển.");
+        }
+        if (order.Status == "DELIVERED" || order.Status == "CANCELLED")
+        {
+            throw new AppProblemException(400, "ORDER_COMPLETED", $"Đơn hàng đã ở trạng thái kết thúc [{order.Status}], không thể thay đổi thêm.");
+        }
+
+        var now = clock.UtcNow;
+        order.Status = normalizedStatus;
+
+        if (order.ShippingInfo is not null)
+        {
+            order.ShippingInfo.Status = normalizedStatus switch
+            {
+                "AWAITING_PAYMENT" => "PENDING",
+                "AWAITING_SHIPMENT" => "PREPARING",
+                "SHIPPED" => "SHIPPED",
+                "DELIVERED" => "DELIVERED",
+                "CANCELLED" => "CANCELLED",
+                _ => "PREPARING"
+            };
+        }
+
+        if (normalizedStatus == "AWAITING_PAYMENT")
+        {
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Pending";
+            }
+            order.PayoutStatus = "Pending";
+        }
+        else if (normalizedStatus == "AWAITING_SHIPMENT")
+        {
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Completed";
+                if (!order.Payment.PaidAtUtc.HasValue)
+                {
+                    order.Payment.PaidAtUtc = now;
+                }
+            }
+            order.PayoutStatus = "Pending";
+        }
+        else if (normalizedStatus == "SHIPPED")
+        {
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Completed";
+                if (!order.Payment.PaidAtUtc.HasValue)
+                {
+                    order.Payment.PaidAtUtc = now;
+                }
+            }
+            order.PayoutStatus = "In Transit";
+        }
+        else if (normalizedStatus == "DELIVERED")
+        {
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Completed";
+                if (!order.Payment.PaidAtUtc.HasValue)
+                {
+                    order.Payment.PaidAtUtc = now;
+                }
+            }
+            order.PayoutStatus = "On Hold (eMBG Hold)";
+        }
+        else if (normalizedStatus == "CANCELLED")
+        {
+            if (order.Payment is not null)
+            {
+                order.Payment.Status = "Cancelled";
+            }
+            order.PayoutStatus = "Cancelled";
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetSellerOrderDetailAsync(order.Id, sellerId, cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<SellerPayoutSummaryDto>> GetSellerPayoutsAsync(
         int sellerId,
         CancellationToken cancellationToken = default)

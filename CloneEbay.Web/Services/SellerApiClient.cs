@@ -113,6 +113,12 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         PostAsync<OrderDetailDto>($"api/orders/{orderId}/simulate-delivery", new { }, authenticated: true, cancellationToken: cancellationToken);
 
+    public Task<ApiCallResult<OrderDetailDto>> UpdateTrackingStatusAsync(
+        int orderId,
+        string targetStatus,
+        CancellationToken cancellationToken = default) =>
+        PostAsync<OrderDetailDto>($"api/orders/{orderId}/tracking-status", new { targetStatus }, authenticated: true, cancellationToken: cancellationToken);
+
     public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
         CouponFormViewModel model,
         CancellationToken cancellationToken = default) =>

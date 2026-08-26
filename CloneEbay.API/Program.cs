@@ -114,7 +114,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 {
                     token = context.Request.Cookies["cloneebay.api.access"];
                 }
-                if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/hubs/messages"))
+                if (!string.IsNullOrEmpty(token) && (context.HttpContext.Request.Path.StartsWithSegments("/hubs/messages") || context.HttpContext.Request.Path.StartsWithSegments("/hubs/orders")))
                     context.Token = token;
                 return Task.CompletedTask;
             },
@@ -167,6 +167,10 @@ builder.Services.AddCors(options =>
         if (origins.Length > 0)
         {
             policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        }
+        else
+        {
+            policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
         }
     });
 });
