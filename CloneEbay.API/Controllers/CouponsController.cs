@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using CloneEbay.API.Authorization;
 using CloneEbay.API.Extensions;
 using CloneEbay.API.Models;
@@ -10,121 +9,87 @@ namespace CloneEbay.API.Controllers;
 
 [ApiController]
 [Route("api/coupons")]
+[Authorize]
 public sealed class CouponsController(ICouponService couponService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
-    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<CouponResponse>>>> List(
-        [FromQuery] int? productId,
-        [FromQuery] string? status,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<CouponSummaryResponse>>>> List(CancellationToken cancellationToken)
     {
-        var result = await couponService.ListAsync(
-            User.GetRequiredUserId(),
-            new CouponListQuery(productId, status),
-            cancellationToken);
-        return Ok(ApiEnvelope<IReadOnlyList<CouponResponse>>.Ok(result, HttpContext.TraceIdentifier));
+        var result = await couponService.GetForSellerAsync(User.GetRequiredUserId(), cancellationToken);
+        return Ok(ApiEnvelope<IReadOnlyList<CouponSummaryResponse>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("types")]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<CouponTypeResponse>>>> Types(CancellationToken cancellationToken)
+    {
+        var result = await couponService.GetTypesAsync(cancellationToken);
+        return Ok(ApiEnvelope<IReadOnlyList<CouponTypeResponse>>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{id:int}")]
-    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
-    public async Task<ActionResult<ApiEnvelope<CouponResponse>>> Get(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiEnvelope<CouponDetailsResponse>>> Get(int id, CancellationToken cancellationToken)
     {
         var result = await couponService.GetAsync(id, User.GetRequiredUserId(), cancellationToken);
-        return Ok(ApiEnvelope<CouponResponse>.Ok(result, HttpContext.TraceIdentifier));
+        return Ok(ApiEnvelope<CouponDetailsResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("code/{code}")]
+    public async Task<ActionResult<ApiEnvelope<CouponDetailsResponse>>> GetByCode(string code, CancellationToken cancellationToken)
+    {
+        var result = await couponService.GetByCodeAsync(User.GetRequiredUserId(), code, cancellationToken);
+        return Ok(ApiEnvelope<CouponDetailsResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
-    public async Task<ActionResult<ApiEnvelope<CouponResponse>>> Create(
-        [FromBody] CouponCreateRequestBody body,
+    public async Task<ActionResult<ApiEnvelope<CouponDetailsResponse>>> Create(
+        [FromBody] CreateCouponRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await couponService.CreateAsync(
-            User.GetRequiredUserId(),
-            new CreateCouponRequest(
-                body.ProductId,
-                body.Code,
-                body.DiscountPercent,
-                body.StartDate,
-                body.EndDate,
-                body.MaxUsage,
-                body.RecaptchaToken),
-            cancellationToken);
-        return CreatedAtAction(nameof(Get), new { id = result.Id }, ApiEnvelope<CouponResponse>.Ok(result, HttpContext.TraceIdentifier));
+        var result = await couponService.CreateAsync(User.GetRequiredUserId(), request, cancellationToken);
+        return CreatedAtAction(nameof(Get), new { id = result.Id }, ApiEnvelope<CouponDetailsResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpPut("{id:int}")]
     [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
-    public async Task<ActionResult<ApiEnvelope<CouponResponse>>> Update(
+    public async Task<ActionResult<ApiEnvelope<CouponDetailsResponse>>> Update(
         int id,
-        [FromBody] CouponUpdateRequestBody body,
+        [FromBody] UpdateCouponRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await couponService.UpdateAsync(
-            id,
-            User.GetRequiredUserId(),
-            new UpdateCouponRequest(body.Code, body.DiscountPercent, body.StartDate, body.EndDate, body.MaxUsage),
-            cancellationToken);
-        return Ok(ApiEnvelope<CouponResponse>.Ok(result, HttpContext.TraceIdentifier));
+        var result = await couponService.UpdateAsync(id, User.GetRequiredUserId(), request, cancellationToken);
+        return Ok(ApiEnvelope<CouponDetailsResponse>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPatch("{id:int}/status")]
+    [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
+    public async Task<IActionResult> UpdateStatus(
+        int id,
+        [FromBody] UpdateCouponStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        await couponService.UpdateStatusAsync(User.GetRequiredUserId(), id, request.IsActive, cancellationToken);
+        return Ok(ApiEnvelope<object>.Ok(new { }, HttpContext.TraceIdentifier));
     }
 
     [HttpDelete("{id:int}")]
     [Authorize(Policy = AuthorizationPolicies.VerifiedSeller)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        await couponService.DeleteAsync(id, User.GetRequiredUserId(), cancellationToken);
+        await couponService.DeleteAsync(User.GetRequiredUserId(), id, cancellationToken);
         return NoContent();
     }
 
+    /// <summary>Checkout-time validity check for whatever builds the buyer-facing order flow next.</summary>
     [HttpGet("validate")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiEnvelope<CouponValidationResponse>>> Validate(
+    public async Task<ActionResult<ApiEnvelope<ValidateCouponResponse>>> Validate(
         [FromQuery] string? code,
-        [FromQuery] int productId,
+        [FromQuery] int? productId,
+        [FromQuery] decimal? orderTotal,
         CancellationToken cancellationToken)
     {
-        var result = await couponService.ValidateAsync(code, productId, cancellationToken);
-        return Ok(ApiEnvelope<CouponValidationResponse>.Ok(result, HttpContext.TraceIdentifier));
+        var result = await couponService.ValidateAsync(code, productId, orderTotal, cancellationToken);
+        return Ok(ApiEnvelope<ValidateCouponResponse>.Ok(result, HttpContext.TraceIdentifier));
     }
-}
-
-public sealed class CouponCreateRequestBody
-{
-    [Range(1, int.MaxValue, ErrorMessage = "A valid product must be selected.")]
-    public int ProductId { get; set; }
-
-    [Required, StringLength(50, MinimumLength = 3)]
-    public string Code { get; set; } = string.Empty;
-
-    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true)]
-    public decimal DiscountPercent { get; set; }
-
-    [Required]
-    public DateTime StartDate { get; set; }
-
-    [Required]
-    public DateTime EndDate { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int MaxUsage { get; set; }
-
-    /// <summary>Google reCAPTCHA v3 token generated by the create-coupon form.</summary>
-    public string? RecaptchaToken { get; set; }
-}
-
-public sealed class CouponUpdateRequestBody
-{
-    [StringLength(50, MinimumLength = 3)]
-    public string? Code { get; set; }
-
-    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true)]
-    public decimal? DiscountPercent { get; set; }
-
-    public DateTime? StartDate { get; set; }
-
-    public DateTime? EndDate { get; set; }
-
-    [Range(1, int.MaxValue)]
-    public int? MaxUsage { get; set; }
 }

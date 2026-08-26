@@ -19,6 +19,8 @@ public sealed class CloneEbayDbContext(DbContextOptions<CloneEbayDbContext> opti
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponType> CouponTypes => Set<CouponType>();
+    public DbSet<CouponCondition> CouponConditions => Set<CouponCondition>();
     public DbSet<SaleEvent> SaleEvents => Set<SaleEvent>();
     public DbSet<SaleEventTier> SaleEventTiers => Set<SaleEventTier>();
     public DbSet<SaleEventProduct> SaleEventProducts => Set<SaleEventProduct>();

@@ -41,6 +41,8 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "UNAUTHORIZED" => "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
         "FORBIDDEN" => "Bạn không có quyền thực hiện thao tác này.",
         "COUPON_NOT_FOUND" => "Không tìm thấy mã giảm giá.",
+        "COUPON_TYPE_NOT_FOUND" => "Không tìm thấy loại mã giảm giá.",
+        "COUPON_TYPE_INACTIVE" => "Loại mã giảm giá này hiện không khả dụng.",
         "COUPON_CODE_INVALID" => "Mã giảm giá phải từ 3 đến 50 ký tự.",
         "COUPON_DISCOUNT_INVALID" => "Phần trăm giảm giá phải lớn hơn 0 và tối đa 100.",
         "COUPON_DATE_RANGE_INVALID" => "Ngày kết thúc phải sau ngày bắt đầu.",
@@ -153,20 +155,53 @@ public sealed record ProductDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
-public sealed record CouponDto(
+public sealed record CouponConditionDto(
+    int? BuyQuantity,
+    int? GetQuantity,
+    decimal? GetDiscountPercent,
+    decimal? SaveEveryAmount,
+    int? SaveEveryItems,
+    string? ConditionDescription);
+
+public sealed record CouponSummaryDto(
     int Id,
+    string Name,
     string Code,
-    decimal DiscountPercent,
+    int CouponTypeId,
+    string CouponTypeName,
+    decimal DiscountValue,
+    string DiscountUnit,
+    decimal? MaxDiscount,
     DateTime StartDate,
     DateTime EndDate,
-    int MaxUsage,
-    int UsageCount,
-    int ProductId,
-    string ProductTitle,
-    int SellerId,
-    string Status,
-    DateTime CreatedAt,
-    DateTime UpdatedAt);
+    bool IsActive,
+    int? UsageLimit,
+    int UsedCount);
+
+public sealed record CouponDetailsDto(
+    int Id,
+    string Name,
+    string Code,
+    int CouponTypeId,
+    string CouponTypeName,
+    int? SellerId,
+    decimal DiscountValue,
+    string DiscountUnit,
+    decimal? MaxDiscount,
+    DateTime StartDate,
+    DateTime EndDate,
+    int? UsageLimit,
+    int? UsagePerUser,
+    int UsedCount,
+    decimal? MinimumOrderValue,
+    decimal? ApplicablePriceMin,
+    decimal? ApplicablePriceMax,
+    int? CategoryId,
+    int? ProductId,
+    bool IsActive,
+    CouponConditionDto? Condition);
+
+public sealed record CouponTypeDto(int Id, string Name, string? Description, bool IsActive);
 
 public sealed record AuctionCloseDto(
     int ProductId,

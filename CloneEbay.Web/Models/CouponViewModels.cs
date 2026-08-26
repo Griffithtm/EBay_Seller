@@ -2,40 +2,78 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CloneEbay.Web.Models;
 
+public sealed class CouponIndexViewModel
+{
+    public IReadOnlyList<CouponSummaryDto> Coupons { get; set; } = [];
+    public int ActiveCount => Coupons.Count(coupon => coupon.IsActive);
+    public int InactiveCount => Coupons.Count(coupon => !coupon.IsActive);
+}
+
 public sealed class CouponFormViewModel
 {
     public int? Id { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn sản phẩm áp dụng mã."), Display(Name = "Sản phẩm áp dụng")]
-    public int ProductId { get; set; }
+    [Required(ErrorMessage = "Vui lòng chọn loại mã giảm giá."), Display(Name = "Loại mã giảm giá")]
+    public int CouponTypeId { get; set; }
 
-    [Required(ErrorMessage = "Vui lòng nhập mã giảm giá."), StringLength(50, MinimumLength = 3, ErrorMessage = "Mã phải từ 3 đến 50 ký tự."), Display(Name = "Mã giảm giá")]
+    [Required(ErrorMessage = "Vui lòng nhập tên nội bộ."), StringLength(100), Display(Name = "Tên nội bộ")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng nhập mã giảm giá."), StringLength(50), Display(Name = "Mã giảm giá")]
     public string Code { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "100", ParseLimitsInInvariantCulture = true, ErrorMessage = "Phần trăm giảm giá phải từ 0.01 đến 100."), Display(Name = "Phần trăm giảm giá (%)")]
-    public decimal DiscountPercent { get; set; }
+    [Required, Range(0.01, double.MaxValue, ErrorMessage = "Giá trị giảm phải lớn hơn 0."), Display(Name = "Giá trị giảm")]
+    public decimal DiscountValue { get; set; }
+
+    [Required, Display(Name = "Đơn vị giảm")]
+    public string DiscountUnit { get; set; } = "Percent";
+
+    [Range(0.01, double.MaxValue), Display(Name = "Giảm tối đa")]
+    public decimal? MaxDiscount { get; set; }
 
     [Required(ErrorMessage = "Vui lòng chọn ngày bắt đầu."), Display(Name = "Ngày bắt đầu")]
-    public DateTime StartDate { get; set; } = DateTime.Now;
+    public DateTime? StartDate { get; set; }
 
     [Required(ErrorMessage = "Vui lòng chọn ngày kết thúc."), Display(Name = "Ngày kết thúc")]
-    public DateTime EndDate { get; set; } = DateTime.Now.AddDays(7);
+    public DateTime? EndDate { get; set; }
 
-    [Range(1, int.MaxValue, ErrorMessage = "Số lượt sử dụng tối đa phải từ 1 trở lên."), Display(Name = "Số lượt sử dụng tối đa")]
-    public int MaxUsage { get; set; } = 100;
+    [Range(1, int.MaxValue), Display(Name = "Tổng lượt dùng tối đa")]
+    public int? UsageLimit { get; set; }
+
+    [Range(1, int.MaxValue), Display(Name = "Lượt dùng tối đa mỗi người")]
+    public int? UsagePerUser { get; set; }
+
+    [Range(0, double.MaxValue), Display(Name = "Giá trị đơn hàng tối thiểu")]
+    public decimal? MinimumOrderValue { get; set; }
+
+    [Range(0, double.MaxValue), Display(Name = "Giá sản phẩm tối thiểu áp dụng")]
+    public decimal? ApplicablePriceMin { get; set; }
+
+    [Range(0, double.MaxValue), Display(Name = "Giá sản phẩm tối đa áp dụng")]
+    public decimal? ApplicablePriceMax { get; set; }
+
+    [Display(Name = "Giới hạn theo danh mục")]
+    public int? CategoryId { get; set; }
+
+    [Display(Name = "Giới hạn theo sản phẩm")]
+    public int? ProductId { get; set; }
+
+    [Display(Name = "Kích hoạt ngay sau khi lưu")]
+    public bool IsActive { get; set; } = true;
+
+    // Type-specific condition fields (shown/hidden client-side based on the selected coupon type).
+    public int? BuyQuantity { get; set; }
+    public int? GetQuantity { get; set; }
+    public decimal? GetDiscountPercent { get; set; }
+    public decimal? SaveEveryAmount { get; set; }
+    public int? SaveEveryItems { get; set; }
+
+    [StringLength(255), Display(Name = "Ghi chú cho người mua")]
+    public string? ConditionDescription { get; set; }
 
     public string? RecaptchaToken { get; set; }
 
+    public IReadOnlyList<CouponTypeDto> Types { get; set; } = [];
+    public IReadOnlyList<CategoryDto> Categories { get; set; } = [];
     public IReadOnlyList<ProductDto> ProductOptions { get; set; } = [];
-}
-
-public sealed class CouponIndexViewModel
-{
-    public IReadOnlyList<CouponDto> Coupons { get; set; } = [];
-    public IReadOnlyList<ProductDto> Products { get; set; } = [];
-    public int? ProductId { get; set; }
-    public string? Status { get; set; }
-    public int ActiveCount => Coupons.Count(coupon => coupon.Status == "Active");
-    public int ScheduledCount => Coupons.Count(coupon => coupon.Status == "Scheduled");
-    public int ExpiredCount => Coupons.Count(coupon => coupon.Status is "Expired" or "UsedUp");
 }

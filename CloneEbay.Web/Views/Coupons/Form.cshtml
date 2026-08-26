@@ -10,59 +10,127 @@
 <div class="page-breadcrumb reveal"><a asp-action="Index">Mã giảm giá</a><span>›</span><strong>@(isEdit ? "Chỉnh sửa mã" : "Mã mới")</strong></div>
 
 <section class="listing-form-hero reveal">
-    <div><span class="section-kicker">COUPON &amp; MARKETING</span><h1>@(isEdit ? "Tinh chỉnh mã giảm giá." : "Tạo ưu đãi cho sản phẩm.")</h1><p>Mã giảm giá gắn với một sản phẩm cụ thể, có thời hạn và giới hạn số lượt sử dụng.</p></div>
+    <div><span class="section-kicker">COUPON &amp; MARKETING</span><h1>@(isEdit ? "Tinh chỉnh mã giảm giá." : "Tạo ưu đãi cho cửa hàng.")</h1><p>Chọn 1 trong 11 kiểu ưu đãi, mỗi kiểu có luật áp dụng riêng.</p></div>
 </section>
 
-<form class="listing-form-grid" method="post" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" data-loading-form id="coupon-form">
+<form class="listing-form-grid" method="post" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" data-loading-form id="coupon-form" novalidate>
     <section class="listing-form-main">
         <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
         <input type="hidden" asp-for="Id" />
         <input type="hidden" asp-for="RecaptchaToken" id="RecaptchaToken" />
 
         <article class="listing-section reveal">
-            <div class="listing-section-head"><span>01</span><div><h2>Sản phẩm áp dụng</h2><p>Mỗi mã chỉ áp dụng cho một sản phẩm.</p></div></div>
-            <div class="field-group">
-                <label asp-for="ProductId" class="form-label"></label>
+            <div class="listing-section-head"><span>01</span><div><h2>Chọn loại mã giảm giá</h2><p>Mỗi loại có luật riêng về đơn vị giảm giá và điều kiện áp dụng.</p></div></div>
+            <div class="coupon-type-grid" id="type-picker">
+                @foreach (var type in Model.Types)
+                {
+                    <label class="coupon-type-card@(isEdit && Model.CouponTypeId != type.Id ? " is-disabled" : "")">
+                        <input type="radio" name="CouponTypeId" value="@type.Id" @(Model.CouponTypeId == type.Id ? "checked" : "") @(isEdit ? "disabled" : "") />
+                        <strong>@type.Name</strong>
+                        <small>@type.Description</small>
+                    </label>
+                }
                 @if (isEdit)
                 {
-                    <input class="form-control" value="@(Model.ProductOptions.FirstOrDefault(p => p.Id == Model.ProductId)?.Title ?? $"Sản phẩm #{Model.ProductId}")" disabled />
-                    <input type="hidden" asp-for="ProductId" />
+                    <input type="hidden" name="CouponTypeId" value="@Model.CouponTypeId" />
                 }
-                else
-                {
-                    <select asp-for="ProductId" class="form-control">
-                        <option value="">-- Chọn sản phẩm --</option>
-                        @foreach (var product in Model.ProductOptions)
-                        {
-                            <option value="@product.Id">@product.Title</option>
-                        }
-                    </select>
-                }
-                <span asp-validation-for="ProductId" class="field-validation"></span>
             </div>
+            <span asp-validation-for="CouponTypeId" class="field-validation"></span>
+            @if (isEdit)
+            {
+                <p class="form-hint">Không thể đổi loại sau khi tạo — xóa và tạo mã mới nếu cần loại khác.</p>
+            }
         </article>
 
         <article class="listing-section reveal reveal-delay-1">
-            <div class="listing-section-head"><span>02</span><div><h2>Thông tin mã giảm giá</h2><p>Mã, mức giảm và giới hạn sử dụng.</p></div></div>
+            <div class="listing-section-head"><span>02</span><div><h2>Thông tin cơ bản</h2><p>Tên nội bộ và mã công khai cho người mua.</p></div></div>
+            <div class="field-group">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="field-validation"></span>
+            </div>
             <div class="field-group">
                 <label asp-for="Code" class="form-label"></label>
-                <input asp-for="Code" class="form-control" placeholder="VD: SUMMER10" />
+                <input asp-for="Code" class="form-control" id="code-input" placeholder="VD: SUMMER10" />
                 <span asp-validation-for="Code" class="field-validation"></span>
+                <p class="form-hint">Chỉ chữ, số và dấu gạch ngang. Sẽ tự động viết hoa.</p>
             </div>
             <div class="field-group">
-                <label asp-for="DiscountPercent" class="form-label"></label>
-                <input asp-for="DiscountPercent" type="number" step="0.01" min="0.01" max="100" class="form-control" />
-                <span asp-validation-for="DiscountPercent" class="field-validation"></span>
+                <label asp-for="ProductId" class="form-label"></label>
+                <select asp-for="ProductId" class="form-control">
+                    <option value="">Áp dụng cho tất cả sản phẩm</option>
+                    @foreach (var product in Model.ProductOptions)
+                    {
+                        <option value="@product.Id">@product.Title</option>
+                    }
+                </select>
             </div>
             <div class="field-group">
-                <label asp-for="MaxUsage" class="form-label"></label>
-                <input asp-for="MaxUsage" type="number" min="1" class="form-control" />
-                <span asp-validation-for="MaxUsage" class="field-validation"></span>
+                <label asp-for="CategoryId" class="form-label"></label>
+                <select asp-for="CategoryId" class="form-control">
+                    <option value="">Tất cả danh mục</option>
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
             </div>
         </article>
 
         <article class="listing-section reveal reveal-delay-2">
-            <div class="listing-section-head"><span>03</span><div><h2>Thời gian hiệu lực</h2><p>Mã chỉ dùng được trong khoảng thời gian này.</p></div></div>
+            <div class="listing-section-head"><span>03</span><div><h2>Mức giảm giá</h2><p>Giá trị và đơn vị giảm giá, tùy theo loại đã chọn.</p></div></div>
+            <div class="field-group">
+                <label asp-for="DiscountValue" class="form-label"></label>
+                <input asp-for="DiscountValue" type="number" step="0.01" min="0.01" class="form-control" />
+                <span asp-validation-for="DiscountValue" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="DiscountUnit" class="form-label"></label>
+                <select asp-for="DiscountUnit" id="discount-unit" class="form-control">
+                    <option value="Percent">Phần trăm (%)</option>
+                    <option value="Amount">Số tiền (₫)</option>
+                </select>
+            </div>
+            <div class="field-group" id="max-discount-field">
+                <label asp-for="MaxDiscount" class="form-label"></label>
+                <input asp-for="MaxDiscount" type="number" step="0.01" min="0.01" class="form-control" />
+            </div>
+            <div class="field-group" id="min-order-field">
+                <label asp-for="MinimumOrderValue" class="form-label"></label>
+                <input asp-for="MinimumOrderValue" type="number" step="0.01" min="0" class="form-control" />
+            </div>
+
+            <div id="condition-section" class="listing-subsection" style="display:none">
+                <h3>Điều kiện áp dụng</h3>
+                <div class="field-group condition-field" data-field="buyQuantity">
+                    <label asp-for="BuyQuantity" class="form-label"></label>
+                    <input asp-for="BuyQuantity" type="number" min="1" class="form-control" />
+                </div>
+                <div class="field-group condition-field" data-field="getQuantity">
+                    <label asp-for="GetQuantity" class="form-label"></label>
+                    <input asp-for="GetQuantity" type="number" min="1" class="form-control" />
+                </div>
+                <div class="field-group condition-field" data-field="getDiscountPercent">
+                    <label asp-for="GetDiscountPercent" class="form-label"></label>
+                    <input asp-for="GetDiscountPercent" type="number" step="0.01" min="0" max="100" class="form-control" />
+                </div>
+                <div class="field-group condition-field" data-field="saveEveryAmount">
+                    <label asp-for="SaveEveryAmount" class="form-label"></label>
+                    <input asp-for="SaveEveryAmount" type="number" step="0.01" min="0.01" class="form-control" />
+                </div>
+                <div class="field-group condition-field" data-field="saveEveryItems">
+                    <label asp-for="SaveEveryItems" class="form-label"></label>
+                    <input asp-for="SaveEveryItems" type="number" min="1" class="form-control" />
+                </div>
+                <div class="field-group">
+                    <label asp-for="ConditionDescription" class="form-label"></label>
+                    <input asp-for="ConditionDescription" class="form-control" />
+                </div>
+            </div>
+        </article>
+
+        <article class="listing-section reveal reveal-delay-3">
+            <div class="listing-section-head"><span>04</span><div><h2>Thời hạn &amp; giới hạn</h2><p>Khoảng thời gian hiệu lực và giới hạn lượt dùng.</p></div></div>
             <div class="field-group">
                 <label asp-for="StartDate" class="form-label"></label>
                 <input asp-for="StartDate" type="datetime-local" class="form-control" />
@@ -72,6 +140,26 @@
                 <label asp-for="EndDate" class="form-label"></label>
                 <input asp-for="EndDate" type="datetime-local" class="form-control" />
                 <span asp-validation-for="EndDate" class="field-validation"></span>
+            </div>
+            <div class="field-group">
+                <label asp-for="UsageLimit" class="form-label"></label>
+                <input asp-for="UsageLimit" type="number" min="1" class="form-control" />
+            </div>
+            <div class="field-group">
+                <label asp-for="UsagePerUser" class="form-label"></label>
+                <input asp-for="UsagePerUser" type="number" min="1" class="form-control" />
+            </div>
+            <div class="field-group">
+                <label asp-for="ApplicablePriceMin" class="form-label"></label>
+                <input asp-for="ApplicablePriceMin" type="number" step="0.01" min="0" class="form-control" />
+            </div>
+            <div class="field-group">
+                <label asp-for="ApplicablePriceMax" class="form-label"></label>
+                <input asp-for="ApplicablePriceMax" type="number" step="0.01" min="0" class="form-control" />
+            </div>
+            <div class="field-group field-inline">
+                <input asp-for="IsActive" type="checkbox" />
+                <label asp-for="IsActive" class="form-label"></label>
             </div>
         </article>
 
@@ -84,6 +172,66 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+    (function () {
+        "use strict";
+        // Mirrors the server-side per-type rule table in CouponService.ValidateTypeSpecificData —
+        // client-side only, purely to steer the form; the API re-validates authoritatively.
+        var TYPE_RULES = {
+            1: { unit: "Percent", requiresMinOrder: false, fields: [] },
+            2: { unit: "Percent", requiresMinOrder: false, fields: ["saveEveryItems"] },
+            3: { unit: "Amount", requiresMinOrder: true, fields: [] },
+            4: { unit: "Percent", requiresMinOrder: false, fields: ["buyQuantity", "getQuantity", "getDiscountPercent"] },
+            5: { unit: null, requiresMinOrder: false, fields: ["buyQuantity", "getQuantity"] },
+            6: { unit: "Percent", requiresMinOrder: true, fields: [] },
+            7: { unit: "Amount", requiresMinOrder: false, fields: ["saveEveryItems"] },
+            8: { unit: "Amount", requiresMinOrder: false, fields: [] },
+            9: { unit: "Amount", requiresMinOrder: false, fields: [] },
+            10: { unit: "Amount", requiresMinOrder: false, fields: ["saveEveryAmount", "saveEveryItems"] },
+            11: { unit: "Amount", requiresMinOrder: false, fields: ["saveEveryAmount"] }
+        };
+
+        var codeInput = document.getElementById("code-input");
+        var discountUnitSelect = document.getElementById("discount-unit");
+        var minOrderField = document.getElementById("min-order-field");
+        var conditionSection = document.getElementById("condition-section");
+        var conditionFieldEls = Array.prototype.slice.call(document.querySelectorAll(".condition-field"));
+
+        if (codeInput) {
+            codeInput.addEventListener("input", function () {
+                var start = codeInput.selectionStart;
+                codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, "");
+                codeInput.setSelectionRange(start, start);
+            });
+        }
+
+        function applyTypeRules() {
+            var selected = document.querySelector('input[name="CouponTypeId"]:checked');
+            var rule = selected ? TYPE_RULES[selected.value] : null;
+            if (!rule) { conditionSection.style.display = "none"; return; }
+
+            if (rule.unit) {
+                discountUnitSelect.value = rule.unit;
+                discountUnitSelect.disabled = true;
+            } else {
+                discountUnitSelect.disabled = false;
+            }
+
+            var hasFields = rule.fields.length > 0;
+            conditionSection.style.display = hasFields ? "" : "none";
+            conditionFieldEls.forEach(function (el) {
+                var field = el.getAttribute("data-field");
+                el.style.display = rule.fields.indexOf(field) === -1 ? "none" : "";
+            });
+        }
+
+        Array.prototype.slice.call(document.querySelectorAll('input[name="CouponTypeId"]')).forEach(function (radio) {
+            radio.addEventListener("change", applyTypeRules);
+        });
+
+        applyTypeRules();
+    })();
+    </script>
     @if (!isEdit && recaptchaEnabled && !string.IsNullOrWhiteSpace(recaptchaSiteKey))
     {
         <script src="https://www.google.com/recaptcha/api.js?render=@recaptchaSiteKey"></script>

@@ -49,32 +49,55 @@ public sealed class SellerApiClient(
         CancellationToken cancellationToken = default) =>
         SendAsync<ProductDto>(HttpMethod.Put, $"api/products/{model.Id}", () => CreateProductContent(model, includeImages: model.Images.Count > 0), true, true, cancellationToken);
 
-    public Task<ApiCallResult<CouponDto>> CreateCouponAsync(
+    public Task<ApiCallResult<CouponDetailsDto>> CreateCouponAsync(
         CouponFormViewModel model,
         CancellationToken cancellationToken = default) =>
-        PostAsync<CouponDto>("api/coupons", new
-        {
-            productId = model.ProductId,
-            code = model.Code,
-            discountPercent = model.DiscountPercent,
-            startDate = model.StartDate.ToUniversalTime(),
-            endDate = model.EndDate.ToUniversalTime(),
-            maxUsage = model.MaxUsage,
-            recaptchaToken = model.RecaptchaToken
-        }, cancellationToken: cancellationToken);
+        PostAsync<CouponDetailsDto>("api/coupons", BuildCouponRequestBody(model, includeRecaptcha: true), cancellationToken: cancellationToken);
 
-    public Task<ApiCallResult<CouponDto>> UpdateCouponAsync(
+    public Task<ApiCallResult<CouponDetailsDto>> UpdateCouponAsync(
         int id,
         CouponFormViewModel model,
         CancellationToken cancellationToken = default) =>
-        PutAsync<CouponDto>($"api/coupons/{id}", new
+        PutAsync<CouponDetailsDto>($"api/coupons/{id}", BuildCouponRequestBody(model, includeRecaptcha: false), cancellationToken: cancellationToken);
+
+    private static object BuildCouponRequestBody(CouponFormViewModel model, bool includeRecaptcha)
+    {
+        var hasCondition = model.BuyQuantity.HasValue || model.GetQuantity.HasValue || model.GetDiscountPercent.HasValue
+            || model.SaveEveryAmount.HasValue || model.SaveEveryItems.HasValue || !string.IsNullOrWhiteSpace(model.ConditionDescription);
+        object? condition = hasCondition
+            ? new
+            {
+                buyQuantity = model.BuyQuantity,
+                getQuantity = model.GetQuantity,
+                getDiscountPercent = model.GetDiscountPercent,
+                saveEveryAmount = model.SaveEveryAmount,
+                saveEveryItems = model.SaveEveryItems,
+                conditionDescription = model.ConditionDescription
+            }
+            : null;
+
+        return new
         {
+            couponTypeId = model.CouponTypeId,
+            name = model.Name,
             code = model.Code,
-            discountPercent = model.DiscountPercent,
-            startDate = model.StartDate.ToUniversalTime(),
-            endDate = model.EndDate.ToUniversalTime(),
-            maxUsage = model.MaxUsage
-        }, cancellationToken: cancellationToken);
+            discountValue = model.DiscountValue,
+            discountUnit = model.DiscountUnit,
+            maxDiscount = model.MaxDiscount,
+            startDate = model.StartDate!.Value.ToUniversalTime(),
+            endDate = model.EndDate!.Value.ToUniversalTime(),
+            usageLimit = model.UsageLimit,
+            usagePerUser = model.UsagePerUser,
+            minimumOrderValue = model.MinimumOrderValue,
+            applicablePriceMin = model.ApplicablePriceMin,
+            applicablePriceMax = model.ApplicablePriceMax,
+            categoryId = model.CategoryId,
+            productId = model.ProductId,
+            isActive = model.IsActive,
+            condition,
+            recaptchaToken = includeRecaptcha ? model.RecaptchaToken : null
+        };
+    }
 
     public async Task EstablishSessionAsync(AuthTokensDto tokens)
     {

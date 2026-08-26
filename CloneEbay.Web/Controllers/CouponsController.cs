@@ -10,35 +10,18 @@ namespace CloneEbay.Web.Controllers;
 public sealed class CouponsController(SellerApiClient apiClient) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(int? productId, string? status, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var query = "api/coupons";
-        var filters = new List<string>();
-        if (productId.HasValue) filters.Add($"productId={productId.Value}");
-        if (!string.IsNullOrWhiteSpace(status)) filters.Add($"status={Uri.EscapeDataString(status)}");
-        if (filters.Count > 0) query += "?" + string.Join("&", filters);
-
-        var couponsTask = apiClient.GetAsync<IReadOnlyList<CouponDto>>(query, cancellationToken: cancellationToken);
-        var productsTask = apiClient.GetAsync<PagedResultDto<ProductDto>>("api/products?pageSize=100&sortBy=updatedAt&sortOrder=desc", cancellationToken: cancellationToken);
-        await Task.WhenAll(couponsTask, productsTask);
-        var couponResult = await couponsTask;
-        var productResult = await productsTask;
-        if (!couponResult.Success) TempData["Error"] = couponResult.ErrorMessage;
-
-        return View(new CouponIndexViewModel
-        {
-            Coupons = couponResult.Data ?? [],
-            Products = productResult.Data?.Items ?? [],
-            ProductId = productId,
-            Status = status
-        });
+        var result = await apiClient.GetAsync<IReadOnlyList<CouponSummaryDto>>("api/coupons", cancellationToken: cancellationToken);
+        if (!result.Success) TempData["Error"] = result.ErrorMessage;
+        return View(new CouponIndexViewModel { Coupons = result.Data ?? [] });
     }
 
     [HttpGet("create")]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
-        var model = new CouponFormViewModel();
-        await PopulateProductsAsync(model, cancellationToken);
+        var model = new CouponFormViewModel { StartDate = DateTime.Now, EndDate = DateTime.Now.AddDays(30) };
+        await PopulateLookupsAsync(model, cancellationToken);
         return View("Form", model);
     }
 
@@ -46,10 +29,9 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CouponFormViewModel model, CancellationToken cancellationToken)
     {
-        ValidateCouponForm(model);
         if (!ModelState.IsValid)
         {
-            await PopulateProductsAsync(model, cancellationToken);
+            await PopulateLookupsAsync(model, cancellationToken);
             return View("Form", model);
         }
 
@@ -57,7 +39,7 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
         if (!result.Success)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage);
-            await PopulateProductsAsync(model, cancellationToken);
+            await PopulateLookupsAsync(model, cancellationToken);
             return View("Form", model);
         }
         TempData["Success"] = "Mã giảm giá đã được tạo.";
@@ -67,14 +49,14 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
     [HttpGet("{id:int}/edit")]
     public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
     {
-        var result = await apiClient.GetAsync<CouponDto>($"api/coupons/{id}", cancellationToken: cancellationToken);
+        var result = await apiClient.GetAsync<CouponDetailsDto>($"api/coupons/{id}", cancellationToken: cancellationToken);
         if (!result.Success || result.Data is null)
         {
             TempData["Error"] = result.ErrorMessage;
             return RedirectToAction(nameof(Index));
         }
         var model = ToFormModel(result.Data);
-        await PopulateProductsAsync(model, cancellationToken);
+        await PopulateLookupsAsync(model, cancellationToken);
         return View("Form", model);
     }
 
@@ -83,10 +65,9 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
     public async Task<IActionResult> Edit(int id, CouponFormViewModel model, CancellationToken cancellationToken)
     {
         model.Id = id;
-        ValidateCouponForm(model);
         if (!ModelState.IsValid)
         {
-            await PopulateProductsAsync(model, cancellationToken);
+            await PopulateLookupsAsync(model, cancellationToken);
             return View("Form", model);
         }
 
@@ -94,10 +75,21 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
         if (!result.Success)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage);
-            await PopulateProductsAsync(model, cancellationToken);
+            await PopulateLookupsAsync(model, cancellationToken);
             return View("Form", model);
         }
         TempData["Success"] = "Mã giảm giá đã được cập nhật.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("{id:int}/status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(int id, bool isActive, CancellationToken cancellationToken)
+    {
+        var result = await apiClient.PatchAsync<object>($"api/coupons/{id}/status", new { isActive }, cancellationToken: cancellationToken);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? (isActive ? "Mã giảm giá đã được kích hoạt." : "Mã giảm giá đã bị tạm ngưng.")
+            : result.ErrorMessage;
         return RedirectToAction(nameof(Index));
     }
 
@@ -110,26 +102,41 @@ public sealed class CouponsController(SellerApiClient apiClient) : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task PopulateProductsAsync(CouponFormViewModel model, CancellationToken cancellationToken)
+    private async Task PopulateLookupsAsync(CouponFormViewModel model, CancellationToken cancellationToken)
     {
-        var result = await apiClient.GetAsync<PagedResultDto<ProductDto>>("api/products?pageSize=100&sortBy=updatedAt&sortOrder=desc", cancellationToken: cancellationToken);
-        model.ProductOptions = result.Data?.Items ?? [];
+        var typesTask = apiClient.GetAsync<IReadOnlyList<CouponTypeDto>>("api/coupons/types", cancellationToken: cancellationToken);
+        var categoriesTask = apiClient.GetAsync<IReadOnlyList<CategoryDto>>("api/categories", false, cancellationToken);
+        var productsTask = apiClient.GetAsync<PagedResultDto<ProductDto>>("api/products?pageSize=100&sortBy=updatedAt&sortOrder=desc", cancellationToken: cancellationToken);
+        await Task.WhenAll(typesTask, categoriesTask, productsTask);
+        model.Types = (await typesTask).Data ?? [];
+        model.Categories = (await categoriesTask).Data ?? [];
+        model.ProductOptions = (await productsTask).Data?.Items ?? [];
     }
 
-    private void ValidateCouponForm(CouponFormViewModel model)
-    {
-        if (model.EndDate <= model.StartDate)
-            ModelState.AddModelError(nameof(model.EndDate), "Ngày kết thúc phải sau ngày bắt đầu.");
-    }
-
-    private static CouponFormViewModel ToFormModel(CouponDto coupon) => new()
+    private static CouponFormViewModel ToFormModel(CouponDetailsDto coupon) => new()
     {
         Id = coupon.Id,
-        ProductId = coupon.ProductId,
+        CouponTypeId = coupon.CouponTypeId,
+        Name = coupon.Name,
         Code = coupon.Code,
-        DiscountPercent = coupon.DiscountPercent,
+        DiscountValue = coupon.DiscountValue,
+        DiscountUnit = coupon.DiscountUnit,
+        MaxDiscount = coupon.MaxDiscount,
         StartDate = coupon.StartDate.ToLocalTime(),
         EndDate = coupon.EndDate.ToLocalTime(),
-        MaxUsage = coupon.MaxUsage
+        UsageLimit = coupon.UsageLimit,
+        UsagePerUser = coupon.UsagePerUser,
+        MinimumOrderValue = coupon.MinimumOrderValue,
+        ApplicablePriceMin = coupon.ApplicablePriceMin,
+        ApplicablePriceMax = coupon.ApplicablePriceMax,
+        CategoryId = coupon.CategoryId,
+        ProductId = coupon.ProductId,
+        IsActive = coupon.IsActive,
+        BuyQuantity = coupon.Condition?.BuyQuantity,
+        GetQuantity = coupon.Condition?.GetQuantity,
+        GetDiscountPercent = coupon.Condition?.GetDiscountPercent,
+        SaveEveryAmount = coupon.Condition?.SaveEveryAmount,
+        SaveEveryItems = coupon.Condition?.SaveEveryItems,
+        ConditionDescription = coupon.Condition?.ConditionDescription
     };
 }
