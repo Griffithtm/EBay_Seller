@@ -134,12 +134,27 @@ public sealed class ReportDownloadGenerator(IReportRepository reports, IClock cl
 
     private static async Task<string> SaveAsync(string fileName, byte[] content, CancellationToken cancellationToken)
     {
-        // Same physical location LocalProductImageStorage writes to (API's wwwroot),
-        // computed without an ASP.NET dependency since this class lives in Infrastructure.
-        var directory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads", "reports");
-        Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, fileName);
-        await File.WriteAllBytesAsync(path, content, cancellationToken);
+        var dirs = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads", "reports"),
+            Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "reports"),
+            Path.Combine(Directory.GetCurrentDirectory(), "CloneEbay.API", "wwwroot", "uploads", "reports")
+        };
+
+        foreach (var dir in dirs)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, fileName);
+                await File.WriteAllBytesAsync(path, content, cancellationToken);
+            }
+            catch
+            {
+                // Ignore fallback directory creation errors
+            }
+        }
+
         return $"/uploads/reports/{fileName}";
     }
 }
