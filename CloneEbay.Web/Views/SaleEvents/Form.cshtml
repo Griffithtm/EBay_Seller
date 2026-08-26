@@ -1,0 +1,257 @@
+@model SaleEventFormViewModel
+@{
+    ViewData["Title"] = Model.Id.HasValue ? "Sửa sự kiện giảm giá" : "Tạo sự kiện giảm giá";
+    var isEdit = Model.Id.HasValue;
+}
+
+<div class="page-breadcrumb"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><a asp-action="Index">Sự kiện giảm giá</a><span>›</span><strong>@(isEdit ? "Sửa" : "Tạo mới")</strong></div>
+
+<h1 class="h3 my-4">@(isEdit ? "Sửa sự kiện giảm giá" : "Tạo sự kiện giảm giá")</h1>
+
+<form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" id="sale-event-form" novalidate>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <input type="hidden" asp-for="TiersJson" id="tiers-json" />
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h6 text-uppercase text-muted mb-3">Thông tin chung</h2>
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" maxlength="90" />
+                        <span asp-validation-for="Name" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label"></label>
+                        <textarea asp-for="Description" class="form-control" rows="2" maxlength="255"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="StartDate" class="form-label"></label>
+                            <input asp-for="StartDate" type="datetime-local" class="form-control" />
+                            <span asp-validation-for="StartDate" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="EndDate" class="form-label"></label>
+                            <input asp-for="EndDate" type="datetime-local" class="form-control" />
+                            <span asp-validation-for="EndDate" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="OfferFreeShipping" class="form-check-input" />
+                        <label asp-for="OfferFreeShipping" class="form-check-label"></label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="IncludeSkippedItems" class="form-check-input" />
+                        <label asp-for="IncludeSkippedItems" class="form-check-label"></label>
+                    </div>
+                    <div class="form-check">
+                        <input asp-for="BlockPriceIncreaseRevisions" class="form-check-input" />
+                        <label asp-for="BlockPriceIncreaseRevisions" class="form-check-label"></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h6 text-uppercase text-muted mb-3">Hình thức sự kiện</h2>
+                    <div class="btn-group mb-3" role="group">
+                        <input type="radio" class="btn-check" name="Mode" id="mode-tiers" value="DiscountAndSaleEvent" autocomplete="off" @(Model.Mode == "DiscountAndSaleEvent" ? "checked" : "") />
+                        <label class="btn btn-outline-primary" for="mode-tiers">Giảm giá theo tier</label>
+                        <input type="radio" class="btn-check" name="Mode" id="mode-highlight" value="SaleEventOnly" autocomplete="off" @(Model.Mode == "SaleEventOnly" ? "checked" : "") />
+                        <label class="btn btn-outline-primary" for="mode-highlight">Chỉ hiển thị nổi bật</label>
+                    </div>
+
+                    <div id="highlight-section" class="mb-2" style="display:none">
+                        <label asp-for="HighlightPercentage" class="form-label"></label>
+                        <div class="input-group" style="max-width: 220px">
+                            <input asp-for="HighlightPercentage" type="number" min="1" max="90" class="form-control" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <span asp-validation-for="HighlightPercentage" class="text-danger small"></span>
+                        <p class="text-muted small mt-2">Chỉ hiển thị nhãn giảm giá nổi bật trên sản phẩm, không áp dụng mức giảm giá cụ thể và không cần chọn sản phẩm.</p>
+                    </div>
+
+                    <div id="tiers-section">
+                        <div id="tier-list" class="mb-2"></div>
+                        <button type="button" id="add-tier-btn" class="btn btn-outline-primary btn-sm">+ Thêm tier</button>
+                        <p class="text-muted small mt-2 mb-0">Tối đa 10 tier. Mỗi tier cần một mức ưu tiên (priority) riêng và ít nhất một sản phẩm — chọn sản phẩm ở bảng bên phải sau khi bấm "Chọn" trên tier tương ứng.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5" id="product-picker-column">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6 text-uppercase text-muted mb-3">Chọn sản phẩm cho tier <span id="active-tier-label" class="text-primary"></span></h2>
+                    <input type="search" id="product-search" class="form-control form-control-sm mb-2" placeholder="Tìm theo tên sản phẩm..." />
+                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr><th></th><th>Sản phẩm</th><th>Giá</th></tr>
+                            </thead>
+                            <tbody id="product-picker-body">
+                                @foreach (var product in Model.EligibleProducts)
+                                {
+                                    <tr data-product-id="@product.ProductId" data-title="@product.Title.ToLowerInvariant()">
+                                        <td><input type="checkbox" class="product-checkbox" value="@product.ProductId" /></td>
+                                        <td>@product.Title<br /><small class="text-muted">@product.CategoryName</small></td>
+                                        <td>@product.Price.ToString("N0") ₫</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Tạo sự kiện")</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+(function () {
+    "use strict";
+    var form = document.getElementById("sale-event-form");
+    var tiersJsonInput = document.getElementById("tiers-json");
+    var tierListEl = document.getElementById("tier-list");
+    var addTierBtn = document.getElementById("add-tier-btn");
+    var activeTierLabel = document.getElementById("active-tier-label");
+    var productSearch = document.getElementById("product-search");
+    var productRows = Array.prototype.slice.call(document.querySelectorAll("#product-picker-body tr"));
+    var productCheckboxes = Array.prototype.slice.call(document.querySelectorAll(".product-checkbox"));
+
+    var tiers = [];
+    try {
+        var initial = JSON.parse(tiersJsonInput.value || "[]");
+        if (Array.isArray(initial)) {
+            tiers = initial.map(function (t) {
+                return {
+                    priority: t.priority || 1,
+                    discountType: t.discountType || "Percent",
+                    discountValue: t.discountValue || 0,
+                    label: t.label || "",
+                    productIds: (t.productIds || []).slice()
+                };
+            });
+        }
+    } catch (e) { tiers = []; }
+
+    var activeTierIndex = tiers.length > 0 ? 0 : -1;
+
+    function tierOfProduct(productId) {
+        for (var i = 0; i < tiers.length; i++) {
+            if (tiers[i].productIds.indexOf(productId) !== -1) return i;
+        }
+        return -1;
+    }
+
+    function renderProductCheckStates() {
+        productCheckboxes.forEach(function (checkbox) {
+            var productId = parseInt(checkbox.value, 10);
+            var owningTier = tierOfProduct(productId);
+            checkbox.checked = owningTier === activeTierIndex;
+            checkbox.disabled = owningTier !== -1 && owningTier !== activeTierIndex;
+        });
+    }
+
+    function renderTiers() {
+        tierListEl.innerHTML = "";
+        tiers.forEach(function (tier, index) {
+            var row = document.createElement("div");
+            row.className = "border rounded p-2 mb-2" + (index === activeTierIndex ? " border-primary" : "");
+            row.innerHTML =
+                '<div class="row g-2 align-items-center">' +
+                '  <div class="col-2"><input type="number" min="1" class="form-control form-control-sm tier-priority" value="' + tier.priority + '" placeholder="Ưu tiên" /></div>' +
+                '  <div class="col-3"><select class="form-select form-select-sm tier-type">' +
+                '    <option value="Percent"' + (tier.discountType === "Percent" ? " selected" : "") + '>% giảm</option>' +
+                '    <option value="Amount"' + (tier.discountType === "Amount" ? " selected" : "") + '>Giảm số tiền</option>' +
+                '  </select></div>' +
+                '  <div class="col-2"><input type="number" min="0" step="0.01" class="form-control form-control-sm tier-value" value="' + tier.discountValue + '" placeholder="Giá trị" /></div>' +
+                '  <div class="col-3"><input type="text" class="form-control form-control-sm tier-label" value="' + (tier.label || "").replace(/"/g, "&quot;") + '" placeholder="Nhãn (tuỳ chọn)" /></div>' +
+                '  <div class="col-2 text-end">' +
+                '    <button type="button" class="btn btn-sm ' + (index === activeTierIndex ? "btn-primary" : "btn-outline-primary") + ' select-tier-btn">Chọn</button>' +
+                '    <button type="button" class="btn btn-sm btn-outline-danger remove-tier-btn">✕</button>' +
+                '  </div>' +
+                '</div>' +
+                '<div class="small text-muted mt-1">' + tier.productIds.length + ' sản phẩm đã chọn</div>';
+
+            row.querySelector(".tier-priority").addEventListener("input", function (e) { tier.priority = parseInt(e.target.value, 10) || 0; });
+            row.querySelector(".tier-type").addEventListener("change", function (e) { tier.discountType = e.target.value; });
+            row.querySelector(".tier-value").addEventListener("input", function (e) { tier.discountValue = parseFloat(e.target.value) || 0; });
+            row.querySelector(".tier-label").addEventListener("input", function (e) { tier.label = e.target.value; });
+            row.querySelector(".select-tier-btn").addEventListener("click", function () {
+                activeTierIndex = index;
+                renderTiers();
+                renderProductCheckStates();
+            });
+            row.querySelector(".remove-tier-btn").addEventListener("click", function () {
+                tiers.splice(index, 1);
+                if (activeTierIndex >= tiers.length) activeTierIndex = tiers.length - 1;
+                renderTiers();
+                renderProductCheckStates();
+            });
+
+            tierListEl.appendChild(row);
+        });
+        activeTierLabel.textContent = activeTierIndex >= 0 ? ("#" + (activeTierIndex + 1)) : "(chưa có tier)";
+    }
+
+    addTierBtn.addEventListener("click", function () {
+        if (tiers.length >= 10) { alert("Tối đa 10 tier."); return; }
+        tiers.push({ priority: tiers.length + 1, discountType: "Percent", discountValue: 10, label: "", productIds: [] });
+        activeTierIndex = tiers.length - 1;
+        renderTiers();
+        renderProductCheckStates();
+    });
+
+    productCheckboxes.forEach(function (checkbox) {
+        checkbox.addEventListener("change", function () {
+            if (activeTierIndex < 0) { checkbox.checked = false; alert("Hãy thêm và chọn một tier trước."); return; }
+            var productId = parseInt(checkbox.value, 10);
+            var tier = tiers[activeTierIndex];
+            var pos = tier.productIds.indexOf(productId);
+            if (checkbox.checked && pos === -1) tier.productIds.push(productId);
+            if (!checkbox.checked && pos !== -1) tier.productIds.splice(pos, 1);
+            renderTiers();
+            renderProductCheckStates();
+        });
+    });
+
+    if (productSearch) {
+        productSearch.addEventListener("input", function () {
+            var term = productSearch.value.trim().toLowerCase();
+            productRows.forEach(function (row) {
+                var title = row.getAttribute("data-title") || "";
+                row.style.display = title.indexOf(term) === -1 ? "none" : "";
+            });
+        });
+    }
+
+    function toggleModeSections() {
+        var mode = (document.querySelector('input[name="Mode"]:checked') || {}).value || "DiscountAndSaleEvent";
+        document.getElementById("highlight-section").style.display = mode === "SaleEventOnly" ? "" : "none";
+        document.getElementById("tiers-section").style.display = mode === "DiscountAndSaleEvent" ? "" : "none";
+        document.getElementById("product-picker-column").style.display = mode === "DiscountAndSaleEvent" ? "" : "none";
+    }
+    Array.prototype.slice.call(document.querySelectorAll('input[name="Mode"]')).forEach(function (radio) {
+        radio.addEventListener("change", toggleModeSections);
+    });
+
+    form.addEventListener("submit", function () {
+        tiersJsonInput.value = JSON.stringify(tiers);
+    });
+
+    toggleModeSections();
+    renderTiers();
+    renderProductCheckStates();
+})();
+</script>
+}

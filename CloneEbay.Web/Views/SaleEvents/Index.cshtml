@@ -1,0 +1,109 @@
+@model SaleEventIndexViewModel
+@{
+    ViewData["Title"] = "Sự kiện giảm giá";
+    string StatusBadge(string status) => status switch
+    {
+        "Draft" => "secondary",
+        "Scheduled" => "info",
+        "Active" => "success",
+        "Ended" => "dark",
+        "Cancelled" => "danger",
+        _ => "secondary"
+    };
+    string StatusLabel(string status) => status switch
+    {
+        "Draft" => "Nháp",
+        "Scheduled" => "Đã lên lịch",
+        "Active" => "Đang chạy",
+        "Ended" => "Đã kết thúc",
+        "Cancelled" => "Đã hủy",
+        _ => status
+    };
+}
+
+<div class="page-breadcrumb"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Sự kiện giảm giá</strong></div>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 my-4">
+    <div>
+        <h1 class="h3 mb-1">Sự kiện giảm giá</h1>
+        <p class="text-muted mb-0">Tạo các đợt giảm giá theo mốc (tier) hoặc chỉ hiển thị nhãn nổi bật cho sản phẩm.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">+ Tạo sự kiện</a>
+</div>
+
+@if (Model.Events.Count == 0)
+{
+    <div class="alert alert-light border text-center py-5">
+        <p class="mb-3">Chưa có sự kiện giảm giá nào.</p>
+        <a class="btn btn-primary" asp-action="Create">Tạo sự kiện đầu tiên</a>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Tên</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian</th>
+                    <th>Tier</th>
+                    <th>Sản phẩm</th>
+                    <th>Ưu đãi</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var saleEvent in Model.Events)
+                {
+                    <tr>
+                        <td><strong>@saleEvent.Name</strong></td>
+                        <td><span class="badge bg-@StatusBadge(saleEvent.Status)">@StatusLabel(saleEvent.Status)</span></td>
+                        <td><small>@saleEvent.StartDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")<br />→ @saleEvent.EndDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></td>
+                        <td>@saleEvent.TierCount</td>
+                        <td>@saleEvent.ProductCount</td>
+                        <td>
+                            @if (saleEvent.HighlightPercentage.HasValue)
+                            {
+                                <span class="badge bg-warning text-dark">Nổi bật @saleEvent.HighlightPercentage.Value%</span>
+                            }
+                            @if (saleEvent.OfferFreeShipping)
+                            {
+                                <span class="badge bg-light text-dark border">Free ship</span>
+                            }
+                            @if (saleEvent.BlockPriceIncreaseRevisions)
+                            {
+                                <span class="badge bg-light text-dark border">Khóa tăng giá</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                @if (saleEvent.Status is not ("Ended" or "Cancelled"))
+                                {
+                                    <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@saleEvent.Id">Sửa</a>
+                                }
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Trạng thái</button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        @foreach (var target in new[] { "Draft", "Scheduled", "Active", "Ended", "Cancelled" })
+                                        {
+                                            <li>
+                                                <form asp-action="UpdateStatus" asp-route-id="@saleEvent.Id" method="post">
+                                                    <input type="hidden" name="status" value="@target" />
+                                                    <button class="dropdown-item" type="submit">@StatusLabel(target)</button>
+                                                </form>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                                <form asp-action="Delete" asp-route-id="@saleEvent.Id" method="post" onsubmit="return confirm('Xóa sự kiện @saleEvent.Name?');">
+                                    <button class="btn btn-outline-danger" type="submit">Xóa</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

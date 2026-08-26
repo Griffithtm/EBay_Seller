@@ -49,6 +49,25 @@ public sealed record ApiCallResult<T>(bool Success, T? Data, ApiErrorDto? Error,
         "COUPON_CODE_ALREADY_EXISTS" => "Mã này đã tồn tại cho sản phẩm đã chọn.",
         "COUPON_ALREADY_USED" => "Mã đã được sử dụng nên không thể xóa.",
         "RECAPTCHA_VERIFICATION_FAILED" => "Xác thực reCAPTCHA thất bại. Vui lòng thử lại.",
+        // Sale events
+        "NAME_ALREADY_EXISTS" => "Tên sự kiện này đã tồn tại.",
+        "EMPTY_NAME" => "Vui lòng nhập tên.",
+        "NAME_TOO_LONG" => "Tên quá dài.",
+        "INVALID_DATE_RANGE" => "Ngày kết thúc phải sau ngày bắt đầu.",
+        "INVALID_MODE_CONFIGURATION" => "Cấu hình hình thức sự kiện không hợp lệ.",
+        "DISCOUNT_TIERS_REQUIRED" => "Cần ít nhất một mức giảm giá (tier).",
+        "TOO_MANY_DISCOUNT_TIERS" => "Sự kiện chỉ được tối đa 10 tier.",
+        "INVALID_DISCOUNT_VALUE" => "Giá trị giảm giá không hợp lệ.",
+        "INVALID_DISCOUNT_PERCENTAGE" => "Phần trăm giảm giá phải từ 1 đến 90.",
+        "DUPLICATE_TIER_PRIORITY" => "Thứ tự ưu tiên (priority) bị trùng giữa các tier.",
+        "DUPLICATE_PRODUCT_ASSIGNMENT" => "Một sản phẩm chỉ được gán vào một tier.",
+        "HIGHLIGHT_PERCENTAGE_REQUIRED" => "Vui lòng nhập phần trăm hiển thị nổi bật.",
+        "INVALID_HIGHLIGHT_PERCENTAGE" => "Phần trăm hiển thị nổi bật phải từ 1 đến 90.",
+        "INVALID_STATUS_TRANSITION" => "Không thể chuyển sang trạng thái này.",
+        "EDIT_NOT_ALLOWED" => "Sự kiện đã kết thúc hoặc bị hủy nên không thể chỉnh sửa.",
+        "LISTING_SELECTION_REQUIRED" => "Mỗi tier cần chọn ít nhất một sản phẩm.",
+        "PRODUCTS_NOT_OWNED_BY_SELLER" => "Một số sản phẩm đã chọn không thuộc cửa hàng của bạn.",
+        "SALE_EVENT_NOT_FOUND" => "Không tìm thấy sự kiện.",
         _ => Error?.Message ?? "Không thể hoàn tất yêu cầu. Vui lòng thử lại."
     };
 }
@@ -156,3 +175,56 @@ public sealed record AuctionCloseDto(
     int? OrderId,
     bool OrderCreationPending,
     DateTime ClosedAt);
+
+// Sale events
+
+public sealed record SaleEventTierDto(
+    int Id,
+    int Priority,
+    string DiscountType,
+    decimal DiscountValue,
+    string? Label,
+    IReadOnlyList<int> ProductIds);
+
+public sealed record SaleEventDetailDto(
+    int Id,
+    string Name,
+    string? Description,
+    string Mode,
+    string Status,
+    DateTime StartDate,
+    DateTime EndDate,
+    bool OfferFreeShipping,
+    bool IncludeSkippedItems,
+    bool BlockPriceIncreaseRevisions,
+    decimal? HighlightPercentage,
+    IReadOnlyList<SaleEventTierDto> Tiers);
+
+public sealed record SaleEventSummaryDto(
+    int Id,
+    string Name,
+    string Status,
+    DateTime StartDate,
+    DateTime EndDate,
+    int TierCount,
+    int ProductCount,
+    bool OfferFreeShipping,
+    bool IncludeSkippedItems,
+    bool BlockPriceIncreaseRevisions,
+    decimal? HighlightPercentage);
+
+public sealed record EligibleProductDto(
+    int ProductId,
+    string Title,
+    string? ThumbnailUrl,
+    int CategoryId,
+    string CategoryName,
+    decimal Price,
+    DateTime CreatedAt,
+    bool IsAlreadyAssigned);
+
+public sealed record EligibleProductsPageDto(
+    IReadOnlyList<EligibleProductDto> Items,
+    int TotalCount,
+    int PageNumber,
+    int PageSize);

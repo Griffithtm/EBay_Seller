@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ICouponRepository, CouponRepository>();
+        services.AddScoped<ISaleEventRepository, SaleEventRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CloneEbayDbContext>());
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IClock, SystemClock>();
