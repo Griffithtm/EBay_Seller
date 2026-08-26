@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace CloneEbay.Web.Models;
 
@@ -12,7 +13,7 @@ public sealed class ProductFormViewModel
     [Required(ErrorMessage = "Vui lòng nhập mô tả sản phẩm."), StringLength(4000, MinimumLength = 10, ErrorMessage = "Mô tả phải từ 10 đến 4.000 ký tự."), Display(Name = "Mô tả chi tiết")]
     public string Description { get; set; } = string.Empty;
 
-    [Range(typeof(decimal), "0.01", "9999999999999999", ErrorMessage = "Giá phải lớn hơn 0."), Display(Name = "Giá bán / giá khởi điểm")]
+    [Range(typeof(decimal), "0.01", "9999999999999999", ParseLimitsInInvariantCulture = true, ErrorMessage = "Giá phải lớn hơn 0."), Display(Name = "Giá bán / giá khởi điểm")]
     public decimal Price { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn danh mục."), Display(Name = "Danh mục")]
@@ -27,8 +28,9 @@ public sealed class ProductFormViewModel
     [Range(0, int.MaxValue, ErrorMessage = "Tồn kho không được âm."), Display(Name = "Số lượng tồn kho")]
     public int Quantity { get; set; }
 
+    [ValidateNever]
     [Display(Name = "Hình ảnh sản phẩm")]
-    public List<IFormFile> Images { get; set; } = [];
+    public List<IFormFile>? Images { get; set; } = [];
 
     public IReadOnlyList<string> ExistingImages { get; set; } = [];
     public IReadOnlyList<CategoryDto> Categories { get; set; } = [];

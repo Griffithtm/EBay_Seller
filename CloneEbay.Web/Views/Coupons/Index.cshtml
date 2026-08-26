@@ -1,0 +1,90 @@
+@model CouponIndexViewModel
+@{
+    ViewData["Title"] = "Mã giảm giá";
+    string StatusLabel(string status) => status switch
+    {
+        "Active" => "Đang hiệu lực",
+        "Scheduled" => "Chưa bắt đầu",
+        "Expired" => "Hết hạn",
+        "UsedUp" => "Hết lượt",
+        _ => status
+    };
+}
+
+<div class="page-breadcrumb reveal"><a asp-controller="Seller" asp-action="Index">Seller Center</a><span>›</span><strong>Mã giảm giá</strong></div>
+
+<section class="catalog-hero reveal">
+    <div><span class="section-kicker">MARKETING &amp; COUPON</span><h1>Khuyến mãi đúng lúc.<br />Chốt đơn nhanh hơn.</h1><p>Tạo và theo dõi mã giảm giá gắn theo từng sản phẩm, bảo vệ bằng Google reCAPTCHA.</p></div>
+    <a class="btn btn-primary btn-lg" asp-action="Create">Tạo mã giảm giá <span aria-hidden="true">→</span></a>
+</section>
+
+<section class="catalog-metrics reveal reveal-delay-1" aria-label="Tổng quan mã giảm giá">
+    <article><span class="metric-symbol blue">□</span><div><small>TỔNG SỐ MÃ</small><strong>@Model.Coupons.Count</strong><p>Trong cửa hàng</p></div></article>
+    <article><span class="metric-symbol green">↑</span><div><small>ĐANG HIỆU LỰC</small><strong>@Model.ActiveCount</strong><p>Có thể áp dụng ngay</p></div></article>
+    <article><span class="metric-symbol orange">⏳</span><div><small>CHƯA BẮT ĐẦU</small><strong>@Model.ScheduledCount</strong><p>Đã lên lịch</p></div></article>
+    <article><span class="metric-symbol violet">✕</span><div><small>HẾT HẠN / HẾT LƯỢT</small><strong>@Model.ExpiredCount</strong><p>Không còn áp dụng</p></div></article>
+</section>
+
+<section class="catalog-workspace reveal reveal-delay-2">
+    <form class="catalog-toolbar" method="get">
+        <select name="productId" aria-label="Lọc theo sản phẩm">
+            <option value="">Tất cả sản phẩm</option>
+            @foreach (var product in Model.Products)
+            {
+                <option value="@product.Id" selected="@(Model.ProductId == product.Id)">@product.Title</option>
+            }
+        </select>
+        <select name="status" aria-label="Lọc trạng thái">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Active" selected="@(Model.Status == "Active")">Đang hiệu lực</option>
+            <option value="Scheduled" selected="@(Model.Status == "Scheduled")">Chưa bắt đầu</option>
+            <option value="Expired" selected="@(Model.Status == "Expired")">Hết hạn</option>
+            <option value="UsedUp" selected="@(Model.Status == "UsedUp")">Hết lượt</option>
+        </select>
+        <button class="btn btn-secondary-soft" type="submit">Áp dụng</button>
+        @if (Model.ProductId.HasValue || !string.IsNullOrWhiteSpace(Model.Status))
+        {
+            <a class="toolbar-clear" asp-action="Index">Xóa lọc</a>
+        }
+    </form>
+
+    @if (Model.Coupons.Count == 0)
+    {
+        <div class="product-empty">
+            <div class="product-empty-art" aria-hidden="true"><span></span><i></i></div>
+            <h2>Chưa có mã giảm giá nào</h2>
+            <p>Tạo mã giảm giá đầu tiên để thúc đẩy sản phẩm của bạn.</p>
+            <a class="btn btn-primary" asp-action="Create">Tạo mã giảm giá</a>
+        </div>
+    }
+    else
+    {
+        <div class="product-management-list">
+            @foreach (var coupon in Model.Coupons)
+            {
+                var statusClass = coupon.Status.ToLowerInvariant();
+                <article class="product-management-card">
+                    <div class="management-copy">
+                        <div class="management-title-row">
+                            <div><small>@coupon.ProductTitle</small><h2>@coupon.Code</h2></div>
+                            <span class="product-status @statusClass"><i></i>@StatusLabel(coupon.Status)</span>
+                        </div>
+                        <div class="management-facts">
+                            <span><small>GIẢM GIÁ</small><strong>@coupon.DiscountPercent.ToString("0.##")%</strong></span>
+                            <span><small>HIỆU LỰC</small><strong>@coupon.StartDate.ToLocalTime().ToString("dd/MM/yyyy") - @coupon.EndDate.ToLocalTime().ToString("dd/MM/yyyy")</strong></span>
+                            <span><small>ĐÃ DÙNG</small><strong>@coupon.UsageCount / @coupon.MaxUsage</strong></span>
+                        </div>
+                    </div>
+                    <div class="management-controls">
+                        <div class="row-actions">
+                            <a class="btn btn-secondary-soft" asp-action="Edit" asp-route-id="@coupon.Id">Chỉnh sửa</a>
+                            <form asp-action="Delete" asp-route-id="@coupon.Id" method="post" data-loading-form data-confirm="Xóa mã @coupon.Code?">
+                                <button class="btn btn-secondary-soft danger" type="submit">Xóa</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>

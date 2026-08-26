@@ -162,7 +162,7 @@ public sealed class ProductCreateForm
 {
     [Required, StringLength(255, MinimumLength = 3)] public string Title { get; set; } = string.Empty;
     [Required, StringLength(4000, MinimumLength = 10)] public string Description { get; set; } = string.Empty;
-    [Range(typeof(decimal), "0.01", "9999999999999999")] public decimal Price { get; set; }
+    [Range(typeof(decimal), "0.01", "9999999999999999", ParseLimitsInInvariantCulture = true)] public decimal Price { get; set; }
     [Range(1, int.MaxValue)] public int CategoryId { get; set; }
     public bool IsAuction { get; set; }
     public DateTime? AuctionEndTime { get; set; }
@@ -174,7 +174,7 @@ public sealed class ProductUpdateForm
 {
     [StringLength(255, MinimumLength = 3)] public string? Title { get; set; }
     [StringLength(4000, MinimumLength = 10)] public string? Description { get; set; }
-    [Range(typeof(decimal), "0.01", "9999999999999999")] public decimal? Price { get; set; }
+    [Range(typeof(decimal), "0.01", "9999999999999999", ParseLimitsInInvariantCulture = true)] public decimal? Price { get; set; }
     [Range(1, int.MaxValue)] public int? CategoryId { get; set; }
     public bool? IsAuction { get; set; }
     public DateTime? AuctionEndTime { get; set; }

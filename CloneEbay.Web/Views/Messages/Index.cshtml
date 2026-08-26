@@ -1,0 +1,76 @@
+@model CloneEbay.Web.Models.InboxViewModel
+@{
+    ViewData["Title"] = "Tin nhắn";
+}
+
+<div class="container mt-4">
+    <div class="row h-100">
+        <!-- Sidebar: Danh sách hội thoại -->
+        <div class="col-md-4 border-end">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0 fw-bold">Đoạn chat</h4>
+            </div>
+
+            <!-- Ô tìm kiếm (Search Bar) -->
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-white border-end-0" id="search-addon"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control border-start-0" placeholder="Tìm theo tên..." aria-describedby="search-addon" id="chat-search-input">
+            </div>
+
+            <!-- Dropdown Bộ lọc -->
+            <div class="mb-3 d-flex justify-content-between align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Tất cả
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">Tất cả</a></li>
+                        <li><a class="dropdown-item" href="#">Chưa đọc</a></li>
+                        <li><a class="dropdown-item" href="#">Đã Ghim</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Danh sách -->
+            <div class="list-group list-group-flush" style="max-height: 75vh; overflow-y: auto;">
+                @if (Model.Conversations.Count == 0)
+                {
+                    <p class="text-muted text-center mt-3">Chưa có cuộc hội thoại nào.</p>
+                }
+                else
+                {
+                    foreach (var conv in Model.Conversations)
+                    {
+                        var isUnread = conv.UnreadCount > 0;
+                        <a asp-action="Conversation" asp-route-userId="@conv.WithUserId" class="list-group-item list-group-item-action py-3 border-bottom @(isUnread ? "bg-light" : "")">
+                            <div class="d-flex align-items-center">
+                                <img src="https://ui-avatars.com/api/?name=@conv.WithUsername&background=random" alt="Avatar" class="rounded-circle me-3" style="width: 48px; height: 48px;">
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0 text-truncate @(isUnread ? "fw-bold" : "")">@conv.WithUsername</h6>
+                                        <small class="text-muted">@conv.LastMessageAt.ToLocalTime().ToString("dd/MM HH:mm")</small>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <p class="mb-0 small text-truncate text-muted @(isUnread ? "fw-bold text-dark" : "")">
+                                            @conv.LastMessage
+                                        </p>
+                                        @if (isUnread)
+                                        {
+                                            <span class="badge bg-danger rounded-pill">@conv.UnreadCount</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Main Area: Placeholder khi chưa chọn hội thoại -->
+        <div class="col-md-8 d-none d-md-flex flex-column justify-content-center align-items-center bg-light">
+            <i class="bi bi-chat-square-dots text-muted" style="font-size: 4rem;"></i>
+            <h5 class="text-muted mt-3">Chọn một đoạn chat để bắt đầu</h5>
+        </div>
+    </div>
+</div>

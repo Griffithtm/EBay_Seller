@@ -18,9 +18,16 @@ public sealed class User : BaseEntity
     public DateTime UpdatedAtUtc { get; set; }
 
     public Store? Store { get; set; }
+    public SellerPerformance? Performance { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Product> Products { get; set; } = new List<Product>();
     public ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public ICollection<Product> WonAuctions { get; set; } = new List<Product>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    public Feedback? Feedback { get; set; }
+    public ICollection<ReturnRequest> ReturnRequests { get; set; } = new List<ReturnRequest>();
+    public ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
+    public ICollection<Message> SentMessages { get; set; } = new List<Message>();
+    public ICollection<Message> ReceivedMessages { get; set; } = new List<Message>();
 }

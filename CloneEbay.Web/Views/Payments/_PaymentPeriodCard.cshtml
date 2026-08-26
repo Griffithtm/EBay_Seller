@@ -1,0 +1,46 @@
+@model (string Title, PaymentReportPeriodDto Period, string Currency)
+@{
+    var f = Model.Period.Figures;
+    string Money(decimal v) => v.ToString("N0") + " " + Model.Currency;
+}
+
+<section class="verification-progress" style="height:100%;">
+    <div class="surface-heading compact-heading">
+        <div>
+            <h2>@Model.Title</h2>
+            <p>@Model.Period.FromUtc.ToLocalTime().ToString("dd/MM/yyyy") — @Model.Period.ToUtc.ToLocalTime().ToString("dd/MM/yyyy")</p>
+        </div>
+    </div>
+
+    <div class="catalog-metrics" style="grid-template-columns:repeat(2,1fr);">
+        <article>
+            <span class="metric-symbol green">₫</span>
+            <div><small>ORDER PROCEEDS (GROSS SALES)</small><strong>@Money(f.GrossSales)</strong></div>
+        </article>
+        <article>
+            <span class="metric-symbol red">↩</span>
+            <div><small>REFUNDS</small><strong>@Money(f.Refunds)</strong></div>
+        </article>
+        <article>
+            <span class="metric-symbol orange">−</span>
+            <div><small>EXPENSES</small><strong>@Money(f.Expenses)</strong></div>
+        </article>
+        <article>
+            <span class="metric-symbol blue">⇄</span>
+            <div><small>NET TRANSFERS (PAYOUTS − CHARGES)</small><strong>@Money(f.NetTransfersTotal)</strong></div>
+        </article>
+    </div>
+
+    <div class="status-meta-grid">
+        <div><small>PAYOUTS (THẬT, TỪ PAYMENT)</small><strong>@Money(f.Payouts)</strong></div>
+        <div><small>CHARGES (PHÍ/FEE)</small><strong>@Money(f.Charges)</strong></div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Period.Note))
+    {
+        <div class="context-banner banner-info" style="margin-top:12px;">
+            <span class="context-icon">i</span>
+            <div><strong>Ghi chú về nguồn dữ liệu</strong><p>@Model.Period.Note</p></div>
+        </div>
+    }
+</section>

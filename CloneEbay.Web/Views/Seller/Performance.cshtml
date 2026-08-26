@@ -1,0 +1,121 @@
+@model SellerPerformanceViewModel
+@{
+    ViewData["Title"] = "Cấp độ tài khoản";
+    var p = Model.Performance;
+    var levelClass = p.Level switch
+    {
+        "TopRated" => "success",
+        "AboveStandard" => "info",
+        _ => "danger"
+    };
+    var levelLabel = p.Level switch
+    {
+        "TopRated" => "Top Rated",
+        "AboveStandard" => "Above Standard",
+        _ => "Below Standard"
+    };
+    var listingPct = p.MaxActiveListings == 0 ? 0 : Math.Min(100, (int)(p.CurrentActiveListingCount * 100m / p.MaxActiveListings));
+    var valuePct = p.MaxTotalActiveValue == 0 ? 0 : Math.Min(100, (int)(p.CurrentActiveListingValue * 100m / p.MaxTotalActiveValue));
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Seller" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Cấp độ tài khoản</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div>
+        <span class="section-kicker">SELLER PERFORMANCE LEVEL</span>
+        <h1>Cấp độ tài khoản &amp; hạn mức đăng bán</h1>
+        <p>Cấp độ được hệ thống tự động tính từ 4 chỉ số vận hành trong 12 tháng gần nhất, đánh giá lại vào ngày 20 hàng tháng.</p>
+    </div>
+    <span class="status-pill @levelClass"><i></i>@levelLabel</span>
+</section>
+
+@if (!string.IsNullOrEmpty(Model.Warning?.Severity))
+{
+    var bannerClass = Model.Warning.Severity == "Critical" ? "banner-danger" : "banner-info";
+    var icon = Model.Warning.Severity == "Critical" ? "!" : "i";
+    <div class="context-banner @bannerClass reveal reveal-delay-1">
+        <span class="context-icon">@icon</span>
+        <div>
+            <strong>@(Model.Warning.Severity == "Critical" ? "Cảnh báo: nguy cơ bị hạ xuống Below Standard" : "Một số chỉ số đang tiến gần ngưỡng tối thiểu")</strong>
+            <ul class="mb-0 mt-1">
+                @foreach (var item in Model.Warning.Items)
+                {
+                    <li><strong>@item.Metric</strong> đang ở @item.CurrentValue.ToString("0.##")% (@item.Severity) — @item.Message @item.RecommendedAction</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<section class="catalog-metrics reveal reveal-delay-1" aria-label="Chỉ số vận hành">
+    <article>
+        <span class="metric-symbol red">%</span>
+        <div>
+            <small>TỶ LỆ GIAO DỊCH LỖI</small>
+            <strong>@p.TransactionDefectRate.ToString("0.##")%</strong>
+            <p>Ngưỡng TopRated ≤0.5% · AboveStandard ≤2%</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol orange">%</span>
+        <div>
+            <small>TỶ LỆ GIAO TRỄ</small>
+            <strong>@p.LateShipmentRate.ToString("0.##")%</strong>
+            <p>Ngưỡng TopRated ≤2% · AboveStandard ≤4%</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol blue">%</span>
+        <div>
+            <small>TRACKING ĐÚNG HẠN</small>
+            <strong>@p.TrackingUploadedOnTimeRate.ToString("0.##")%</strong>
+            <p>Ngưỡng TopRated ≥95% · AboveStandard ≥90%</p>
+        </div>
+    </article>
+    <article>
+        <span class="metric-symbol violet">%</span>
+        <div>
+            <small>CASE ĐÓNG KHÔNG DO SELLER XỬ LÝ</small>
+            <strong>@p.CasesClosedWithoutSellerResolutionRate.ToString("0.##")%</strong>
+            <p>Ngưỡng TopRated &lt;0.3% · AboveStandard &lt;1%</p>
+        </div>
+    </article>
+</section>
+
+<section class="verification-progress reveal reveal-delay-2">
+    <div class="surface-heading compact-heading">
+        <div><h2>Hạn mức đăng bán (Selling Limit)</h2><p>Áp dụng theo cấp độ tài khoản hiện tại — chạm đúng ngưỡng vẫn tính là đã hết hạn mức.</p></div>
+    </div>
+    <div class="status-meta-grid">
+        <div>
+            <small>SỐ LISTING ĐANG HOẠT ĐỘNG</small>
+            <strong>@p.CurrentActiveListingCount / @p.MaxActiveListings</strong>
+            <div class="progress" role="progressbar" aria-valuenow="@listingPct" aria-valuemin="0" aria-valuemax="100" style="height:6px;margin-top:6px;">
+                <div class="progress-bar bg-@levelClass" style="width:@(listingPct)%"></div>
+            </div>
+        </div>
+        <div>
+            <small>TỔNG GIÁ TRỊ LISTING ĐANG HOẠT ĐỘNG</small>
+            <strong>@p.CurrentActiveListingValue.ToString("N0") / @p.MaxTotalActiveValue.ToString("N0")</strong>
+            <div class="progress" role="progressbar" aria-valuenow="@valuePct" aria-valuemin="0" aria-valuemax="100" style="height:6px;margin-top:6px;">
+                <div class="progress-bar bg-@levelClass" style="width:@(valuePct)%"></div>
+            </div>
+        </div>
+        <div>
+            <small>GIAO DỊCH / DOANH SỐ 12 THÁNG</small>
+            <strong>@p.TransactionsLast12Months đơn · @p.SalesLast12Months.ToString("N0") ₫</strong>
+        </div>
+    </div>
+</section>
+
+<div class="context-banner banner-info reveal reveal-delay-2">
+    <span class="context-icon">i</span>
+    <div>
+        <strong>Lần đánh giá gần nhất @(p.LastEvaluatedAtUtc.HasValue ? p.LastEvaluatedAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "chưa từng đánh giá")</strong>
+        <p>Kỳ đánh giá tiếp theo: @p.NextEvaluationDateUtc.ToLocalTime().ToString("dd/MM/yyyy")</p>
+    </div>
+</div>

@@ -1,0 +1,359 @@
+@model ApiCallResult<PagedResultDto<OrderSummaryDto>>
+@{
+    ViewData["Title"] = "Quản lý đơn hàng · eBay Seller Center";
+    var currentStatus = ViewBag.CurrentStatus as string;
+    var currentPeriod = ViewBag.CurrentPeriod as string ?? "90";
+    var currentSearchBy = ViewBag.CurrentSearchBy as string ?? "order_number";
+    var currentSearch = ViewBag.CurrentSearch as string ?? "";
+    var currentSortBy = ViewBag.CurrentSortBy as string ?? "date_paid_desc";
+    var currentPageSize = (int)(ViewBag.CurrentPageSize ?? 10);
+    var totalResults = Model?.Data?.Pagination?.TotalItems ?? Model?.Data?.Items?.Count ?? 0;
+    var items = Model?.Data?.Items ?? [];
+    var currentPage = Model?.Data?.Pagination?.Page ?? 1;
+    var totalPages = Model?.Data?.Pagination?.TotalPages ?? (int)Math.Ceiling((double)totalResults / Math.Max(1, currentPageSize));
+    if (totalPages < 1) totalPages = 1;
+
+    string StatusBadgeClass(string status) => status switch
+    {
+        "AWAITING_PAYMENT" => "bg-warning text-dark",
+        "AWAITING_SHIPMENT" => "bg-primary text-white",
+        "SHIPPED" => "bg-info text-dark",
+        "DELIVERED" => "bg-success text-white",
+        "CANCELLED" => "bg-danger text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    string StatusLabel(string status) => status switch
+    {
+        "AWAITING_PAYMENT" => "Chờ thanh toán (Awaiting Payment)",
+        "AWAITING_SHIPMENT" => "Chờ giao hàng (Awaiting Shipment)",
+        "SHIPPED" => "Đã gửi hàng (Paid & Shipped)",
+        "DELIVERED" => "Đã giao thành công (Delivered)",
+        "CANCELLED" => "Đã hủy (Cancelled)",
+        _ => status
+    };
+}
+
+<div class="page-breadcrumb reveal">
+    <a asp-controller="Home" asp-action="Index">Seller Center</a>
+    <span>›</span>
+    <strong>Đơn hàng</strong>
+</div>
+
+<section class="catalog-hero reveal">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <span class="section-kicker">ORDERS &amp; FULFILLMENT</span>
+            <h1>Quản lý đơn hàng.<br/>Vận chuyển chuẩn eBay.</h1>
+            <p>Theo dõi tiến độ đơn hàng, mã vận đơn tự động và doanh thu thực nhận.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary-soft" data-bs-toggle="modal" data-bs-target="#shippingPreferencesModal">
+                <i class="bi bi-truck me-1"></i> Cấu hình vận chuyển
+            </button>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> Ghi nhận đơn thủ công
+            </a>
+        </div>
+    </div>
+</section>
+
+@if (TempData["ErrorMessage"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 mt-3 mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 mt-3 mb-3" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@success
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<section class="catalog-workspace reveal reveal-delay-1 mt-4">
+    <!-- Real-time Filter Toolbar -->
+    <form id="orderFilterForm" method="get" asp-action="Index" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-3 bg-light rounded-3 border">
+        <input type="hidden" name="pageSize" value="@currentPageSize" />
+        <input type="hidden" name="page" value="1" />
+
+        <div class="input-group position-relative" style="max-width: 280px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" id="orderSearchInput" name="search" class="form-control border-start-0 pe-4" placeholder="Gõ để tìm kiếm ngay..." value="@currentSearch" autocomplete="off" oninput="handleRealtimeSearch(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();}" />
+            <button type="button" id="clearSearchBtn" class="btn btn-sm btn-link text-muted position-absolute end-0 top-50 translate-middle-y text-decoration-none pe-2 @(string.IsNullOrWhiteSpace(currentSearch) ? "d-none" : "")" onclick="clearLiveSearch()" style="z-index: 5;">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+        </div>
+
+        <select name="status" class="form-select" style="max-width: 220px;" onchange="this.form.submit()">
+            <option value="" selected="@(string.IsNullOrWhiteSpace(currentStatus))">Tất cả 5 trạng thái đơn</option>
+            <option value="AWAITING_PAYMENT" selected="@(currentStatus == "AWAITING_PAYMENT")">Chờ thanh toán (Awaiting Payment)</option>
+            <option value="AWAITING_SHIPMENT" selected="@(currentStatus == "AWAITING_SHIPMENT")">Chờ giao hàng (Awaiting Shipment)</option>
+            <option value="SHIPPED" selected="@(currentStatus == "SHIPPED")">Đã gửi hàng (Paid & Shipped)</option>
+            <option value="DELIVERED" selected="@(currentStatus == "DELIVERED")">Đã giao thành công (Delivered)</option>
+            <option value="CANCELLED" selected="@(currentStatus == "CANCELLED")">Đã hủy (Cancelled)</option>
+        </select>
+
+        <select name="period" class="form-select" style="max-width: 170px;" onchange="this.form.submit()">
+            <option value="90" selected="@(currentPeriod == "90")">90 ngày qua</option>
+            <option value="30" selected="@(currentPeriod == "30")">30 ngày qua</option>
+            <option value="7" selected="@(currentPeriod == "7")">7 ngày qua</option>
+            <option value="today" selected="@(currentPeriod == "today")">Hôm nay</option>
+        </select>
+
+        <select name="sortBy" class="form-select" style="max-width: 190px;" onchange="this.form.submit()">
+            <option value="date_paid_desc" selected="@(currentSortBy == "date_paid_desc")">Mới nhất (Ngày thanh toán)</option>
+            <option value="date_sold_desc" selected="@(currentSortBy == "date_sold_desc")">Mới nhất (Ngày đặt hàng)</option>
+            <option value="total_desc" selected="@(currentSortBy == "total_desc")">Tổng tiền (Cao đến thấp)</option>
+        </select>
+
+        @if (!string.IsNullOrWhiteSpace(currentStatus) || !string.IsNullOrWhiteSpace(currentSearch))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary">Xóa lọc</a>
+        }
+
+        <button type="button" onclick="window.print()" class="btn btn-outline-dark ms-auto">
+            <i class="bi bi-printer me-1"></i> In danh sách
+        </button>
+    </form>
+
+    <!-- Data Table -->
+    <div class="table-responsive bg-white rounded-3 border">
+        @if (totalResults == 0)
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-box2 text-muted" style="font-size: 3rem;"></i>
+                <h5 class="fw-bold mt-3 text-dark">Không tìm thấy đơn hàng nào</h5>
+                <p class="text-muted small mb-3">Hiện chưa có đơn hàng nào phù hợp với bộ lọc tìm kiếm đã chọn.</p>
+                <a asp-action="Index" class="btn btn-secondary-soft btn-sm">Xóa bộ lọc</a>
+            </div>
+        }
+        else
+        {
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 90px;">Mã đơn (#)</th>
+                        <th>Sản phẩm</th>
+                        <th>Ngày đặt hàng</th>
+                        <th>Tổng tiền hàng</th>
+                        <th>Phí sàn (FVF 10%)</th>
+                        <th>Thực nhận (Payout)</th>
+                        <th>Trạng thái đơn</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="orderTableBody">
+                    @foreach (var order in items)
+                    {
+                        <tr class="order-row">
+                            <td>
+                                <a asp-action="Detail" asp-route-id="@order.Id" class="fw-bold text-primary text-decoration-underline">#@order.Id</a>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark text-truncate" style="max-width: 250px;" title="@order.ProductName">
+                                    @(order.ProductName ?? $"Đơn hàng #{order.Id}")
+                                </div>
+                                <small class="text-muted">Số lượng: @(order.TotalQuantity ?? 1)</small>
+                            </td>
+                            <td>
+                                <div>@order.OrderDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                @if (order.Status != "AWAITING_PAYMENT" && order.Status != "CANCELLED")
+                                {
+                                    <small class="text-muted">Đã TT: @order.OrderDate.ToLocalTime().ToString("dd/MM/yyyy")</small>
+                                }
+                            </td>
+                            <td>
+                                <strong class="text-dark">@order.TotalPrice.ToString("N0") VNĐ</strong>
+                            </td>
+                            <td>
+                                <span class="text-danger fw-semibold">-@order.FinalValueFee.ToString("N0") VNĐ</span>
+                            </td>
+                            <td>
+                                <strong class="text-success">@order.NetPayoutAmount.ToString("N0") VNĐ</strong>
+                                @if (order.Status == "DELIVERED")
+                                {
+                                    <small class="d-block text-warning fw-semibold" style="font-size: 11px;">eMBG Hold</small>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @StatusBadgeClass(order.Status) px-2 py-1">@StatusLabel(order.Status)</span>
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary fw-semibold" asp-action="Detail" asp-route-id="@order.Id">
+                                    Chi tiết &amp; Xử lý
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    <tr id="noMatchRow" class="d-none">
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-search fs-3 d-block mb-2 text-secondary"></i>
+                            <strong>Không tìm thấy đơn hàng nào khớp với từ khóa vừa gõ.</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Footer Pagination -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center p-3 border-top bg-light small text-muted gap-3">
+                <div id="orderCountInfo">
+                    Hiển thị <strong>@items.Count</strong> trên tổng số <strong>@totalResults</strong> đơn hàng (Trang @currentPage / @totalPages)
+                </div>
+
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Order pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-status="@currentStatus" asp-route-period="@currentPeriod" asp-route-searchBy="@currentSearchBy" asp-route-search="@currentSearch" asp-route-sortBy="@currentSortBy" asp-route-pageSize="@currentPageSize" asp-route-page="@(currentPage - 1)">
+                                    «
+                                </a>
+                            </li>
+                            @for (int p = 1; p <= totalPages; p++)
+                            {
+                                var isCurrent = p == currentPage;
+                                <li class="page-item @(isCurrent ? "active" : "")">
+                                    <a class="page-link" asp-action="Index" asp-route-status="@currentStatus" asp-route-period="@currentPeriod" asp-route-searchBy="@currentSearchBy" asp-route-search="@currentSearch" asp-route-sortBy="@currentSortBy" asp-route-pageSize="@currentPageSize" asp-route-page="@p">@p</a>
+                                </li>
+                            }
+                            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-status="@currentStatus" asp-route-period="@currentPeriod" asp-route-searchBy="@currentSearchBy" asp-route-search="@currentSearch" asp-route-sortBy="@currentSortBy" asp-route-pageSize="@currentPageSize" asp-route-page="@(currentPage + 1)">
+                                    »
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+
+                <div class="d-flex align-items-center gap-2">
+                    <span>Số đơn mỗi trang:</span>
+                    <select class="form-select form-select-sm" style="width: 75px;" onchange="location.href = '@Url.Action("Index", "Orders")?status=@(currentStatus ?? "")&period=@(currentPeriod ?? "90")&searchBy=@(currentSearchBy ?? "order_number")&search=@(currentSearch ?? "")&sortBy=@(currentSortBy ?? "date_paid_desc")&page=1&pageSize=' + this.value;">
+                        <option value="10" selected="@(currentPageSize == 10)">10</option>
+                        <option value="25" selected="@(currentPageSize == 25)">25</option>
+                        <option value="50" selected="@(currentPageSize == 50)">50</option>
+                    </select>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- Shipping Preferences Modal -->
+<div class="modal fade" id="shippingPreferencesModal" tabindex="-1" aria-labelledby="shippingPreferencesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-light border-bottom p-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-truck fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="shippingPreferencesModalLabel">Shipping preferences</h5>
+                        <small class="text-muted">Cấu hình chính sách và đơn vị vận chuyển eBay của Người bán</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="p-3 bg-light rounded-3 border">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-box-seam me-2 text-primary"></i>Đơn vị vận chuyển tích hợp chính thức (Official eBay Carriers)</h6>
+                            <ul class="list-unstyled mb-0 small text-secondary">
+                                <li class="py-1"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>USPS (United States Postal Service):</strong> Mã vận đơn 22 chữ số (VD: <code>9400100000000000000000</code>)</li>
+                                <li class="py-1"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>eBay International Shipping (eIS):</strong> Chuẩn quốc tế eBay Hub (VD: <code>ESUS12345678</code>)</li>
+                                <li class="py-1"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>VNPost EMS / Bưu điện VN:</strong> Chuẩn UPU quốc tế (VD: <code>EA123456789VN</code>)</li>
+                                <li class="py-1"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>FedEx Express:</strong> Giao hàng hỏa tốc 12 chữ số</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card border p-3 rounded-3 h-100">
+                            <h6 class="fw-bold text-dark mb-1">Handling time (Thời gian xử lý)</h6>
+                            <p class="text-muted small mb-2">Thời gian đóng gói và giao cho bưu cục sau khi người mua thanh toán.</p>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold py-2">1 ngày làm việc (Same / 1 business day)</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card border p-3 rounded-3 h-100">
+                            <h6 class="fw-bold text-dark mb-1">Combined shipping discounts</h6>
+                            <p class="text-muted small mb-2">Tự động gộp đơn và miễn giảm phí ship khi người mua đặt nhiều sản phẩm cùng lúc.</p>
+                            <span class="badge bg-success bg-opacity-10 text-success fw-bold py-2">Đang kích hoạt (Active)</span>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border p-3 rounded-3">
+                            <h6 class="fw-bold text-dark mb-1">Cơ chế tự động chuyển trạng thái vận chuyển (Auto-Progress Service)</h6>
+                            <p class="text-muted small mb-0">
+                                Worker ngầm tự động chuyển giao vận đơn: <strong>AWAITING_SHIPMENT</strong> (Chờ gửi) &rarr; <strong>SHIPPED</strong> (Đã gửi hàng) &rarr; <strong>DELIVERED</strong> (Giao thành công). Khi giao thành công, tiền Payout sàn eBay sẽ chuyển sang trạng thái <strong>On Hold (eMBG Hold)</strong> để bảo vệ người mua theo chính sách eBay Money Back Guarantee.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top p-3 px-4">
+                <button type="button" class="btn btn-primary btn-sm px-4 rounded-pill fw-bold" data-bs-dismiss="modal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleRealtimeSearch(query) {
+        const q = (query || '').toLowerCase().trim();
+        const clearBtn = document.getElementById('clearSearchBtn');
+        if (clearBtn) {
+            if (q.length > 0) {
+                clearBtn.classList.remove('d-none');
+            } else {
+                clearBtn.classList.add('d-none');
+            }
+        }
+
+        const rows = document.querySelectorAll('#orderTableBody .order-row');
+        let matchedCount = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (!q || text.includes(q)) {
+                row.style.display = '';
+                matchedCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const noMatchRow = document.getElementById('noMatchRow');
+        if (noMatchRow) {
+            if (matchedCount === 0 && q.length > 0) {
+                noMatchRow.classList.remove('d-none');
+            } else {
+                noMatchRow.classList.add('d-none');
+            }
+        }
+
+        const countInfo = document.getElementById('orderCountInfo');
+        if (countInfo && q.length > 0) {
+            countInfo.innerHTML = 'Tìm thấy <strong>' + matchedCount + '</strong> đơn hàng khớp với "<em>' + query + '</em>"';
+        }
+    }
+
+    function clearLiveSearch() {
+        const input = document.getElementById('orderSearchInput');
+        if (input) {
+            input.value = '';
+            handleRealtimeSearch('');
+            input.focus();
+        }
+    }
+</script>
+
+
+
+

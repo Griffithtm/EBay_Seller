@@ -1,10 +1,15 @@
 using CloneEbay.Application.Abstractions.Persistence;
 using CloneEbay.Application.Abstractions.Security;
 using CloneEbay.Application.Abstractions.Time;
+using CloneEbay.Application.Dashboard;
 using CloneEbay.Application.Products;
+using CloneEbay.Application.Reports;
+using CloneEbay.Application.Payments;
+using CloneEbay.Infrastructure.Caching;
 using CloneEbay.Infrastructure.Persistence;
 using CloneEbay.Infrastructure.Persistence.Repositories;
 using CloneEbay.Infrastructure.RateLimiting;
+using CloneEbay.Infrastructure.Reports;
 using CloneEbay.Infrastructure.Security;
 using CloneEbay.Infrastructure.Time;
 using Microsoft.Data.SqlClient;
@@ -31,9 +36,31 @@ public static class DependencyInjection
         services.AddScoped<IStoreRepository, StoreRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<ICouponRepository, CouponRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
+        services.AddScoped<IReturnRepository, ReturnRepository>();
+        services.AddScoped<IDisputeRepository, DisputeRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<ISellerPerformanceRepository, SellerPerformanceRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IPaymentsReportRepository, PaymentsReportRepository>();
+        services.AddScoped<IReportDownloadGenerator, ReportDownloadGenerator>();
+        services.AddScoped<ICouponRepository, CouponRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<CloneEbayDbContext>());
+        services.AddHttpClient<IPayPalPaymentService, PayPalPaymentService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<IVNPayPaymentService, VNPayPaymentService>();
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<IClock, SystemClock>();
+        services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(5);
+        });
         if (bool.TryParse(configuration["Redis:Enabled"], out var redisEnabled) && redisEnabled)
         {
             services.AddSingleton<IConnectionMultiplexer>(_ =>
@@ -46,10 +73,12 @@ public static class DependencyInjection
                 return ConnectionMultiplexer.Connect(options);
             });
             services.AddSingleton<IProductCreateRateLimiter, RedisProductCreateRateLimiter>();
+            services.AddSingleton<IDashboardCacheService, RedisDashboardCacheService>();
         }
         else
         {
             services.AddSingleton<IProductCreateRateLimiter, InMemoryProductCreateRateLimiter>();
+            services.AddSingleton<IDashboardCacheService, InMemoryDashboardCacheService>();
         }
         return services;
     }

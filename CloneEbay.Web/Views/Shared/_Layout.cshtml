@@ -1,3 +1,5 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
     var currentPath = Context.Request.Path.Value ?? "/";
     var signedIn = User.Identity?.IsAuthenticated == true;
@@ -8,7 +10,18 @@
         : User.IsInRole("Seller") && User.HasClaim("verified", "true")
             ? "Người bán đã xác minh"
             : "Tài khoản người mua";
-    string Active(string prefix) => currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty;
+
+    bool IsActiveHome() => currentPath == "/" || currentPath.Equals("/home", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/home/", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveSellerVerify() => currentPath.Equals("/seller", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/seller/apply", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/seller/index", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/seller/verification-status", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveDashboard() => currentPath.StartsWith("/dashboard", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveProducts() => currentPath.StartsWith("/products", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/warehouse", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveCoupons() => currentPath.StartsWith("/coupons", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveOrders() => currentPath.StartsWith("/orders", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveStore() => currentPath.StartsWith("/store", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveReviews() => currentPath.StartsWith("/seller/reviews", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/reviews", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveReturns() => currentPath.StartsWith("/seller/returns", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/returns", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveDisputes() => currentPath.StartsWith("/seller/disputes", StringComparison.OrdinalIgnoreCase) || currentPath.StartsWith("/disputes", StringComparison.OrdinalIgnoreCase);
+    bool IsActiveAdmin() => currentPath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -21,6 +34,8 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CloneEbay.Web.styles.css" asp-append-version="true" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body class="@(signedIn ? "has-session" : "is-guest")">
     <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -29,8 +44,13 @@
         <nav class="navbar navbar-expand-lg" aria-label="Điều hướng chính">
             <div class="container shell-container">
                 <a class="brand" asp-controller="Home" asp-action="Index" aria-label="CloneEbay Seller Center - Trang chủ">
-                    <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-                    <span class="brand-copy"><strong>CloneEbay</strong><small>Seller Center</small></span>
+                    <span class="brand-symbol" aria-hidden="true">
+                        <i></i><i></i><i></i><i></i>
+                    </span>
+                    <span class="brand-copy">
+                        <strong>CloneEbay</strong>
+                        <small>SELLER CENTER</small>
+                    </span>
                 </a>
 
                 <button class="nav-toggle navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-expanded="false" aria-label="Mở menu">
@@ -39,18 +59,28 @@
 
                 <div class="collapse navbar-collapse" id="mainNavigation">
                     <ul class="navbar-nav primary-nav mx-lg-auto">
-                        <li class="nav-item"><a class="nav-link @(currentPath == "/" ? "is-active" : string.Empty)" asp-controller="Home" asp-action="Index">Tổng quan</a></li>
+                        <li class="nav-item"><a class="nav-link @(IsActiveHome() ? "is-active" : string.Empty)" asp-controller="Home" asp-action="Index">Tổng quan</a></li>
                         @if (signedIn)
                         {
-                            <li class="nav-item"><a class="nav-link @Active("/seller")" asp-controller="Seller" asp-action="Index">Xác minh Seller</a></li>
+                            <li class="nav-item"><a class="nav-link @(IsActiveSellerVerify() ? "is-active" : string.Empty)" asp-controller="Seller" asp-action="Index">Xác minh Seller</a></li>
                             @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                             {
-                                <li class="nav-item"><a class="nav-link @Active("/products")" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
-                                <li class="nav-item"><a class="nav-link @Active("/store/edit")" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
-                            }
+                                <li class="nav-item"><a class="nav-link @(IsActiveDashboard() ? "is-active" : string.Empty)" asp-controller="Dashboard" asp-action="Index">Báo cáo</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveProducts() ? "is-active" : string.Empty)" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
+                                <li class="nav-item"><a class="nav-link @(currentPath.StartsWith("/seller/performance", StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty)" asp-controller="Seller" asp-action="Performance">Cấp độ tài khoản</a></li>
+                                <li class="nav-item"><a class="nav-link @(currentPath.StartsWith("/reports", StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty)" asp-controller="Reports" asp-action="Index">Xuất báo cáo</a></li>
+                                <li class="nav-item"><a class="nav-link @(currentPath.StartsWith("/payments", StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty)" asp-controller="Payments" asp-action="Index">Báo cáo tài chính</a></li>
+                                <li class="nav-item"><a class="nav-link @(currentPath.StartsWith("/performance", StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty)" asp-controller="Performance" asp-action="Index">Báo cáo hiệu suất</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveCoupons() ? "is-active" : string.Empty)" asp-controller="Coupons" asp-action="Index">Mã giảm giá</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveOrders() ? "is-active" : string.Empty)" asp-controller="Orders" asp-action="Index">Đơn hàng</a></li>
+
+                                <li class="nav-item"><a class="nav-link @(IsActiveStore() ? "is-active" : string.Empty)" asp-controller="Store" asp-action="Edit">Hồ sơ cửa hàng</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveReviews() ? "is-active" : string.Empty)" asp-controller="Reviews" asp-action="Index">Đánh giá</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveReturns() ? "is-active" : string.Empty)" asp-controller="Returns" asp-action="Index">Đổi trả</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveDisputes() ? "is-active" : string.Empty)" asp-controller="Disputes" asp-action="Index">Tranh chấp</a></li>                            }
                             @if (User.IsInRole("Admin"))
                             {
-                                <li class="nav-item"><a class="nav-link @Active("/admin")" asp-controller="AdminSeller" asp-action="Index">Duyệt hồ sơ</a></li>
+                                <li class="nav-item"><a class="nav-link @(IsActiveAdmin() ? "is-active" : string.Empty)" asp-controller="AdminSeller" asp-action="Index">Duyệt hồ sơ</a></li>
                             }
                         }
                         else
@@ -63,6 +93,13 @@
                     <div class="nav-actions">
                         @if (signedIn)
                         {
+                            <a class="nav-link d-flex align-items-center me-3 position-relative" asp-controller="Messages" asp-action="Index" title="Tin nhắn" style="color: var(--color-ink-primary);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+                                  <path d="M2.165 15.803l.02-.004c1.83-.363 2.948-.842 3.468-1.105A9 9 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.4 10.4 0 0 1-.524 2.318l-.003.011a11 11 0 0 1-.244.637c-.079.186.074.394.273.362a22 22 0 0 0 .693-.125zM8 14c-1.393 0-2.705-.333-3.83-1.036-.312-.194-.658-.383-1.026-.547a12 12 0 0 1-2.42-1.312c1.233-.509 2.05-1.144 2.502-1.898.113-.189.043-.432-.14-.523C1.942 8.016 1.25 6.84 1.25 5.5c0-3.309 3.022-6 6.75-6s6.75 2.691 6.75 6-3.022 6-6.75 6z"/>
+                                </svg>
+                                <span id="unread-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size: 0.6rem;">0</span>
+                            </a>
                             <div class="dropdown account-menu">
                                 <button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <span class="avatar">@initial</span>
@@ -75,8 +112,15 @@
                                     <a class="dropdown-item" asp-controller="Seller" asp-action="Index"><span class="menu-dot blue"></span>Trạng thái Seller</a>
                                     @if (User.IsInRole("Seller") && User.HasClaim("verified", "true"))
                                     {
+                                        <a class="dropdown-item" asp-controller="Dashboard" asp-action="Index"><span class="menu-dot emerald"></span>Báo cáo doanh số</a>
                                         <a class="dropdown-item" asp-controller="Products" asp-action="Index"><span class="menu-dot violet"></span>Quản lý sản phẩm</a>
+                                        <a class="dropdown-item" asp-controller="Seller" asp-action="Performance"><span class="menu-dot orange"></span>Cấp độ tài khoản</a>
+                                        <a class="dropdown-item" asp-controller="Coupons" asp-action="Index"><span class="menu-dot green"></span>Mã giảm giá</a>
+
                                         <a class="dropdown-item" asp-controller="Store" asp-action="Edit"><span class="menu-dot orange"></span>Quản lý cửa hàng</a>
+                                        <a class="dropdown-item" asp-controller="Reviews" asp-action="Index"><span class="menu-dot green"></span>Đánh giá & Phản hồi</a>
+                                        <a class="dropdown-item" asp-controller="Returns" asp-action="Index"><span class="menu-dot blue"></span>Yêu cầu đổi trả</a>
+                                        <a class="dropdown-item" asp-controller="Disputes" asp-action="Index"><span class="menu-dot red"></span>Tranh chấp đơn hàng</a>
                                     }
                                     <div class="dropdown-divider"></div>
                                     <form asp-controller="Auth" asp-action="Logout" method="post" data-loading-form>
@@ -97,13 +141,17 @@
     </header>
 
     <div class="toast-region" aria-live="polite" aria-atomic="true">
-        @if (TempData["Success"] is string success)
-        {
-            <div class="app-toast toast-success" data-auto-dismiss><span class="toast-icon">✓</span><div><strong>Thành công</strong><p>@success</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        @{
+            var succ = (TempData["SuccessMessage"] ?? TempData["Success"]) as string;
+            var err = (TempData["ErrorMessage"] ?? TempData["Error"]) as string;
         }
-        @if (TempData["Error"] is string error)
+        @if (!string.IsNullOrEmpty(succ))
         {
-            <div class="app-toast toast-error" data-auto-dismiss><span class="toast-icon">!</span><div><strong>Chưa thể hoàn tất</strong><p>@error</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+            <div class="app-toast toast-success" data-auto-dismiss><span class="toast-icon">✓</span><div><strong>Thành công</strong><p>@succ</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
+        }
+        @if (!string.IsNullOrEmpty(err))
+        {
+            <div class="app-toast toast-error" data-auto-dismiss><span class="toast-icon">!</span><div><strong>Chưa thể hoàn tất</strong><p>@err</p></div><button type="button" data-dismiss-toast aria-label="Đóng">×</button></div>
         }
     </div>
 
@@ -126,6 +174,60 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <partial name="_BuyerDetailModal" />
     @await RenderSectionAsync("Scripts", required: false)
+    @if (signedIn)
+    {
+        var apiUrl = Configuration["Api:PublicBaseUrl"];
+        var accessToken = HttpContextAccessor.HttpContext?.Request.Cookies["cloneebay.api.access"];
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', async function () {
+                try {
+                    const res = await fetch('/Messages/UnreadCount');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const badge = document.getElementById('unread-badge');
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.classList.remove('d-none');
+                        }
+                    }
+                } catch(e) {}
+                
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`@apiUrl/hubs/messages?access_token=@accessToken`)
+                    .withAutomaticReconnect()
+                    .build();
+                
+                window.__apiUrl = '@apiUrl';
+                window.__chatConnection = connection;
+                
+                connection.on("messageReceived", function (message) {
+                    // If we are not currently viewing this conversation, increase badge count
+                    // (The conversation page itself will mark as read when opened)
+                    const isViewingConversation = window.location.pathname.toLowerCase().includes(`/messages/conversation/${message.senderId}`) || 
+                                                  window.location.pathname.toLowerCase().includes(`/messages/conversation/${message.SenderId}`);
+                    
+                    if (!isViewingConversation) {
+                        const badge = document.getElementById('unread-badge');
+                        let currentCount = parseInt(badge.textContent) || 0;
+                        badge.textContent = currentCount + 1;
+                        badge.classList.remove('d-none');
+                    }
+                });
+                
+                try {
+                    await connection.start();
+                } catch (e) {}
+            });
+        </script>
+        
+        var isChatPage = currentPath.StartsWith("/Messages/Conversation", StringComparison.OrdinalIgnoreCase);
+        if (!isChatPage)
+        {
+            <partial name="_ChatWidget" />
+        }
+    }
 </body>
 </html>
